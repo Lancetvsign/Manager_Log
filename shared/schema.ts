@@ -32,6 +32,14 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export const insertManagerLogSchema = createInsertSchema(managerLogs).omit({
   id: true,
+}).extend({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  foodSales: z.string().regex(/^\d+\.?\d{0,2}$/, "Must be a valid decimal number"),
+  barSales: z.string().regex(/^\d+\.?\d{0,2}$/, "Must be a valid decimal number"),
+  gamingSales: z.string().regex(/^\d+\.?\d{0,2}$/, "Must be a valid decimal number"),
+  lastYearFoodSales: z.string().regex(/^\d+\.?\d{0,2}$/, "Must be a valid decimal number").optional(),
+  lastYearBarSales: z.string().regex(/^\d+\.?\d{0,2}$/, "Must be a valid decimal number").optional(),
+  lastYearGamingSales: z.string().regex(/^\d+\.?\d{0,2}$/, "Must be a valid decimal number").optional(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
