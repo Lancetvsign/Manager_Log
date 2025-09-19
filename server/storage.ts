@@ -1,5 +1,6 @@
-import { type User, type InsertUser, type ManagerLog, type InsertManagerLog } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { type User, type InsertUser, type ManagerLog, type InsertManagerLog, users, managerLogs } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, gte, lte, and } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -18,79 +19,78 @@ export interface IStorage {
   deleteManagerLog(id: string): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private managerLogs: Map<string, ManagerLog>;
-
-  constructor() {
-    this.users = new Map();
-    this.managerLogs = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   // Manager log methods
   async createManagerLog(insertLog: InsertManagerLog): Promise<ManagerLog> {
-    const id = randomUUID();
-    const log: ManagerLog = { 
-      ...insertLog,
-      id,
-      lastYearFoodSales: insertLog.lastYearFoodSales ?? null,
-      lastYearBarSales: insertLog.lastYearBarSales ?? null,
-      lastYearGamingSales: insertLog.lastYearGamingSales ?? null,
-      currentWeather: insertLog.currentWeather ?? null,
-      historicalWeather: insertLog.historicalWeather ?? null
-    };
-    this.managerLogs.set(id, log);
+    const [log] = await db
+      .insert(managerLogs)
+      .values({
+        ...insertLog,
+        lastYearFoodSales: insertLog.lastYearFoodSales ?? null,
+        lastYearBarSales: insertLog.lastYearBarSales ?? null,
+        lastYearGamingSales: insertLog.lastYearGamingSales ?? null,
+        currentWeather: insertLog.currentWeather ?? null,
+        historicalWeather: insertLog.historicalWeather ?? null
+      })
+      .returning();
     return log;
   }
 
   async getManagerLog(id: string): Promise<ManagerLog | undefined> {
-    return this.managerLogs.get(id);
+    const [log] = await db.select().from(managerLogs).where(eq(managerLogs.id, id));
+    return log || undefined;
   }
 
   async getAllManagerLogs(): Promise<ManagerLog[]> {
-    return Array.from(this.managerLogs.values()).sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+    return await db.select().from(managerLogs).orderBy(desc(managerLogs.date));
   }
 
   async getManagerLogsByDateRange(startDate: string, endDate: string): Promise<ManagerLog[]> {
-    return Array.from(this.managerLogs.values()).filter(log => {
-      const logDate = new Date(log.date);
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      return logDate >= start && logDate <= end;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return await db
+      .select()
+      .from(managerLogs)
+      .where(
+        and(
+          gte(managerLogs.date, startDate),
+          lte(managerLogs.date, endDate)
+        )
+      )
+      .orderBy(desc(managerLogs.date));
   }
 
   async updateManagerLog(id: string, updates: Partial<InsertManagerLog>): Promise<ManagerLog | undefined> {
-    const existingLog = this.managerLogs.get(id);
-    if (!existingLog) return undefined;
-    
-    const updatedLog: ManagerLog = { ...existingLog, ...updates };
-    this.managerLogs.set(id, updatedLog);
-    return updatedLog;
+    const [updatedLog] = await db
+      .update(managerLogs)
+      .set(updates)
+      .where(eq(managerLogs.id, id))
+      .returning();
+    return updatedLog || undefined;
   }
 
   async deleteManagerLog(id: string): Promise<boolean> {
-    return this.managerLogs.delete(id);
+    const result = await db
+      .delete(managerLogs)
+      .where(eq(managerLogs.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
