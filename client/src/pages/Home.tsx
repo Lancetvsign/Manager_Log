@@ -4,6 +4,7 @@ import ManagerLogForm from "@/components/ManagerLogForm";
 import ManagerLogList from "@/components/ManagerLogList";
 import ThemeToggle from "@/components/ThemeToggle";
 import { FileText, History, Plus } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface LogEntry {
   id: string;
@@ -22,17 +23,27 @@ interface LogEntry {
 }
 
 export default function Home() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [activeTab, setActiveTab] = useState("new-entry");
+  const queryClient = useQueryClient();
+
+  // Fetch logs count for tab display
+  const { data: logs } = useQuery<LogEntry[]>({
+    queryKey: ['/api/manager-logs'],
+    queryFn: async () => {
+      const response = await fetch('/api/manager-logs');
+      if (!response.ok) {
+        throw new Error('Failed to fetch logs');
+      }
+      return response.json();
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const handleSubmitLog = (logData: any) => {
-    const newLog: LogEntry = {
-      id: Date.now().toString(),
-      ...logData
-    };
+    console.log('New log entry saved:', logData);
     
-    setLogs(prev => [newLog, ...prev]);
-    console.log('New log entry saved:', newLog);
+    // Invalidate and refetch logs
+    queryClient.invalidateQueries({ queryKey: ['/api/manager-logs'] });
     
     // Switch to history tab to show the saved entry
     setActiveTab("history");
@@ -70,7 +81,7 @@ export default function Home() {
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center space-x-2">
               <History className="h-4 w-4" />
-              <span>Log History ({logs.length})</span>
+              <span>Log History ({logs?.length || 0})</span>
             </TabsTrigger>
           </TabsList>
 
@@ -79,7 +90,7 @@ export default function Home() {
           </TabsContent>
 
           <TabsContent value="history" className="space-y-6">
-            <ManagerLogList logs={logs} />
+            <ManagerLogList logs={[]} />
           </TabsContent>
         </Tabs>
       </main>

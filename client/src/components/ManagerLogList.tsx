@@ -3,8 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { Search, Eye, Calendar, DollarSign } from "lucide-react";
+import { Search, Eye, Calendar, DollarSign, Loader2 } from "lucide-react";
 import WeatherCard from "./WeatherCard";
+import { useQuery } from "@tanstack/react-query";
 
 interface LogEntry {
   id: string;
@@ -26,67 +27,26 @@ interface ManagerLogListProps {
   logs: LogEntry[];
 }
 
-// Mock data for display - todo: remove mock functionality
-const mockLogs: LogEntry[] = [
-  {
-    id: "1",
-    date: "2024-09-18",
-    dayOfWeek: "Wednesday",
-    managerName: "Sarah Johnson",
-    foodSales: "3200.50",
-    barSales: "1850.00",
-    gamingSales: "420.00",
-    lastYearFoodSales: "2950.00",
-    lastYearBarSales: "1650.00",
-    lastYearGamingSales: "380.00",
-    currentWeather: {
-      temperature: 74,
-      condition: "Sunny",
-      humidity: 42,
-      windSpeed: 6,
-      description: "Perfect sunny day"
-    },
-    historicalWeather: {
-      temperature: 69,
-      condition: "Rainy",
-      humidity: 78,
-      windSpeed: 15,
-      description: "Heavy rain with strong winds"
-    },
-    dailyNotes: "Busy lunch rush, new server performed well. Kitchen equipment running smoothly. Great customer feedback on the seasonal menu items."
-  },
-  {
-    id: "2",
-    date: "2024-09-17",
-    dayOfWeek: "Tuesday",
-    managerName: "Mike Chen",
-    foodSales: "2850.00",
-    barSales: "1200.00",
-    gamingSales: "290.00",
-    lastYearFoodSales: "2750.00",
-    lastYearBarSales: "1100.00",
-    lastYearGamingSales: "320.00",
-    currentWeather: {
-      temperature: 71,
-      condition: "Cloudy",
-      humidity: 55,
-      windSpeed: 8,
-      description: "Overcast skies"
-    },
-    historicalWeather: {
-      temperature: 73,
-      condition: "Sunny",
-      humidity: 38,
-      windSpeed: 5,
-      description: "Clear and bright"
-    },
-    dailyNotes: "Slower Tuesday evening. Staff training session went well. Received delivery of fresh seafood for weekend specials."
-  }
-];
 
-export default function ManagerLogList({ logs = mockLogs }: ManagerLogListProps) {
+export default function ManagerLogList({ logs: propLogs }: ManagerLogListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
+  
+  // Fetch logs from API
+  const { data: apiLogs, isLoading, error } = useQuery<LogEntry[]>({
+    queryKey: ['/api/manager-logs'],
+    queryFn: async () => {
+      const response = await fetch('/api/manager-logs');
+      if (!response.ok) {
+        throw new Error('Failed to fetch logs');
+      }
+      return response.json();
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+  
+  // Use API logs if available, fallback to prop logs
+  const logs = apiLogs && apiLogs.length > 0 ? apiLogs : (propLogs || []);
 
   const filteredLogs = logs.filter(log =>
     log.managerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -212,10 +172,25 @@ export default function ManagerLogList({ logs = mockLogs }: ManagerLogListProps)
       </div>
 
       <div className="space-y-4">
-        {filteredLogs.length === 0 ? (
+        {isLoading ? (
           <Card>
             <CardContent className="text-center py-8">
-              <p className="text-muted-foreground">No log entries found.</p>
+              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+              <p className="text-muted-foreground">Loading log entries...</p>
+            </CardContent>
+          </Card>
+        ) : error ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <p className="text-muted-foreground">Failed to load log entries. Please try again.</p>
+            </CardContent>
+          </Card>
+        ) : filteredLogs.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <p className="text-muted-foreground">
+                {searchTerm ? 'No log entries match your search.' : 'No log entries found. Create your first entry!'}
+              </p>
             </CardContent>
           </Card>
         ) : (
