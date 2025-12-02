@@ -133,7 +133,7 @@ export default function MaintenanceOverview({ onViewLog }: MaintenanceOverviewPr
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <Wrench className="h-6 w-6" />
-          Maintenance Overview
+          To-Do List
         </h2>
         {items && (
           <div className="flex gap-2">
@@ -228,7 +228,7 @@ export default function MaintenanceOverview({ onViewLog }: MaintenanceOverviewPr
 
       {/* Results Count */}
       <div className="text-sm text-muted-foreground">
-        Showing {items?.length || 0} maintenance items
+        Showing {items?.length || 0} to-do items
         {statusFilter !== "all" && ` (${statusFilter})`}
         {dateFilter === "7days" && " from the last 7 days"}
         {dateFilter === "30days" && " from the last 30 days"}
@@ -240,20 +240,20 @@ export default function MaintenanceOverview({ onViewLog }: MaintenanceOverviewPr
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              <span className="text-muted-foreground">Loading maintenance items...</span>
+              <span className="text-muted-foreground">Loading to-do items...</span>
             </div>
           ) : error ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">Failed to load maintenance items. Please try again.</p>
+              <p className="text-muted-foreground">Failed to load to-do items. Please try again.</p>
             </div>
           ) : !items || items.length === 0 ? (
             <div className="text-center py-12">
               <Wrench className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
               <p className="text-muted-foreground">
-                No maintenance items found for this range/status.
+                No to-do items found for this range/status.
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                Try adjusting your filters or add maintenance items from the daily log.
+                Try adjusting your filters or add to-do items from the daily log.
               </p>
             </div>
           ) : (

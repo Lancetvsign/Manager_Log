@@ -521,12 +521,12 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         </CardContent>
       </Card>
 
-      {/* Maintenance Items */}
+      {/* To-Do Items */}
       <Card data-testid="card-maintenance">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Wrench className="h-5 w-5" />
-            Maintenance Items (Today)
+            To-Do Items (Today)
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -536,7 +536,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
               {isLoadingMaintenance ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  <span className="text-sm text-muted-foreground">Loading maintenance items...</span>
+                  <span className="text-sm text-muted-foreground">Loading to-do items...</span>
                 </div>
               ) : maintenanceItems && maintenanceItems.length > 0 ? (
                 <div className="border rounded-lg divide-y">
@@ -590,7 +590,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
                 </div>
               ) : (
                 <div className="text-center py-4 text-sm text-muted-foreground border rounded-lg bg-muted/20">
-                  No maintenance items for this date. Add one below.
+                  No to-do items for this date. Add one below.
                 </div>
               )}
             </div>

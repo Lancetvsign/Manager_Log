@@ -300,19 +300,19 @@ export default function ManagerLogList({
           </CardContent>
         </Card>
 
-        {/* Maintenance Items */}
+        {/* To-Do Items */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wrench className="h-5 w-5" />
-              Maintenance Items
+              To-Do Items
             </CardTitle>
           </CardHeader>
           <CardContent>
             {isLoadingMaintenance ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                <span className="text-sm text-muted-foreground">Loading maintenance items...</span>
+                <span className="text-sm text-muted-foreground">Loading to-do items...</span>
               </div>
             ) : maintenanceItems && maintenanceItems.length > 0 ? (
               <div className="border rounded-lg divide-y">
@@ -349,7 +349,7 @@ export default function ManagerLogList({
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No maintenance items recorded for this date.
+                No to-do items recorded for this date.
               </p>
             )}
           </CardContent>

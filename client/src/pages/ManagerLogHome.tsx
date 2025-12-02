@@ -135,7 +135,7 @@ export default function Home() {
             setSelectedLogId(null);
           }
         }} className="space-y-6">
-          {/* Tab Navigation - 3 tabs: New Entry, History, Maintenance */}
+          {/* Tab Navigation - 3 tabs: New Entry, History, To-Do List */}
           <TabsList className="grid w-full grid-cols-3" data-testid="tabs-navigation">
             <TabsTrigger value="new-entry" className="flex items-center space-x-2" data-testid="tab-new-entry">
               <Plus className="h-4 w-4" />
@@ -147,7 +147,7 @@ export default function Home() {
             </TabsTrigger>
             <TabsTrigger value="maintenance" className="flex items-center space-x-2" data-testid="tab-maintenance">
               <Wrench className="h-4 w-4" />
-              <span>Maintenance</span>
+              <span>To-Do List</span>
             </TabsTrigger>
           </TabsList>
 
@@ -165,7 +165,7 @@ export default function Home() {
             />
           </TabsContent>
 
-          {/* Maintenance Tab - Overview of all maintenance items */}
+          {/* To-Do List Tab - Overview of all to-do items */}
           <TabsContent value="maintenance" className="space-y-6">
             <MaintenanceOverview onViewLog={handleViewLogFromMaintenance} />
           </TabsContent>
