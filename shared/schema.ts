@@ -211,12 +211,39 @@ export interface MetricsSummary {
 
 /**
  * Daily sales data point for the sales trend chart
+ * Includes category breakdown for detailed analysis
  */
 export interface DailySalesData {
   date: string;
   totalSales: number;
   dayOfWeek: string;
+  foodSales: number;
+  barSales: number;
+  gamingSales: number;
 }
+
+/**
+ * Sales breakdown by category for pie/donut charts
+ */
+export interface SalesByCategory {
+  food: number;
+  bar: number;
+  gaming: number;
+  total: number;
+}
+
+/**
+ * Granularity options for sales trend aggregation
+ * - daily: Show each day individually
+ * - weekly: Aggregate by week (Sunday start)
+ * - monthly: Aggregate by month
+ */
+export type GranularityType = "daily" | "weekly" | "monthly";
+
+/**
+ * Chart type options for sales trend visualization
+ */
+export type ChartType = "line" | "bar" | "area";
 
 /**
  * To-Do item status counts
@@ -240,10 +267,16 @@ export interface TopDayData {
 /**
  * Complete metrics response from the API
  * Used by the Insights page to display all analytics
+ * 
+ * HOW TO ADD NEW METRICS:
+ * 1. Add the new field type here
+ * 2. Compute the metric in server/routes.ts metrics endpoint
+ * 3. Display in client/src/components/InsightsPage.tsx
  */
 export interface MetricsResponse {
   summary: MetricsSummary;
   dailySales: DailySalesData[];
   toDoStatus: ToDoStatus;
   topDays: TopDayData[];
+  salesByCategory: SalesByCategory;
 }

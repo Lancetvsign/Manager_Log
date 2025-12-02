@@ -23,7 +23,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertManagerLogSchema, insertMaintenanceItemSchema } from "@shared/schema";
-import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData } from "@shared/schema";
+import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
 import { z } from "zod";
 
 // Default clubId for backwards compatibility when not provided
@@ -591,13 +591,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // Build daily sales array for chart (sorted by date ascending)
+      // Includes category breakdown for detailed analysis
       const dailySales: DailySalesData[] = logs
         .map(log => ({
           date: log.logDate,
           totalSales: parseFloat(log.totalSales || "0") || 0,
-          dayOfWeek: log.dayOfWeek
+          dayOfWeek: log.dayOfWeek,
+          foodSales: parseFloat(log.foodSales || "0") || 0,
+          barSales: parseFloat(log.barSales || "0") || 0,
+          gamingSales: parseFloat(log.gamingSales || "0") || 0
         }))
         .sort((a, b) => a.date.localeCompare(b.date));
+
+      // Calculate sales by category for pie/donut charts
+      const salesByCategory: SalesByCategory = logs.reduce(
+        (acc, log) => ({
+          food: acc.food + (parseFloat(log.foodSales || "0") || 0),
+          bar: acc.bar + (parseFloat(log.barSales || "0") || 0),
+          gaming: acc.gaming + (parseFloat(log.gamingSales || "0") || 0),
+          total: acc.total + (parseFloat(log.totalSales || "0") || 0)
+        }),
+        { food: 0, bar: 0, gaming: 0, total: 0 }
+      );
+      // Round to 2 decimal places
+      salesByCategory.food = Math.round(salesByCategory.food * 100) / 100;
+      salesByCategory.bar = Math.round(salesByCategory.bar * 100) / 100;
+      salesByCategory.gaming = Math.round(salesByCategory.gaming * 100) / 100;
+      salesByCategory.total = Math.round(salesByCategory.total * 100) / 100;
 
       // To-do status breakdown
       const toDoStatus: ToDoStatus = {
@@ -624,7 +644,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         summary,
         dailySales,
         toDoStatus,
-        topDays
+        topDays,
+        salesByCategory
       };
 
       res.json(response);

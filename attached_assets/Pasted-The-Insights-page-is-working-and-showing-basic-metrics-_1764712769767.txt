@@ -1,0 +1,111 @@
+The Insights page is working and showing basic metrics for a given date range.
+
+Now I want to make the Insights page much more customizable and interactive, with multiple chart types (including pie charts) and better controls.
+
+====================================
+1) Chart type switching for Sales Trend
+====================================
+
+On the Sales Trend section of the Insights page:
+
+- Add a **chart type selector** (e.g., a dropdown or segmented buttons) with at least:
+  - Line
+  - Bar
+  - Area
+
+- Default to “Line” but allow switching chart types without reloading the page or re-calling the API (reuse the same data in the frontend).
+
+- Make sure the chart component:
+  - Uses the existing metrics data (`dailySales` from the metrics API).
+  - Respects the current date range filter.
+  - Uses the Social Club Pro theme colors (primary teal, etc.) for the main series.
+
+- Add useful chart UX:
+  - Hover tooltips that show date + total sales.
+  - A simple legend (even if it’s just “Total Sales”).
+  - Handle the case where there’s only one or two data points gracefully.
+
+====================================
+2) Pie / donut charts for Maintenance and Sales Breakdown
+====================================
+
+A) Maintenance status pie/donut chart
+
+- In the Maintenance section, add a **pie or donut chart** showing:
+  - Open vs Completed maintenance items in the current date range.
+- Use the `maintenanceStatus` data from the metrics API for counts.
+- Use theme colors:
+  - For example, teal for Completed, a contrasting color for Open.
+- Show the labels and percentage values, and also show the raw counts in text below the chart.
+
+B) Sales breakdown (if data exists)
+
+If there is already a way to differentiate sales categories (e.g., food / bar / other) in `ManagerLog`:
+
+- Add an optional **Sales Breakdown** pie/donut chart to show the percentage of total sales by category over the selected date range.
+- If categories are not yet exposed, please:
+  - Check the existing `ManagerLog` schema for fields like `food_sales`, `bar_sales`, etc.
+  - If they exist, aggregate them in the metrics API and return something like `salesByCategory`.
+  - On the frontend, render a pie/donut chart using `salesByCategory`.
+
+If categories do NOT exist, skip this part but create a clear comment in the metrics API and Insights page showing where `salesByCategory` would be plugged in later.
+
+====================================
+3) More powerful filtering / granularity controls
+====================================
+
+- Add a **granularity selector** for the Sales Trend chart:
+  - Options: Daily, Weekly, Monthly (when feasible for the selected date range).
+- When the user switches granularity:
+  - Reuse the existing metrics data if possible, or
+  - Call the metrics API with an additional `granularity` parameter if needed.
+- Adjust the chart’s X-axis labels accordingly (e.g., week start date or month name).
+
+- Ensure the date range selector and granularity selector work together cleanly:
+  - Changing the date range should keep the chosen granularity (if valid).
+  - Changing granularity should not reset the date range.
+
+====================================
+4) Quality-of-life features
+====================================
+
+- Add a small **“Reset filters”** button that:
+  - Resets date range to Last 30 Days (or whatever default makes sense).
+  - Resets granularity to Daily.
+  - Resets chart types to their defaults.
+
+- Add a **“View in History”** link/button near the “Top Days” or metrics table:
+  - Clicking on a date should navigate to the existing History view for that exact day (reuse routing that already exists).
+
+- Add an option to **export metrics data to CSV**:
+  - A simple button like “Export CSV” that downloads:
+    - the current summary,
+    - daily sales data,
+    - maintenance open/completed counts for the selected range.
+  - This can be generated on the client side from the existing metrics response.
+
+====================================
+5) Implementation details & developer notes
+====================================
+
+- Keep all styles consistent with the existing Social Club Pro theme (use theme colors for charts, legends, buttons).
+- Encapsulate chart configuration logic in reusable components if possible (e.g., a generic `SalesTrendChart` and `MaintenancePieChart`).
+
+- Add TypeScript types/interfaces for:
+  - Any new metrics API fields (e.g. `salesByCategory`, `granularity`).
+  - The chart configuration options.
+
+- Add comments explaining:
+  - How to add new chart types.
+  - How the granularity selector maps to API queries or frontend aggregation.
+  - How the CSV export works and what is included.
+
+====================================
+When you’re done
+====================================
+
+Please:
+- List all files you changed or created for the updated Insights page.
+- Show the TypeScript types for the metrics response after these changes.
+- Show the props/signature for any new reusable chart components.
+- Briefly describe how a developer could add an additional chart or metric in the future.
