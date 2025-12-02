@@ -405,11 +405,92 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
         </div>
       </div>
 
+      {hasData && (
+        <CollapsibleSection
+          id="summaryCards"
+          title="Summary"
+          icon={<BarChart3 className="h-5 w-5" />}
+          defaultExpanded={true}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card data-testid="card-days-logged">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+                <CardTitle className="text-sm font-medium">Days Logged</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.summary.daysWithLogs}</div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">entries in selected range</p>
+                  {comparisonChanges && (
+                    <ChangeIndicator value={comparisonChanges.daysWithLogsChange} />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-total-sales">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+                <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(metrics.summary.totalSales)}
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">combined sales</p>
+                  {comparisonChanges && (
+                    <ChangeIndicator value={comparisonChanges.totalSalesChange} />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-avg-sales">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+                <CardTitle className="text-sm font-medium">Average Daily Sales</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(metrics.summary.averageDailySales)}
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">per logged day</p>
+                  {comparisonChanges && (
+                    <ChangeIndicator value={comparisonChanges.averageDailySalesChange} />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-todo-status">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+                <CardTitle className="text-sm font-medium">To-Do List Items</CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.summary.openToDo} Open</div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    {metrics.summary.completedToDo} completed ({completionRate}% rate)
+                  </p>
+                  {comparisonChanges && (
+                    <ChangeIndicator value={comparisonChanges.openToDoChange} inverted />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </CollapsibleSection>
+      )}
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Filters & Controls
+            Filters
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -539,85 +620,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
         </Card>
       ) : (
         <>
-          <CollapsibleSection
-            id="summaryCards"
-            title="Summary"
-            icon={<BarChart3 className="h-5 w-5" />}
-            defaultExpanded={true}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card data-testid="card-days-logged">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
-                  <CardTitle className="text-sm font-medium">Days Logged</CardTitle>
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{metrics.summary.daysWithLogs}</div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">entries in selected range</p>
-                    {comparisonChanges && (
-                      <ChangeIndicator value={comparisonChanges.daysWithLogsChange} />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card data-testid="card-total-sales">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
-                  <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {formatCurrency(metrics.summary.totalSales)}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">combined sales</p>
-                    {comparisonChanges && (
-                      <ChangeIndicator value={comparisonChanges.totalSalesChange} />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card data-testid="card-avg-sales">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
-                  <CardTitle className="text-sm font-medium">Average Daily Sales</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {formatCurrency(metrics.summary.averageDailySales)}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">per logged day</p>
-                    {comparisonChanges && (
-                      <ChangeIndicator value={comparisonChanges.averageDailySalesChange} />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card data-testid="card-todo-status">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
-                  <CardTitle className="text-sm font-medium">To-Do List Items</CardTitle>
-                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{metrics.summary.openToDo} Open</div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">
-                      {metrics.summary.completedToDo} completed ({completionRate}% rate)
-                    </p>
-                    {comparisonChanges && (
-                      <ChangeIndicator value={comparisonChanges.openToDoChange} inverted />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </CollapsibleSection>
-
           <CollapsibleSection
             id="salesTrend"
             title="Sales Trend"
