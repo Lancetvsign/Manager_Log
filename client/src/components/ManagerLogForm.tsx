@@ -467,7 +467,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
             <Input
               id="daily-number"
               type="number"
-              step="0.01"
+              step="1"
               value={dailyNumber}
               onChange={(e) => setDailyNumber(e.target.value)}
               placeholder="Enter daily number"
@@ -479,7 +479,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
             <Input
               id="weekly-number"
               type="number"
-              step="0.01"
+              step="1"
               value={weeklyNumber}
               onChange={(e) => setWeeklyNumber(e.target.value)}
               placeholder="Enter weekly number"
