@@ -28,10 +28,11 @@ This section provides a quick reference to the most important files in the codeb
 - **`client/src/App.tsx`** - Standalone development entry (uses ManagerLogModule with default clubId).
 
 ### Frontend Pages & Components
-- **`client/src/pages/ManagerLogHome.tsx`** - Main application shell with 3-tab navigation (New Entry, Log History, Maintenance).
+- **`client/src/pages/ManagerLogHome.tsx`** - Main application shell with 4-tab navigation (New Entry, Log History, To-Do List, Insights).
 - **`client/src/components/ManagerLogForm.tsx`** - Form for creating/editing daily log entries with weather integration.
 - **`client/src/components/ManagerLogList.tsx`** - History view with filters, search, and detail view for logs.
-- **`client/src/components/MaintenanceOverview.tsx`** - Consolidated view of all maintenance items across all days with status/date filters.
+- **`client/src/components/MaintenanceOverview.tsx`** - Consolidated view of all to-do items across all days with status/date filters.
+- **`client/src/components/InsightsPage.tsx`** - Analytics dashboard with sales trends, to-do status charts, and top performing days.
 
 ## Multi-Club Architecture
 
@@ -177,6 +178,13 @@ Weather:
 - `GET /api/weather/historical?date=YYYY-MM-DD` - Weather from 1 year ago
 - `GET /api/weather/historical/formatted?date=YYYY-MM-DD` - Historical weather as formatted string
 
+Metrics (all support `?clubId=` query parameter):
+- `GET /api/metrics?clubId=...&startDate=...&endDate=...` - Aggregated metrics for the Insights page
+  - Returns: summary (daysWithLogs, totalSales, averageDailySales, openToDo, completedToDo)
+  - Returns: dailySales array for chart visualization
+  - Returns: toDoStatus counts (open vs completed)
+  - Returns: topDays array with highest sales and notes snippets
+
 **Data Flow**
 1. Client makes requests via TanStack Query with clubId from context
 2. Custom `buildApiUrl` helper appends clubId to all API calls
@@ -186,6 +194,22 @@ Weather:
 6. Toast notifications for user feedback on mutations
 
 ## Recent Changes
+
+### December 2, 2025 - Insights/Analytics Page
+- Added **Insights page** as fourth tab in navigation
+  - Summary cards: Days logged, Total sales, Average daily sales, To-Do status
+  - Sales trend line chart using Recharts (X-axis: date, Y-axis: total sales)
+  - To-Do status horizontal bar chart (Open vs Completed)
+  - Top performing days table with notes snippets and View Log navigation
+- Added **date range filters** for all metrics
+  - Presets: Last 7 Days, Last 30 Days, This Month
+  - Custom range with date pickers
+- Added **metrics API endpoint** (`GET /api/metrics`)
+  - Accepts clubId, startDate, endDate query parameters
+  - Returns aggregated summary, daily sales array, to-do status, top days
+- Added **TypeScript types** for metrics response in shared/schema.ts
+  - MetricsSummary, DailySalesData, ToDoStatus, TopDayData, MetricsResponse
+- Renamed all "Maintenance" references to "To-Do List" for clarity
 
 ### December 2, 2025 - Multi-Club Architecture & Social Club Pro Integration
 - Added **clubId-based data isolation** for multi-club deployment

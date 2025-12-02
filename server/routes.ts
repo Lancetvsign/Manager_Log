@@ -23,6 +23,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertManagerLogSchema, insertMaintenanceItemSchema } from "@shared/schema";
+import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData } from "@shared/schema";
 import { z } from "zod";
 
 // Default clubId for backwards compatibility when not provided
@@ -522,6 +523,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching historical weather:", error);
       res.status(500).json({ error: "Failed to fetch historical weather" });
+    }
+  });
+
+  // ==================
+  // METRICS API
+  // ==================
+  /**
+   * GET /api/metrics
+   * Returns aggregated metrics for the Insights page
+   * 
+   * Query Parameters:
+   * - clubId: Required - filters data to a specific club
+   * - startDate: Required - start of date range (YYYY-MM-DD)
+   * - endDate: Required - end of date range (YYYY-MM-DD)
+   * 
+   * Response: MetricsResponse object containing:
+   * - summary: Aggregate stats (total days, sales, averages, to-do counts)
+   * - dailySales: Array of daily sales for charting
+   * - toDoStatus: Open vs completed to-do item counts
+   * - topDays: Top 5 highest sales days with notes snippets
+   * 
+   * HOW TO ADD NEW METRICS:
+   * 1. Add the new field to the appropriate interface in shared/schema.ts
+   * 2. Compute the metric in this endpoint using the logs array
+   * 3. Include it in the response object
+   * 4. Update the Insights page component to display it
+   */
+  app.get("/api/metrics", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const { startDate, endDate } = req.query;
+
+      if (!startDate || !endDate) {
+        return res.status(400).json({ 
+          error: "startDate and endDate query parameters are required" 
+        });
+      }
+
+      const startDateStr = startDate as string;
+      const endDateStr = endDate as string;
+
+      // Fetch logs and to-do items for the date range
+      const logs = await storage.getManagerLogsByDateRange(startDateStr, endDateStr, clubId);
+      const toDoItems = await storage.getAllMaintenanceItems(clubId, {
+        startDate: startDateStr,
+        endDate: endDateStr
+      });
+
+      // Calculate summary metrics
+      const daysWithLogs = logs.length;
+      const totalSales = logs.reduce((sum, log) => {
+        return sum + (parseFloat(log.totalSales || "0") || 0);
+      }, 0);
+      const averageDailySales = daysWithLogs > 0 ? totalSales / daysWithLogs : 0;
+      
+      // Count to-do items by status
+      const openToDo = toDoItems.filter(item => item.status === "open").length;
+      const completedToDo = toDoItems.filter(item => item.status === "completed").length;
+
+      const summary: MetricsSummary = {
+        daysWithLogs,
+        totalSales: Math.round(totalSales * 100) / 100,
+        averageDailySales: Math.round(averageDailySales * 100) / 100,
+        openToDo,
+        completedToDo
+      };
+
+      // Build daily sales array for chart (sorted by date ascending)
+      const dailySales: DailySalesData[] = logs
+        .map(log => ({
+          date: log.logDate,
+          totalSales: parseFloat(log.totalSales || "0") || 0,
+          dayOfWeek: log.dayOfWeek
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      // To-do status breakdown
+      const toDoStatus: ToDoStatus = {
+        open: openToDo,
+        completed: completedToDo
+      };
+
+      // Top 5 days by sales (with notes snippets)
+      const topDays: TopDayData[] = logs
+        .filter(log => log.totalSales && parseFloat(log.totalSales) > 0)
+        .sort((a, b) => (parseFloat(b.totalSales || "0") || 0) - (parseFloat(a.totalSales || "0") || 0))
+        .slice(0, 5)
+        .map(log => ({
+          date: log.logDate,
+          dayOfWeek: log.dayOfWeek,
+          totalSales: parseFloat(log.totalSales || "0") || 0,
+          narrativeSnippet: log.dailyNotes 
+            ? log.dailyNotes.substring(0, 100) + (log.dailyNotes.length > 100 ? "..." : "")
+            : "",
+          logId: log.id
+        }));
+
+      const response: MetricsResponse = {
+        summary,
+        dailySales,
+        toDoStatus,
+        topDays
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error("Error fetching metrics:", error);
+      res.status(500).json({ error: "Failed to fetch metrics" });
     }
   });
 

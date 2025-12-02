@@ -186,3 +186,64 @@ export type MaintenanceItemWithLog = MaintenanceItem & {
   dayOfWeek: string;
   managerName: string;
 };
+
+/**
+ * METRICS TYPES
+ * =============
+ * Types for the Insights/Analytics page metrics.
+ * These types are used by both the backend API and frontend components.
+ * 
+ * All metrics are scoped by clubId and date range to ensure:
+ * - Data isolation between clubs
+ * - Efficient queries for the selected time period
+ */
+
+/**
+ * Summary metrics for the selected date range
+ */
+export interface MetricsSummary {
+  daysWithLogs: number;
+  totalSales: number;
+  averageDailySales: number;
+  openToDo: number;
+  completedToDo: number;
+}
+
+/**
+ * Daily sales data point for the sales trend chart
+ */
+export interface DailySalesData {
+  date: string;
+  totalSales: number;
+  dayOfWeek: string;
+}
+
+/**
+ * To-Do item status counts
+ */
+export interface ToDoStatus {
+  open: number;
+  completed: number;
+}
+
+/**
+ * Top performing days with sales and notes snippet
+ */
+export interface TopDayData {
+  date: string;
+  dayOfWeek: string;
+  totalSales: number;
+  narrativeSnippet: string;
+  logId: number;
+}
+
+/**
+ * Complete metrics response from the API
+ * Used by the Insights page to display all analytics
+ */
+export interface MetricsResponse {
+  summary: MetricsSummary;
+  dailySales: DailySalesData[];
+  toDoStatus: ToDoStatus;
+  topDays: TopDayData[];
+}
