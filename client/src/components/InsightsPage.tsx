@@ -8,7 +8,7 @@
  * Features:
  * - Date range filtering (Last 7 Days, Last 30 Days, This Month, Custom)
  * - Comparison mode (Previous Period, Previous Month, Previous Year, Custom)
- * - Granularity selector (Daily, Weekly, Monthly)
+ * - View By selector (Daily, Weekly, Monthly)
  * - Chart type switching (Line, Bar, Area)
  * - Chart customization (gridlines, labels, animations, colors)
  * - Sales breakdown by category (Food, Bar, Gaming)
@@ -566,7 +566,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
             </div>
 
             <div className="lg:border-l lg:pl-4 space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">Granularity</p>
+              <p className="text-sm font-medium text-muted-foreground">View By</p>
               <div className="flex flex-wrap gap-2">
                 {(["daily", "weekly", "monthly"] as GranularityType[]).map((g) => (
                   <Button
@@ -574,7 +574,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                     variant={granularity === g ? "default" : "outline"}
                     size="sm"
                     onClick={() => setGranularity(g)}
-                    data-testid={`button-granularity-${g}`}
+                    data-testid={`button-view-by-${g}`}
                   >
                     {g.charAt(0).toUpperCase() + g.slice(1)}
                   </Button>
