@@ -11,8 +11,8 @@ import { CalendarIcon, Save, Loader2 } from "lucide-react";
 import WeatherCard from "./WeatherCard";
 import SalesInput from "./SalesInput";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ManagerLog } from "@shared/schema";
 
 interface ManagerLogFormProps {
   onSubmit: (data: any) => void;
@@ -26,16 +26,13 @@ interface WeatherData {
   description: string;
 }
 
-interface HistoricalSalesData {
-  food: string;
-  bar: string;
-  gaming: string;
-}
-
 export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const [date, setDate] = useState<Date>(new Date());
   const [managerName, setManagerName] = useState("");
   const [dailyNotes, setDailyNotes] = useState("");
+  const [salesNotes, setSalesNotes] = useState("");
+  const [dailyNumber, setDailyNumber] = useState("");
+  const [weeklyNumber, setWeeklyNumber] = useState("");
   const [salesData, setSalesData] = useState({
     current: { food: "", bar: "", gaming: "" },
     lastYear: { food: "", bar: "", gaming: "" }
@@ -45,8 +42,41 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     historical: WeatherData | null;
   }>({ current: null, historical: null });
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
+  const [existingLogId, setExistingLogId] = useState<number | null>(null);
   
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const dateString = format(date, 'yyyy-MM-dd');
+
+  // Fetch existing log for the selected date
+  const { data: existingLog, isLoading: isLoadingLog, refetch: refetchLog } = useQuery<ManagerLog>({
+    queryKey: ['/api/manager-logs/by-date', dateString],
+    enabled: !!dateString,
+  });
+
+  // Load existing log data into form when date changes
+  useEffect(() => {
+    if (existingLog) {
+      setExistingLogId(existingLog.id);
+      setManagerName(existingLog.managerName || "");
+      setDailyNotes(existingLog.dailyNotes || "");
+      setSalesNotes(existingLog.salesNotes || "");
+      setDailyNumber(existingLog.dailyNumber || "");
+      setWeeklyNumber(existingLog.weeklyNumber || "");
+      setSalesData({
+        current: {
+          food: existingLog.foodSales || "",
+          bar: existingLog.barSales || "",
+          gaming: existingLog.gamingSales || ""
+        },
+        lastYear: { food: "", bar: "", gaming: "" }
+      });
+    } else {
+      setExistingLogId(null);
+      resetForm();
+    }
+  }, [existingLog, dateString]);
 
   // Fetch weather data when date changes
   useEffect(() => {
@@ -55,7 +85,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       try {
         const [currentResponse, historicalResponse] = await Promise.all([
           fetch('/api/weather/current'),
-          fetch(`/api/weather/historical?date=${format(date, 'yyyy-MM-dd')}`)
+          fetch(`/api/weather/historical?date=${dateString}`)
         ]);
 
         const [currentWeather, historicalWeather] = await Promise.all([
@@ -80,10 +110,10 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     };
 
     fetchWeatherData();
-  }, [date, toast]);
+  }, [dateString, toast]);
 
-  // Create log entry mutation
-  const createLogMutation = useMutation({
+  // Create/update log entry mutation
+  const saveLogMutation = useMutation({
     mutationFn: async (logData: any) => {
       const response = await fetch('/api/manager-logs', {
         method: 'POST',
@@ -92,7 +122,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to create log entry');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save log entry');
       }
       
       return response.json();
@@ -100,15 +131,18 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     onSuccess: (data) => {
       toast({
         title: "Success",
-        description: "Manager log entry saved successfully!"
+        description: existingLogId ? "Manager log updated successfully!" : "Manager log created successfully!"
       });
+      queryClient.invalidateQueries({ queryKey: ['/api/manager-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/manager-logs/by-date', dateString] });
+      setExistingLogId(data.id);
       onSubmit(data);
     },
     onError: (error: any) => {
       console.error('Failed to save log entry:', error);
       toast({
         title: "Error",
-        description: "Failed to save log entry. Please try again.",
+        description: error.message || "Failed to save log entry. Please try again.",
         variant: "destructive"
       });
     }
@@ -118,6 +152,10 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     return date.toLocaleDateString('en-US', { weekday: 'long' });
   };
 
+  const formatWeatherString = (weather: WeatherData): string => {
+    return `${weather.temperature}°F, ${weather.description}, Humidity: ${weather.humidity}%, Wind: ${weather.windSpeed} mph`;
+  };
+
   const handleSalesChange = (field: string, value: string) => {
     setSalesData(prev => ({
       ...prev,
@@ -125,68 +163,76 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     }));
   };
 
+  const calculateTotalSales = (): string => {
+    const food = parseFloat(salesData.current.food) || 0;
+    const bar = parseFloat(salesData.current.bar) || 0;
+    const gaming = parseFloat(salesData.current.gaming) || 0;
+    const total = food + bar + gaming;
+    return total > 0 ? total.toFixed(2) : "";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!managerName.trim() || !dailyNotes.trim()) {
+    if (!managerName.trim()) {
       toast({
         title: "Validation Error",
-        description: "Manager name and daily notes are required.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!salesData.current.food || !salesData.current.bar || !salesData.current.gaming) {
-      toast({
-        title: "Validation Error",
-        description: "All sales fields are required.",
+        description: "Manager name is required.",
         variant: "destructive"
       });
       return;
     }
     
     const logData = {
-      date: format(date, 'yyyy-MM-dd'),
+      logDate: dateString,
       dayOfWeek: getDayOfWeek(date),
       managerName: managerName.trim(),
-      foodSales: salesData.current.food,
-      barSales: salesData.current.bar,
-      gamingSales: salesData.current.gaming,
-      lastYearFoodSales: salesData.lastYear.food || undefined,
-      lastYearBarSales: salesData.lastYear.bar || undefined,
-      lastYearGamingSales: salesData.lastYear.gaming || undefined,
-      currentWeather: weatherData.current,
-      historicalWeather: weatherData.historical,
-      dailyNotes: dailyNotes.trim()
+      weather: weatherData.current ? formatWeatherString(weatherData.current) : null,
+      weatherLastYear: weatherData.historical ? formatWeatherString(weatherData.historical) : null,
+      foodSales: salesData.current.food || null,
+      barSales: salesData.current.bar || null,
+      gamingSales: salesData.current.gaming || null,
+      totalSales: calculateTotalSales() || null,
+      salesNotes: salesNotes.trim() || null,
+      dailyNumber: dailyNumber || null,
+      weeklyNumber: weeklyNumber || null,
+      dailyNotes: dailyNotes.trim() || null
     };
 
-    createLogMutation.mutate(logData);
+    saveLogMutation.mutate(logData);
   };
 
   const resetForm = () => {
     setManagerName("");
     setDailyNotes("");
-    setSalesData(prev => ({
-      ...prev,
-      current: { food: "", bar: "", gaming: "" }
-    }));
+    setSalesNotes("");
+    setDailyNumber("");
+    setWeeklyNumber("");
+    setSalesData({
+      current: { food: "", bar: "", gaming: "" },
+      lastYear: { food: "", bar: "", gaming: "" }
+    });
   };
 
-  // Reset form after successful submission
-  useEffect(() => {
-    if (createLogMutation.isSuccess) {
-      resetForm();
-      createLogMutation.reset();
+  const handleDateChange = (newDate: Date | undefined) => {
+    if (newDate) {
+      setDate(newDate);
     }
-  }, [createLogMutation.isSuccess]);
+  };
+
+  const isLoading = saveLogMutation.isPending || isLoadingWeather || isLoadingLog;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Header Information */}
       <Card data-testid="card-log-header">
         <CardHeader>
-          <CardTitle className="text-xl">Daily Manager Log Entry</CardTitle>
+          <CardTitle className="text-xl flex items-center gap-2">
+            Daily Manager Log Entry
+            {existingLogId && (
+              <span className="text-sm font-normal text-muted-foreground">(Editing existing entry)</span>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Date Picker */}
@@ -207,7 +253,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
                 <Calendar
                   mode="single"
                   selected={date}
-                  onSelect={(newDate) => newDate && setDate(newDate)}
+                  onSelect={handleDateChange}
                   initialFocus
                 />
               </PopoverContent>
@@ -277,6 +323,65 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         showComparison={true}
       />
 
+      {/* Sales Summary */}
+      <Card data-testid="card-sales-summary">
+        <CardHeader>
+          <CardTitle className="text-lg">Sales Summary</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label>Total Sales</Label>
+            <Input
+              value={calculateTotalSales() ? `$${calculateTotalSales()}` : ""}
+              readOnly
+              className="bg-muted font-semibold"
+              placeholder="Auto-calculated"
+              data-testid="input-total-sales"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="daily-number">Daily Number</Label>
+            <Input
+              id="daily-number"
+              type="number"
+              step="0.01"
+              value={dailyNumber}
+              onChange={(e) => setDailyNumber(e.target.value)}
+              placeholder="Enter daily number"
+              data-testid="input-daily-number"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="weekly-number">Weekly Number</Label>
+            <Input
+              id="weekly-number"
+              type="number"
+              step="0.01"
+              value={weeklyNumber}
+              onChange={(e) => setWeeklyNumber(e.target.value)}
+              placeholder="Enter weekly number"
+              data-testid="input-weekly-number"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Sales Notes */}
+      <Card data-testid="card-sales-notes">
+        <CardHeader>
+          <CardTitle className="text-lg">Sales Notes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={salesNotes}
+            onChange={(e) => setSalesNotes(e.target.value)}
+            placeholder="Enter notes about sales performance, promotions, special events..."
+            className="min-h-24"
+            data-testid="textarea-sales-notes"
+          />
+        </CardContent>
+      </Card>
+
       {/* Daily Notes */}
       <Card data-testid="card-notes">
         <CardHeader>
@@ -288,19 +393,18 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
             onChange={(e) => setDailyNotes(e.target.value)}
             placeholder="Enter daily observations, incidents, staff notes, or any other important information..."
             className="min-h-32"
-            required
             data-testid="textarea-daily-notes"
           />
         </CardContent>
       </Card>
 
       {/* Submit Button */}
-      <div className="flex justify-end space-x-2">
+      <div className="flex justify-end gap-2">
         <Button 
           type="button" 
           variant="outline" 
           onClick={resetForm}
-          disabled={createLogMutation.isPending}
+          disabled={isLoading}
           data-testid="button-reset"
         >
           Reset Form
@@ -308,10 +412,10 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         <Button 
           type="submit" 
           size="lg" 
-          disabled={createLogMutation.isPending || isLoadingWeather}
+          disabled={isLoading}
           data-testid="button-submit"
         >
-          {createLogMutation.isPending ? (
+          {saveLogMutation.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Saving...
@@ -319,7 +423,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           ) : (
             <>
               <Save className="mr-2 h-4 w-4" />
-              Save Log Entry
+              {existingLogId ? "Update Log Entry" : "Save Log Entry"}
             </>
           )}
         </Button>

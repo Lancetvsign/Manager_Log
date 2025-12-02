@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, decimal, date, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, numeric, date, timestamp, serial, integer } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -10,20 +11,44 @@ export const users = pgTable("users", {
 });
 
 export const managerLogs = pgTable("manager_logs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  date: date("date").notNull(),
+  id: serial("id").primaryKey(),
+  logDate: date("log_date").notNull().unique(),
   dayOfWeek: text("day_of_week").notNull(),
   managerName: text("manager_name").notNull(),
-  foodSales: decimal("food_sales", { precision: 10, scale: 2 }).notNull(),
-  barSales: decimal("bar_sales", { precision: 10, scale: 2 }).notNull(),
-  gamingSales: decimal("gaming_sales", { precision: 10, scale: 2 }).notNull(),
-  lastYearFoodSales: decimal("last_year_food_sales", { precision: 10, scale: 2 }),
-  lastYearBarSales: decimal("last_year_bar_sales", { precision: 10, scale: 2 }),
-  lastYearGamingSales: decimal("last_year_gaming_sales", { precision: 10, scale: 2 }),
-  currentWeather: jsonb("current_weather"),
-  historicalWeather: jsonb("historical_weather"),
-  dailyNotes: text("daily_notes").notNull(),
+  weather: text("weather"),
+  weatherLastYear: text("weather_last_year"),
+  foodSales: numeric("food_sales", { precision: 10, scale: 2 }),
+  barSales: numeric("bar_sales", { precision: 10, scale: 2 }),
+  gamingSales: numeric("gaming_sales", { precision: 10, scale: 2 }),
+  totalSales: numeric("total_sales", { precision: 10, scale: 2 }),
+  salesNotes: text("sales_notes"),
+  dailyNumber: numeric("daily_number", { precision: 10, scale: 2 }),
+  weeklyNumber: numeric("weekly_number", { precision: 10, scale: 2 }),
+  dailyNotes: text("daily_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const maintenanceItems = pgTable("maintenance_items", {
+  id: serial("id").primaryKey(),
+  managerLogId: integer("manager_log_id").references(() => managerLogs.id, { onDelete: "cascade" }).notNull(),
+  description: text("description").notNull(),
+  status: text("status").notNull().default("open"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  resolvedAt: timestamp("resolved_at"),
+});
+
+export const managerLogsRelations = relations(managerLogs, ({ many }) => ({
+  maintenanceItems: many(maintenanceItems),
+}));
+
+export const maintenanceItemsRelations = relations(maintenanceItems, ({ one }) => ({
+  managerLog: one(managerLogs, {
+    fields: [maintenanceItems.managerLogId],
+    references: [managerLogs.id],
+  }),
+}));
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -32,17 +57,29 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export const insertManagerLogSchema = createInsertSchema(managerLogs).omit({
   id: true,
+  createdAt: true,
+  updatedAt: true,
 }).extend({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
-  foodSales: z.string().regex(/^\d+\.?\d{0,2}$/, "Must be a valid decimal number"),
-  barSales: z.string().regex(/^\d+\.?\d{0,2}$/, "Must be a valid decimal number"),
-  gamingSales: z.string().regex(/^\d+\.?\d{0,2}$/, "Must be a valid decimal number"),
-  lastYearFoodSales: z.string().regex(/^\d+\.?\d{0,2}$/, "Must be a valid decimal number").optional(),
-  lastYearBarSales: z.string().regex(/^\d+\.?\d{0,2}$/, "Must be a valid decimal number").optional(),
-  lastYearGamingSales: z.string().regex(/^\d+\.?\d{0,2}$/, "Must be a valid decimal number").optional(),
+  logDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  foodSales: z.string().optional().nullable(),
+  barSales: z.string().optional().nullable(),
+  gamingSales: z.string().optional().nullable(),
+  totalSales: z.string().optional().nullable(),
+  dailyNumber: z.string().optional().nullable(),
+  weeklyNumber: z.string().optional().nullable(),
+});
+
+export const insertMaintenanceItemSchema = createInsertSchema(maintenanceItems).omit({
+  id: true,
+  createdAt: true,
+  resolvedAt: true,
+}).extend({
+  status: z.enum(["open", "completed"]).default("open"),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertManagerLog = z.infer<typeof insertManagerLogSchema>;
 export type ManagerLog = typeof managerLogs.$inferSelect;
+export type InsertMaintenanceItem = z.infer<typeof insertMaintenanceItemSchema>;
+export type MaintenanceItem = typeof maintenanceItems.$inferSelect;
