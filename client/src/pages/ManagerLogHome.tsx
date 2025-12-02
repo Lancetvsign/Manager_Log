@@ -113,10 +113,10 @@ export default function Home() {
                 data-testid="img-logo-dark"
               />
               <div>
-                <h1 className="text-2xl font-bold text-foreground" data-testid="text-app-title">
+                <h1 className="text-lg font-semibold text-foreground" data-testid="text-app-title">
                   Restaurant Manager's Log
                 </h1>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Daily operations tracking with weather and sales data
                 </p>
               </div>
