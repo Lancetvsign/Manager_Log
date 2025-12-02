@@ -294,7 +294,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
 
             <Card data-testid="card-todo-status">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
-                <CardTitle className="text-sm font-medium">To-Do Items</CardTitle>
+                <CardTitle className="text-sm font-medium">To-Do List Items</CardTitle>
                 <CheckCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -366,7 +366,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  To-Do Status
+                  To-Do List Status
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -416,7 +416,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                   </>
                 ) : (
                   <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                    No to-do items in this period
+                    No to-do list items in this period
                   </div>
                 )}
               </CardContent>
