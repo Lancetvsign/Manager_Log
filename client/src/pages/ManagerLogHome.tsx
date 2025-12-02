@@ -21,7 +21,8 @@ import ManagerLogList from "@/components/ManagerLogList";
 import MaintenanceOverview from "@/components/MaintenanceOverview";
 import ThemeToggle from "@/components/ThemeToggle";
 import { History, Plus, Wrench } from "lucide-react";
-import logoImage from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
+import logoImageDark from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
+import logoImageLight from "@assets/Restaurant_Manager's_Log_Daily_operations_tracking_with_weathe_1764696079981.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface LogEntry {
@@ -100,10 +101,16 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <img 
-                src={logoImage} 
-                alt="Restaurant Logo" 
-                className="h-10 w-auto"
-                data-testid="img-logo"
+                src={logoImageLight} 
+                alt="Social Club Pro Logo" 
+                className="h-10 w-auto block dark:hidden"
+                data-testid="img-logo-light"
+              />
+              <img 
+                src={logoImageDark} 
+                alt="Social Club Pro Logo" 
+                className="h-10 w-auto hidden dark:block"
+                data-testid="img-logo-dark"
               />
               <div>
                 <h1 className="text-2xl font-bold text-foreground" data-testid="text-app-title">
