@@ -15,6 +15,7 @@ import SalesInput from "./SalesInput";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ManagerLog, MaintenanceItem } from "@shared/schema";
+import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
 
 interface ManagerLogFormProps {
   onSubmit: (data: any) => void;
@@ -29,8 +30,9 @@ interface WeatherData {
 }
 
 export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
+  const { clubId, managerName: defaultManagerName, apiBaseUrl } = useManagerLog();
   const [date, setDate] = useState<Date>(new Date());
-  const [managerName, setManagerName] = useState("");
+  const [managerName, setManagerName] = useState(defaultManagerName || "");
   const [dailyNotes, setDailyNotes] = useState("");
   const [salesNotes, setSalesNotes] = useState("");
   const [dailyNumber, setDailyNumber] = useState("");
@@ -56,12 +58,27 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const dateString = format(date, 'yyyy-MM-dd');
 
   const { data: existingLog, isLoading: isLoadingLog } = useQuery<ManagerLog>({
-    queryKey: ['/api/manager-logs/by-date', dateString],
+    queryKey: ['/api/manager-logs/by-date', dateString, clubId],
+    queryFn: async () => {
+      const url = buildApiUrl(`/api/manager-logs/by-date/${dateString}`, clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error('Failed to fetch log');
+      }
+      return response.json();
+    },
     enabled: !!dateString,
   });
 
   const { data: maintenanceItems, isLoading: isLoadingMaintenance } = useQuery<MaintenanceItem[]>({
-    queryKey: ['/api/manager-logs', existingLogId, 'maintenance'],
+    queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId],
+    queryFn: async () => {
+      const url = buildApiUrl(`/api/manager-logs/${existingLogId}/maintenance`, clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch maintenance items');
+      return response.json();
+    },
     enabled: !!existingLogId,
   });
 
@@ -92,8 +109,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       setIsLoadingWeather(true);
       try {
         const [currentResponse, historicalResponse] = await Promise.all([
-          fetch('/api/weather/current'),
-          fetch(`/api/weather/historical?date=${dateString}`)
+          fetch(`${apiBaseUrl}/api/weather/current`),
+          fetch(`${apiBaseUrl}/api/weather/historical?date=${dateString}`)
         ]);
 
         const [currentWeather, historicalWeather] = await Promise.all([
@@ -122,10 +139,10 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
 
   const saveLogMutation = useMutation({
     mutationFn: async (logData: any) => {
-      const response = await fetch('/api/manager-logs', {
+      const response = await fetch(`${apiBaseUrl}/api/manager-logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(logData)
+        body: JSON.stringify({ ...logData, clubId })
       });
       
       if (!response.ok) {
@@ -140,8 +157,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         title: "Success",
         description: existingLogId ? "Manager log updated successfully!" : "Manager log created successfully!"
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/manager-logs'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/manager-logs/by-date', dateString] });
+      queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', clubId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/manager-logs/by-date', dateString, clubId] });
       setExistingLogId(data.id);
       onSubmit(data);
     },
@@ -157,7 +174,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
 
   const addMaintenanceMutation = useMutation({
     mutationFn: async (itemData: { managerLogId: number; description: string; status: string; notes?: string }) => {
-      const response = await fetch('/api/maintenance-items', {
+      const response = await fetch(`${apiBaseUrl}/api/maintenance-items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(itemData)
@@ -175,7 +192,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         title: "Success",
         description: "Maintenance item added successfully!"
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
       setNewMaintenanceDescription("");
       setNewMaintenanceStatus("open");
       setNewMaintenanceNotes("");
@@ -192,7 +209,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
 
   const updateMaintenanceMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      const response = await fetch(`/api/maintenance-items/${id}`, {
+      const response = await fetch(`${apiBaseUrl}/api/maintenance-items/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
@@ -210,7 +227,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         title: "Success",
         description: "Maintenance item updated!"
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
     },
     onError: (error: any) => {
       console.error('Failed to update maintenance item:', error);

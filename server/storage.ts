@@ -5,13 +5,14 @@
  * It provides an abstraction between the API routes and the database,
  * making it easier to test and maintain the application.
  * 
+ * MULTI-CLUB SUPPORT:
+ * ------------------
+ * All manager log operations now require a clubId parameter to ensure
+ * data isolation between different clubs in Social Club Pro.
+ * Each club only sees and modifies its own data.
+ * 
  * Data Flow:
  * API Routes (routes.ts) → Storage Interface (IStorage) → Database (PostgreSQL via Drizzle)
- * 
- * Key Design Decisions:
- * - IStorage interface allows for easy mocking in tests
- * - DatabaseStorage implements all CRUD operations using Drizzle ORM
- * - All database queries are centralized here for consistency
  */
 
 import { 
@@ -22,13 +23,13 @@ import {
   users, managerLogs, maintenanceItems 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, lte, and, or, sql } from "drizzle-orm";
+import { eq, desc, gte, lte, and } from "drizzle-orm";
 
 /**
  * Storage Interface
  * -----------------
  * Defines all available database operations.
- * Any storage implementation must provide these methods.
+ * Manager log operations require clubId for multi-tenant data isolation.
  */
 export interface IStorage {
   // User operations (for future authentication)
@@ -36,20 +37,20 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   
-  // Manager Log operations
+  // Manager Log operations (all scoped to clubId)
   createManagerLog(log: InsertManagerLog): Promise<ManagerLog>;
-  getManagerLog(id: number): Promise<ManagerLog | undefined>;
-  getManagerLogByDate(logDate: string): Promise<ManagerLog | undefined>;
-  getAllManagerLogs(): Promise<ManagerLog[]>;
-  getManagerLogsByDateRange(startDate: string, endDate: string): Promise<ManagerLog[]>;
-  updateManagerLog(id: number, updates: Partial<InsertManagerLog>): Promise<ManagerLog | undefined>;
-  deleteManagerLog(id: number): Promise<boolean>;
+  getManagerLog(id: number, clubId: string): Promise<ManagerLog | undefined>;
+  getManagerLogByDate(logDate: string, clubId: string): Promise<ManagerLog | undefined>;
+  getAllManagerLogs(clubId: string): Promise<ManagerLog[]>;
+  getManagerLogsByDateRange(startDate: string, endDate: string, clubId: string): Promise<ManagerLog[]>;
+  updateManagerLog(id: number, updates: Partial<InsertManagerLog>, clubId: string): Promise<ManagerLog | undefined>;
+  deleteManagerLog(id: number, clubId: string): Promise<boolean>;
   upsertManagerLog(log: InsertManagerLog): Promise<ManagerLog>;
   
-  // Maintenance Item operations
+  // Maintenance Item operations (indirectly scoped via managerLogId)
   createMaintenanceItem(item: InsertMaintenanceItem): Promise<MaintenanceItem>;
   getMaintenanceItemsByLogId(logId: number): Promise<MaintenanceItem[]>;
-  getAllMaintenanceItems(filters?: { status?: string; startDate?: string; endDate?: string }): Promise<MaintenanceItemWithLog[]>;
+  getAllMaintenanceItems(clubId: string, filters?: { status?: string; startDate?: string; endDate?: string }): Promise<MaintenanceItemWithLog[]>;
   updateMaintenanceItem(id: number, updates: Partial<InsertMaintenanceItem>): Promise<MaintenanceItem | undefined>;
   deleteMaintenanceItem(id: number): Promise<boolean>;
 }
@@ -58,7 +59,7 @@ export interface IStorage {
  * Database Storage Implementation
  * -------------------------------
  * Implements IStorage using Drizzle ORM with PostgreSQL.
- * All methods interact with the database through the Drizzle query builder.
+ * All manager log methods filter by clubId for multi-tenant isolation.
  */
 export class DatabaseStorage implements IStorage {
   
@@ -66,31 +67,16 @@ export class DatabaseStorage implements IStorage {
   // USER OPERATIONS
   // ==================
   
-  /**
-   * Get a user by their ID
-   * @param id - The user's UUID
-   * @returns The user record or undefined if not found
-   */
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
   }
 
-  /**
-   * Get a user by their username (for login)
-   * @param username - The username to look up
-   * @returns The user record or undefined if not found
-   */
   async getUserByUsername(username: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.username, username));
     return user || undefined;
   }
 
-  /**
-   * Create a new user
-   * @param insertUser - The user data to insert
-   * @returns The newly created user record
-   */
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
@@ -100,14 +86,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ==================
-  // MANAGER LOG OPERATIONS
+  // MANAGER LOG OPERATIONS (Multi-Club Scoped)
   // ==================
 
   /**
    * Create a new manager log entry
-   * Note: Use upsertManagerLog() instead if you want create-or-update behavior
-   * @param insertLog - The log data to insert
-   * @returns The newly created log record
+   * The log's clubId is included in the insertLog data
    */
   async createManagerLog(insertLog: InsertManagerLog): Promise<ManagerLog> {
     const [log] = await db
@@ -118,49 +102,50 @@ export class DatabaseStorage implements IStorage {
   }
 
   /**
-   * Get a manager log by its numeric ID
-   * @param id - The log's serial ID
-   * @returns The log record or undefined if not found
+   * Get a manager log by ID, scoped to a specific club
+   * Ensures clubs cannot access each other's data
    */
-  async getManagerLog(id: number): Promise<ManagerLog | undefined> {
-    const [log] = await db.select().from(managerLogs).where(eq(managerLogs.id, id));
+  async getManagerLog(id: number, clubId: string): Promise<ManagerLog | undefined> {
+    const [log] = await db
+      .select()
+      .from(managerLogs)
+      .where(and(eq(managerLogs.id, id), eq(managerLogs.clubId, clubId)));
     return log || undefined;
   }
 
   /**
-   * Get a manager log by date
-   * Since logDate is unique, this returns at most one record.
-   * Used by the "Today's Log" page to load existing data for a selected date.
-   * @param logDate - The date in YYYY-MM-DD format
-   * @returns The log record or undefined if not found
+   * Get a manager log by date for a specific club
+   * Used by the "Today's Log" page to load existing data
    */
-  async getManagerLogByDate(logDate: string): Promise<ManagerLog | undefined> {
-    const [log] = await db.select().from(managerLogs).where(eq(managerLogs.logDate, logDate));
+  async getManagerLogByDate(logDate: string, clubId: string): Promise<ManagerLog | undefined> {
+    const [log] = await db
+      .select()
+      .from(managerLogs)
+      .where(and(eq(managerLogs.logDate, logDate), eq(managerLogs.clubId, clubId)));
     return log || undefined;
   }
 
   /**
-   * Get all manager logs, sorted by date descending (newest first)
-   * Used by the History page to display all entries
-   * @returns Array of all log records
+   * Get all manager logs for a specific club, sorted by date descending
    */
-  async getAllManagerLogs(): Promise<ManagerLog[]> {
-    return await db.select().from(managerLogs).orderBy(desc(managerLogs.logDate));
+  async getAllManagerLogs(clubId: string): Promise<ManagerLog[]> {
+    return await db
+      .select()
+      .from(managerLogs)
+      .where(eq(managerLogs.clubId, clubId))
+      .orderBy(desc(managerLogs.logDate));
   }
 
   /**
-   * Get manager logs within a date range
-   * Used by History page filters (Last 7 Days, Last 30 Days)
-   * @param startDate - Start date in YYYY-MM-DD format (inclusive)
-   * @param endDate - End date in YYYY-MM-DD format (inclusive)
-   * @returns Array of log records within the range
+   * Get manager logs within a date range for a specific club
    */
-  async getManagerLogsByDateRange(startDate: string, endDate: string): Promise<ManagerLog[]> {
+  async getManagerLogsByDateRange(startDate: string, endDate: string, clubId: string): Promise<ManagerLog[]> {
     return await db
       .select()
       .from(managerLogs)
       .where(
         and(
+          eq(managerLogs.clubId, clubId),
           gte(managerLogs.logDate, startDate),
           lte(managerLogs.logDate, endDate)
         )
@@ -169,49 +154,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   /**
-   * Update an existing manager log
-   * Automatically updates the updatedAt timestamp
-   * @param id - The log's serial ID
-   * @param updates - Partial log data to update
-   * @returns The updated log record or undefined if not found
+   * Update an existing manager log, scoped to a specific club
    */
-  async updateManagerLog(id: number, updates: Partial<InsertManagerLog>): Promise<ManagerLog | undefined> {
+  async updateManagerLog(id: number, updates: Partial<InsertManagerLog>, clubId: string): Promise<ManagerLog | undefined> {
     const [updatedLog] = await db
       .update(managerLogs)
       .set({ ...updates, updatedAt: new Date() })
-      .where(eq(managerLogs.id, id))
+      .where(and(eq(managerLogs.id, id), eq(managerLogs.clubId, clubId)))
       .returning();
     return updatedLog || undefined;
   }
 
   /**
-   * Delete a manager log and all its maintenance items (via CASCADE)
-   * @param id - The log's serial ID
-   * @returns true if deleted, false if not found
+   * Delete a manager log, scoped to a specific club
    */
-  async deleteManagerLog(id: number): Promise<boolean> {
+  async deleteManagerLog(id: number, clubId: string): Promise<boolean> {
     const result = await db
       .delete(managerLogs)
-      .where(eq(managerLogs.id, id));
+      .where(and(eq(managerLogs.id, id), eq(managerLogs.clubId, clubId)));
     return (result.rowCount ?? 0) > 0;
   }
 
   /**
-   * Create or update a manager log based on date
-   * This is the primary method used by the "Save / Update Log Entry" button.
-   * If a log exists for the given date, it updates it; otherwise creates new.
-   * @param insertLog - The log data to upsert
-   * @returns The created or updated log record
+   * Create or update a manager log based on date AND clubId
+   * This ensures each club has at most one log per day
    */
   async upsertManagerLog(insertLog: InsertManagerLog): Promise<ManagerLog> {
-    const existingLog = await this.getManagerLogByDate(insertLog.logDate);
+    const existingLog = await this.getManagerLogByDate(insertLog.logDate, insertLog.clubId);
     
     if (existingLog) {
-      // Update existing log for this date
-      const updatedLog = await this.updateManagerLog(existingLog.id, insertLog);
+      const updatedLog = await this.updateManagerLog(existingLog.id, insertLog, insertLog.clubId);
       return updatedLog!;
     } else {
-      // Create new log for this date
       return await this.createManagerLog(insertLog);
     }
   }
@@ -220,11 +194,6 @@ export class DatabaseStorage implements IStorage {
   // MAINTENANCE ITEM OPERATIONS
   // ==================
 
-  /**
-   * Create a new maintenance item linked to a log
-   * @param item - The maintenance item data (must include managerLogId)
-   * @returns The newly created maintenance item
-   */
   async createMaintenanceItem(item: InsertMaintenanceItem): Promise<MaintenanceItem> {
     const [created] = await db
       .insert(maintenanceItems)
@@ -233,12 +202,6 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  /**
-   * Get all maintenance items for a specific log
-   * Used by both the Today's Log form and History detail view
-   * @param logId - The manager log's serial ID
-   * @returns Array of maintenance items, newest first
-   */
   async getMaintenanceItemsByLogId(logId: number): Promise<MaintenanceItem[]> {
     return await db
       .select()
@@ -248,18 +211,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   /**
-   * Get all maintenance items with optional filters
-   * Used by the Maintenance Overview page to show items across all days
-   * Joins with managerLogs to include the log date with each item
-   * @param filters - Optional filters for status and date range
-   * @returns Array of maintenance items with their log information
+   * Get all maintenance items for a specific club with optional filters
+   * Joins with managerLogs to filter by clubId and include log info
    */
-  async getAllMaintenanceItems(filters?: { 
+  async getAllMaintenanceItems(clubId: string, filters?: { 
     status?: string; 
     startDate?: string; 
     endDate?: string 
   }): Promise<MaintenanceItemWithLog[]> {
-    // Build the query with a JOIN to get log date information
     let query = db
       .select({
         id: maintenanceItems.id,
@@ -277,8 +236,8 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(managerLogs, eq(maintenanceItems.managerLogId, managerLogs.id))
       .orderBy(desc(managerLogs.logDate), desc(maintenanceItems.createdAt));
 
-    // Apply filters if provided
-    const conditions = [];
+    // Always filter by clubId for multi-tenant isolation
+    const conditions = [eq(managerLogs.clubId, clubId)];
     
     if (filters?.status && filters.status !== 'all') {
       conditions.push(eq(maintenanceItems.status, filters.status));
@@ -292,24 +251,14 @@ export class DatabaseStorage implements IStorage {
       conditions.push(lte(managerLogs.logDate, filters.endDate));
     }
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as typeof query;
-    }
+    query = query.where(and(...conditions)) as typeof query;
 
     return await query;
   }
 
-  /**
-   * Update a maintenance item
-   * Automatically sets resolvedAt when status changes to "completed"
-   * @param id - The maintenance item's serial ID
-   * @param updates - Partial item data to update
-   * @returns The updated item or undefined if not found
-   */
   async updateMaintenanceItem(id: number, updates: Partial<InsertMaintenanceItem>): Promise<MaintenanceItem | undefined> {
     const updateData: any = { ...updates };
     
-    // Set resolvedAt timestamp when marking as completed
     if (updates.status === "completed") {
       updateData.resolvedAt = new Date();
     }
@@ -322,11 +271,6 @@ export class DatabaseStorage implements IStorage {
     return updated || undefined;
   }
 
-  /**
-   * Delete a maintenance item
-   * @param id - The maintenance item's serial ID
-   * @returns true if deleted, false if not found
-   */
   async deleteMaintenanceItem(id: number): Promise<boolean> {
     const result = await db
       .delete(maintenanceItems)
@@ -335,5 +279,4 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Export a singleton instance used throughout the application
 export const storage = new DatabaseStorage();

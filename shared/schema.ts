@@ -35,13 +35,18 @@ export const users = pgTable("users", {
  * Each entry represents one day's operations, including sales data, weather, and notes.
  * 
  * Key Design Decisions:
- * - logDate is UNIQUE to ensure only one entry per day (upsert behavior)
+ * - clubId + logDate is UNIQUE to ensure only one entry per club per day
  * - Uses serial ID for better database performance vs UUIDs
  * - Timestamps track when records were created/updated
  * 
+ * MULTI-CLUB SUPPORT:
+ * - clubId isolates data between different clubs in Social Club Pro
+ * - All queries should filter by clubId to ensure data isolation
+ * 
  * Fields:
  * - id: Auto-incrementing primary key
- * - logDate: The date this log is for (YYYY-MM-DD format, unique)
+ * - clubId: Identifier for the club this log belongs to (from Social Club Pro)
+ * - logDate: The date this log is for (YYYY-MM-DD format)
  * - dayOfWeek: Human-readable day name (e.g., "Monday")
  * - managerName: Name of the manager on duty
  * - weather: Current day's weather description
@@ -54,7 +59,8 @@ export const users = pgTable("users", {
  */
 export const managerLogs = pgTable("manager_logs", {
   id: serial("id").primaryKey(),
-  logDate: date("log_date").notNull().unique(),
+  clubId: text("club_id").notNull().default("default"),
+  logDate: date("log_date").notNull(),
   dayOfWeek: text("day_of_week").notNull(),
   managerName: text("manager_name").notNull(),
   weather: text("weather"),
@@ -138,6 +144,7 @@ export const insertManagerLogSchema = createInsertSchema(managerLogs).omit({
   createdAt: true, // Auto-generated
   updatedAt: true, // Auto-generated
 }).extend({
+  clubId: z.string().min(1, "Club ID is required"),
   logDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
   foodSales: z.string().optional().nullable(),
   barSales: z.string().optional().nullable(),

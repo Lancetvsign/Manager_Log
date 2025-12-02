@@ -1,29 +1,28 @@
-import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import Home from "@/pages/Home";
-import NotFound from "@/pages/not-found";
+/**
+ * APPLICATION ENTRY POINT
+ * =======================
+ * This is the main entry point for the Restaurant Manager's Log application.
+ * For development, it uses a default clubId. In production when embedded
+ * in Social Club Pro, use ManagerLogModule directly with the real clubId.
+ * 
+ * STANDALONE MODE (Development):
+ * - Uses "default" as clubId
+ * - Runs on its own with full functionality
+ * 
+ * EMBEDDED MODE (Social Club Pro):
+ * - Import ManagerLogModule from './ManagerLogModule'
+ * - Pass clubId, clubName, managerName, apiBaseUrl from parent app
+ */
 
-function Router() {
-  return (
-    <Switch>
-      <Route path="/" component={Home} />
-      {/* Fallback to 404 */}
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
+import { ManagerLogModule } from "./ManagerLogModule";
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ManagerLogModule
+      clubId="default"
+      clubName="Development Mode"
+      apiBaseUrl=""
+    />
   );
 }
 

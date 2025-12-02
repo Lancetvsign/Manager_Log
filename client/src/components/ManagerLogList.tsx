@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { ManagerLog, MaintenanceItem } from "@shared/schema";
+import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
 
 type DateRangeFilter = "all" | "7days" | "30days" | "specific";
 
@@ -49,20 +50,28 @@ export default function ManagerLogList({
   initialSelectedLogId,
   onLogSelected 
 }: ManagerLogListProps) {
+  const { clubId, apiBaseUrl } = useManagerLog();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLog, setSelectedLog] = useState<ManagerLog | null>(null);
   const [dateFilter, setDateFilter] = useState<DateRangeFilter>("all");
   const [specificDate, setSpecificDate] = useState<Date | undefined>(undefined);
   
   const { data: apiLogs, isLoading, error } = useQuery<ManagerLog[]>({
-    queryKey: ['/api/manager-logs'],
+    queryKey: ['/api/manager-logs', clubId],
+    queryFn: async () => {
+      const url = buildApiUrl('/api/manager-logs', clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch logs');
+      return response.json();
+    },
   });
 
   const { data: maintenanceItems, isLoading: isLoadingMaintenance } = useQuery<MaintenanceItem[]>({
-    queryKey: ['/api/manager-logs', selectedLog?.id, 'maintenance'],
+    queryKey: ['/api/manager-logs', selectedLog?.id, 'maintenance', clubId],
     queryFn: async () => {
       if (!selectedLog?.id) return [];
-      const response = await fetch(`/api/manager-logs/${selectedLog.id}/maintenance`);
+      const url = buildApiUrl(`/api/manager-logs/${selectedLog.id}/maintenance`, clubId, apiBaseUrl);
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch maintenance items');
       }
@@ -72,7 +81,18 @@ export default function ManagerLogList({
   });
 
   const { data: specificDateLog, isLoading: isLoadingSpecificDate } = useQuery<ManagerLog>({
-    queryKey: ['/api/manager-logs/by-date', specificDate ? format(specificDate, 'yyyy-MM-dd') : ''],
+    queryKey: ['/api/manager-logs/by-date', specificDate ? format(specificDate, 'yyyy-MM-dd') : '', clubId],
+    queryFn: async () => {
+      if (!specificDate) return null;
+      const dateStr = format(specificDate, 'yyyy-MM-dd');
+      const url = buildApiUrl(`/api/manager-logs/by-date/${dateStr}`, clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error('Failed to fetch log');
+      }
+      return response.json();
+    },
     enabled: !!specificDate && dateFilter === "specific",
   });
   

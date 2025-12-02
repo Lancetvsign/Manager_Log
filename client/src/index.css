@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * SOCIAL CLUB PRO THEME
+ * =====================
+ * This CSS defines the color scheme to match Social Club Pro styling.
+ * 
+ * KEY COLORS:
+ * - Primary: Teal (#0D9488) for accents, active states, CTAs
+ * - Header: Dark charcoal for top navigation
+ * - Cards: White with subtle shadows
+ * - Background: Light gray-white
+ * 
+ * TO ADJUST COLORS:
+ * - Edit the HSL values below (format: Hue Saturation% Lightness%)
+ * - Theme reference: shared/theme.ts contains the source values
+ */
+
 /* LIGHT MODE */
 :root {
   --button-outline: rgba(0,0,0, .10);
@@ -14,196 +30,184 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  --background: 210 40% 98%;
+  /* Page background - light off-white */
+  --background: 210 20% 98%;
 
-  --foreground: 210 25% 8%;
+  /* Default text - dark gray */
+  --foreground: 210 20% 15%;
 
-  --border: 210 15% 85%;
+  /* Standard borders */
+  --border: 210 10% 88%;
 
-  --card: 210 30% 96%;
+  /* Cards - pure white with subtle styling */
+  --card: 0 0% 100%;
+  --card-foreground: 210 20% 15%;
+  --card-border: 210 10% 90%;
 
-  --card-foreground: 210 25% 8%;
+  /* Sidebar - light gray background */
+  --sidebar: 210 15% 96%;
+  --sidebar-foreground: 210 20% 15%;
+  --sidebar-border: 210 10% 90%;
 
-  --card-border: 210 20% 88%;
+  /* Sidebar active/highlight - teal accent */
+  --sidebar-primary: 174 72% 40%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 174 50% 95%;
+  --sidebar-accent-foreground: 174 72% 30%;
+  --sidebar-ring: 174 72% 40%;
 
-  --sidebar: 210 25% 94%;
+  /* Popovers/dropdowns */
+  --popover: 0 0% 100%;
+  --popover-foreground: 210 20% 15%;
+  --popover-border: 210 10% 88%;
 
-  --sidebar-foreground: 210 25% 8%;
+  /* PRIMARY ACCENT - Teal (Social Club Pro brand color) */
+  --primary: 174 72% 40%;
+  --primary-foreground: 0 0% 100%;
 
-  --sidebar-border: 210 20% 86%;
+  /* Secondary - neutral gray */
+  --secondary: 210 15% 93%;
+  --secondary-foreground: 210 20% 15%;
 
-  --sidebar-primary: 210 80% 35%;
+  /* Muted elements */
+  --muted: 210 10% 92%;
+  --muted-foreground: 210 10% 45%;
 
-  --sidebar-primary-foreground: 210 40% 98%;
+  /* Accent - teal tint */
+  --accent: 174 50% 95%;
+  --accent-foreground: 174 72% 30%;
 
-  --sidebar-accent: 210 25% 88%;
+  /* Destructive/danger */
+  --destructive: 0 75% 45%;
+  --destructive-foreground: 0 0% 100%;
 
-  --sidebar-accent-foreground: 210 25% 8%;
+  /* Form inputs */
+  --input: 210 10% 85%;
+  --ring: 174 72% 40%;
 
-  --sidebar-ring: 210 80% 35%;
-
-  --popover: 210 30% 92%;
-
-  --popover-foreground: 210 25% 8%;
-
-  --popover-border: 210 20% 84%;
-
-  --primary: 210 80% 35%;
-
-  --primary-foreground: 210 40% 98%;
-
-  --secondary: 210 20% 90%;
-
-  --secondary-foreground: 210 25% 8%;
-
-  --muted: 210 15% 87%;
-
-  --muted-foreground: 210 15% 65%;
-
-  --accent: 210 25% 88%;
-
-  --accent-foreground: 210 25% 8%;
-
-  --destructive: 0 75% 40%;
-
-  --destructive-foreground: 0 40% 98%;
-
-  --input: 210 20% 78%;
-  --ring: 210 80% 35%;
-  --chart-1: 120 60% 40%;
+  /* Chart colors */
+  --chart-1: 174 72% 40%;
   --chart-2: 45 90% 50%;
-  --chart-3: 210 80% 35%;
-  --chart-4: 280 60% 45%;
+  --chart-3: 210 80% 45%;
+  --chart-4: 280 60% 50%;
   --chart-5: 15 75% 50%;
 
+  /* Typography */
   --font-sans: Inter, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
-  --radius: .5rem; /* 8px */
-  --shadow-2xs: 0px 2px 0px 0px hsl(210 15% 65% / 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(210 15% 65% / 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(210 15% 65% / 0.00), 0px 1px 2px -1px hsl(210 15% 65% / 0.00);
-  --shadow: 0px 2px 0px 0px hsl(210 15% 65% / 0.00), 0px 1px 2px -1px hsl(210 15% 65% / 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(210 15% 65% / 0.00), 0px 2px 4px -1px hsl(210 15% 65% / 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(210 15% 65% / 0.00), 0px 4px 6px -1px hsl(210 15% 65% / 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(210 15% 65% / 0.00), 0px 8px 10px -1px hsl(210 15% 65% / 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(210 15% 65% / 0.00);
+
+  /* Border radius */
+  --radius: .5rem;
+
+  /* Shadows - subtle for cards */
+  --shadow-2xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 
-  /* Automatically computed borders - intensity can be controlled by the user by the --opaque-button-border-intensity setting */
-
-  /* Fallback for older browsers */
+  /* Automatically computed borders */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 
-  /* Fallback for older browsers */
   --sidebar-accent-border: hsl(var(--sidebar-accent));
   --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 
-  /* Fallback for older browsers */
   --primary-border: hsl(var(--primary));
   --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 
-  /* Fallback for older browsers */
   --secondary-border: hsl(var(--secondary));
   --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 
-  /* Fallback for older browsers */
   --muted-border: hsl(var(--muted));
   --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 
-  /* Fallback for older browsers */
   --accent-border: hsl(var(--accent));
   --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 
-  /* Fallback for older browsers */
   --destructive-border: hsl(var(--destructive));
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+  /* Dark header color for Social Club Pro style nav */
+  --header-bg: 210 20% 15%;
+  --header-foreground: 210 10% 95%;
 }
 
+/* DARK MODE */
 .dark {
   --button-outline: rgba(255,255,255, .10);
   --badge-outline: rgba(255,255,255, .05);
 
-  --opaque-button-border-intensity: 9;  /* In terms of percentages */
+  --opaque-button-border-intensity: 9;
 
-  /* Backgrounds applied on top of other backgrounds when hovered/active */
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  --background: 210 25% 8%;
-
-  --foreground: 210 40% 98%;
+  --background: 210 20% 10%;
+  --foreground: 210 10% 95%;
 
   --border: 210 15% 20%;
 
-  --card: 210 25% 12%;
+  --card: 210 20% 14%;
+  --card-foreground: 210 10% 95%;
+  --card-border: 210 15% 22%;
 
-  --card-foreground: 210 40% 98%;
+  --sidebar: 210 20% 12%;
+  --sidebar-foreground: 210 10% 95%;
+  --sidebar-border: 210 15% 18%;
 
-  --card-border: 210 20% 16%;
+  --sidebar-primary: 174 65% 45%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 174 30% 20%;
+  --sidebar-accent-foreground: 174 65% 70%;
+  --sidebar-ring: 174 65% 45%;
 
-  --sidebar: 210 25% 10%;
+  --popover: 210 20% 16%;
+  --popover-foreground: 210 10% 95%;
+  --popover-border: 210 15% 24%;
 
-  --sidebar-foreground: 210 40% 98%;
+  --primary: 174 65% 45%;
+  --primary-foreground: 0 0% 100%;
 
-  --sidebar-border: 210 20% 14%;
+  --secondary: 210 15% 22%;
+  --secondary-foreground: 210 10% 95%;
 
-  --sidebar-primary: 210 80% 35%;
+  --muted: 210 10% 20%;
+  --muted-foreground: 210 10% 60%;
 
-  --sidebar-primary-foreground: 210 40% 98%;
+  --accent: 174 30% 20%;
+  --accent-foreground: 174 65% 70%;
 
-  --sidebar-accent: 210 25% 18%;
+  --destructive: 0 70% 50%;
+  --destructive-foreground: 0 0% 100%;
 
-  --sidebar-accent-foreground: 210 40% 98%;
+  --input: 210 15% 28%;
+  --ring: 174 65% 45%;
 
-  --sidebar-ring: 210 80% 35%;
+  --chart-1: 174 65% 55%;
+  --chart-2: 45 85% 60%;
+  --chart-3: 210 75% 55%;
+  --chart-4: 280 55% 60%;
+  --chart-5: 15 70% 60%;
 
-  --popover: 210 25% 16%;
+  --shadow-2xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.35), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.35), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.35), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 
-  --popover-foreground: 210 40% 98%;
-
-  --popover-border: 210 20% 22%;
-
-  --primary: 210 80% 35%;
-
-  --primary-foreground: 210 40% 98%;
-
-  --secondary: 210 20% 20%;
-
-  --secondary-foreground: 210 40% 98%;
-
-  --muted: 210 15% 18%;
-
-  --muted-foreground: 210 15% 65%;
-
-  --accent: 210 25% 18%;
-
-  --accent-foreground: 210 40% 98%;
-
-  --destructive: 0 75% 40%;
-
-  --destructive-foreground: 0 40% 98%;
-
-  /* Used as the border around inputs. Dark mode: Should be a border that is light enough to have high contrast when rendered on a --card background. More contrast than standard --border */
-  --input: 210 20% 28%;
-  --ring: 210 80% 35%;
-  --chart-1: 120 60% 60%;
-  --chart-2: 45 90% 70%;
-  --chart-3: 210 80% 65%;
-  --chart-4: 280 60% 65%;
-  --chart-5: 15 75% 70%;
-
-  --shadow-2xs: 0px 2px 0px 0px hsl(210 15% 5% / 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(210 15% 5% / 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(210 15% 5% / 0.00), 0px 1px 2px -1px hsl(210 15% 5% / 0.00);
-  --shadow: 0px 2px 0px 0px hsl(210 15% 5% / 0.00), 0px 1px 2px -1px hsl(210 15% 5% / 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(210 15% 5% / 0.00), 0px 2px 4px -1px hsl(210 15% 5% / 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(210 15% 5% / 0.00), 0px 4px 6px -1px hsl(210 15% 5% / 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(210 15% 5% / 0.00), 0px 8px 10px -1px hsl(210 15% 5% / 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(210 15% 5% / 0.00);
-
+  --header-bg: 210 20% 8%;
+  --header-foreground: 210 10% 95%;
 }
 
 @layer base {
@@ -227,14 +231,6 @@
  * <element className="toggle-elevate data-[state=on]:toggle-elevated" />
  * // Or manually controlling the toggle state
  * <element className="toggle-elevate toggle-elevated" />
- *
- * Elevation systems have to handle many states.
- * - not-hovered, vs. hovered vs. active  (three mutually exclusive states)
- * - toggled or not
- * - focused or not (this is not handled with these utilities)
- *
- * Even without handling focused or not, this is six possible combinations that
- * need to be distinguished from eachother visually.
  */
 @layer utilities {
 
@@ -250,19 +246,11 @@
     pointer-events: none;
   }
 
-  /* .no-default-hover-elevate/no-default-active-elevate is an escape hatch so consumers of
-   * buttons/badges can remove the automatic brightness adjustment on interactions
-   * and program their own. */
   .no-default-hover-elevate {}
-
   .no-default-active-elevate {}
-
 
   /**
    * Toggleable backgrounds go behind the content. Hoverable/active goes on top.
-   * This way they can stack/compound. Both will overlap the parent's borders!
-   * So borders will be automatically adjusted both on toggle, and hover/active,
-   * and they will be compounded.
    */
   .toggle-elevate::before,
   .toggle-elevate-2::before {
@@ -270,17 +258,14 @@
     pointer-events: none;
     position: absolute;
     inset: 0px;
-    /*border-radius: inherit;   match rounded corners */
     border-radius: inherit;
     z-index: -1;
-    /* sits behind content but above backdrop */
   }
 
   .toggle-elevate.toggle-elevated::before {
     background-color: var(--elevate-2);
   }
 
-  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
   .border.toggle-elevate::before {
     inset: -1px;
   }
@@ -302,10 +287,8 @@
     pointer-events: none;
     position: absolute;
     inset: 0px;
-    /*border-radius: inherit;   match rounded corners */
     border-radius: inherit;
     z-index: 999;
-    /* sits in front of content */
   }
 
   .hover-elevate:hover:not(.no-default-hover-elevate)::after,
@@ -318,12 +301,17 @@
     background-color: var(--elevate-2);
   }
 
-  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
   .border.active-elevate:not(.no-active-interaction-elevate)::after,
   .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
   .border.active-elevate-2:not(.no-active-interaction-elevate)::after,
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
+  }
+
+  /* Social Club Pro header styling utility */
+  .scp-header {
+    background-color: hsl(var(--header-bg));
+    color: hsl(var(--header-foreground));
   }
 }

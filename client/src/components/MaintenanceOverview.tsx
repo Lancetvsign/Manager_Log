@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { MaintenanceItemWithLog } from "@shared/schema";
+import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
 
 // Filter types for status and date range
 type StatusFilter = "all" | "open" | "completed";
@@ -45,6 +46,7 @@ interface MaintenanceOverviewProps {
  * @param onViewLog - Callback when user clicks "View Log" to navigate to full log entry
  */
 export default function MaintenanceOverview({ onViewLog }: MaintenanceOverviewProps) {
+  const { clubId, apiBaseUrl } = useManagerLog();
   // Filter state
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("open");
   const [dateFilter, setDateFilter] = useState<DateRangeFilter>("30days");
@@ -76,22 +78,23 @@ export default function MaintenanceOverview({ onViewLog }: MaintenanceOverviewPr
    * Uses explicit queryFn since we need to pass query parameters
    */
   const { data: items, isLoading, error } = useQuery<MaintenanceItemWithLog[]>({
-    queryKey: ['/api/maintenance-items', statusFilter, dateFilter],
+    queryKey: ['/api/maintenance-items', statusFilter, dateFilter, clubId],
     queryFn: async () => {
       const dateRange = getDateRange();
-      const params = new URLSearchParams();
+      const params: Record<string, string> = { clubId };
       
       if (statusFilter !== "all") {
-        params.set('status', statusFilter);
+        params.status = statusFilter;
       }
       if (dateRange.startDate) {
-        params.set('startDate', dateRange.startDate);
+        params.startDate = dateRange.startDate;
       }
       if (dateRange.endDate) {
-        params.set('endDate', dateRange.endDate);
+        params.endDate = dateRange.endDate;
       }
       
-      const response = await fetch(`/api/maintenance-items?${params.toString()}`);
+      const queryString = new URLSearchParams(params).toString();
+      const response = await fetch(`${apiBaseUrl}/api/maintenance-items?${queryString}`);
       if (!response.ok) {
         throw new Error('Failed to fetch maintenance items');
       }
