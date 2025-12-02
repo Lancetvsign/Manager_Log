@@ -20,7 +20,8 @@ import ManagerLogForm from "@/components/ManagerLogForm";
 import ManagerLogList from "@/components/ManagerLogList";
 import MaintenanceOverview from "@/components/MaintenanceOverview";
 import ThemeToggle from "@/components/ThemeToggle";
-import { FileText, History, Plus, Wrench } from "lucide-react";
+import { History, Plus, Wrench } from "lucide-react";
+import logoImage from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface LogEntry {
@@ -97,8 +98,13 @@ export default function Home() {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <FileText className="h-8 w-8 text-primary" />
+            <div className="flex items-center space-x-4">
+              <img 
+                src={logoImage} 
+                alt="Restaurant Logo" 
+                className="h-10 w-auto"
+                data-testid="img-logo"
+              />
               <div>
                 <h1 className="text-2xl font-bold" data-testid="text-app-title">
                   Restaurant Manager's Log
