@@ -1,0 +1,140 @@
+✅ Copy + Paste This Prompt Into Replit
+The Insights page is working with multiple chart types, granularity settings, and CSV export. Now I want to expand customization options and add deeper analytics tools.
+
+Please enhance the Insights page with the following advanced features:
+
+====================================================
+1) Fully Customizable Chart Options (per chart)
+====================================================
+
+For every chart (Sales Trend, Maintenance Donut, Sales Breakdown Donut, etc.) add a small “Chart Options” dropdown or button with:
+
+- Toggle gridlines on/off
+- Toggle data labels on/off
+- Toggle animations on/off
+- Allow user to switch between:
+  - Rounded corners (for bar/area charts)
+  - Straight corners
+- Toggle smoothing for line/area charts (curved vs straight line)
+- Color theme selector for the chart:
+  - Default SCP teal
+  - Monochrome gray
+  - Multi-color palette
+  - High-contrast accessibility palette
+
+Keep options stored only in client memory (React state).
+
+====================================================
+2) Add Comparison Mode
+====================================================
+
+Add a "Compare To" dropdown:
+
+- Previous Period (same number of days)
+- Previous Month
+- Previous Year
+- Custom Compare Range
+
+When Compare Mode is enabled:
+
+- Overlay a second series on the Sales Trend chart (dashed line)
+- Add comparison metrics next to summary cards:
+  - % increase / decrease in total sales
+  - % increase / decrease in average daily sales
+  - % change in open vs completed maintenance items
+
+Ensure the metrics API supports fetching both ranges:
+- Add optional `compareStartDate` and `compareEndDate` parameters
+OR
+- Perform comparison calculations client-side using two API calls.
+
+====================================================
+3) Add Heatmap Calendar View
+====================================================
+
+Add a new section below Sales Trend:
+
+**Sales Heatmap (Calendar Style)**
+
+- A calendar grid (like GitHub contribution chart)
+- Each day colored based on total sales intensity
+- Clicking a day opens the Log History detail view for that date
+- Respect date range filters
+- If only 7-30 days are selected, display a compact multi-row grid
+
+Use theme colors:
+- Light teal for low sales
+- Medium teal
+- Dark saturated teal for high sales
+
+====================================================
+4) Add Weekday & Hourly Breakdown (if data exists)
+====================================================
+
+Assuming we have timestamps for log entries or maintenance updates:
+
+Add two new charts:
+
+A) **Sales by Weekday**  
+Bar chart showing how sales vary Mon–Sun.
+
+B) **Sales by Hour (Optional)**  
+If the log structure includes hourly or shift-level notes, add a line/bar showing peak hours.  
+If data doesn’t exist, create placeholders + comments on how to integrate this later.
+
+====================================================
+5) Add Export Options (PDF & PNG)
+====================================================
+
+Add an "Export Chart" button on each chart:
+
+- Export the visible chart area as:
+  - PNG image
+  - PDF (single-page)
+- Include chart title, date range, and club name in the export
+- Use client-side libraries (`html2canvas`, `jspdf`) to generate exports
+
+====================================================
+6) Improved Insights Layout
+====================================================
+
+- Add collapsible sections for each metric category:
+  - Summary Cards
+  - Sales Trend
+  - Maintenance Insights
+  - Sales Breakdown
+  - Heatmap
+  - Optional Weekday/Hourly
+- Save collapsed/expanded state in local storage
+
+====================================================
+7) Developer Notes & Types
+====================================================
+
+Add TypeScript types for:
+
+- Chart options state
+- Comparison series data structure
+- Heatmap data structure
+- Export config options
+
+Add clear comments explaining:
+
+- How to add new chart types
+- How to extend the comparison mode
+- How the heatmap is generated
+- How export functions work
+
+====================================================
+When finished:
+====================================================
+
+Please provide:
+
+1. A list of all files created or modified  
+2. The TypeScript interfaces for:
+   - ChartOptions
+   - ComparisonMetrics
+   - HeatmapDay
+3. The final API shape for comparison mode  
+4. A short summary of how to add new customizations later

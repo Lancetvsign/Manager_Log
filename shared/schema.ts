@@ -280,3 +280,167 @@ export interface MetricsResponse {
   topDays: TopDayData[];
   salesByCategory: SalesByCategory;
 }
+
+/**
+ * ADVANCED INSIGHTS TYPES
+ * =======================
+ * Types for advanced analytics features including chart customization,
+ * comparison mode, heatmap visualization, and export functionality.
+ */
+
+/**
+ * Color theme options for chart customization
+ * - default: Social Club Pro teal theme
+ * - monochrome: Grayscale for printing or accessibility
+ * - multicolor: Vibrant multi-color palette
+ * - highContrast: High contrast for accessibility compliance
+ * 
+ * HOW TO ADD NEW THEMES:
+ * 1. Add the theme name to this type
+ * 2. Add color definitions in ChartColorThemes object (InsightsPage.tsx)
+ * 3. Update theme selector UI
+ */
+export type ChartColorTheme = "default" | "monochrome" | "multicolor" | "highContrast";
+
+/**
+ * Line/area chart smoothing options
+ * - curved: Smooth bezier curves between points (monotone)
+ * - straight: Direct lines between points (linear)
+ */
+export type ChartSmoothing = "curved" | "straight";
+
+/**
+ * Bar/area chart corner style
+ * - rounded: Rounded corners on bars
+ * - straight: Sharp corners on bars
+ */
+export type ChartCornerStyle = "rounded" | "straight";
+
+/**
+ * Chart customization options
+ * Each chart can have its own independent settings stored in React state.
+ * 
+ * HOW TO ADD NEW OPTIONS:
+ * 1. Add the option type here
+ * 2. Add default value in DEFAULT_CHART_OPTIONS constant
+ * 3. Add UI control in ChartOptionsPopover component
+ * 4. Apply the option in the relevant chart component
+ */
+export interface ChartOptions {
+  showGridlines: boolean;
+  showDataLabels: boolean;
+  enableAnimations: boolean;
+  cornerStyle: ChartCornerStyle;
+  smoothing: ChartSmoothing;
+  colorTheme: ChartColorTheme;
+}
+
+/**
+ * Comparison period presets
+ * - previousPeriod: Same number of days before the current range
+ * - previousMonth: Same date range in the previous month
+ * - previousYear: Same date range in the previous year
+ * - custom: User-defined custom date range
+ * 
+ * HOW TO EXTEND COMPARISON MODE:
+ * 1. Add new preset to this type
+ * 2. Add date calculation logic in getComparisonDateRange function
+ * 3. Update UI selector
+ */
+export type ComparisonPeriod = "none" | "previousPeriod" | "previousMonth" | "previousYear" | "custom";
+
+/**
+ * Metrics for comparing two periods
+ * All values are percentages showing change from comparison period to current period.
+ * Positive = increase, Negative = decrease
+ */
+export interface ComparisonMetrics {
+  totalSalesChange: number;
+  averageDailySalesChange: number;
+  openToDoChange: number;
+  completedToDoChange: number;
+  daysWithLogsChange: number;
+}
+
+/**
+ * Complete comparison data structure
+ * Contains both the raw metrics and calculated changes
+ */
+export interface ComparisonData {
+  period: ComparisonPeriod;
+  startDate: string;
+  endDate: string;
+  metrics: MetricsSummary;
+  dailySales: DailySalesData[];
+  changes: ComparisonMetrics;
+}
+
+/**
+ * Heatmap data point representing a single day
+ * Used in the GitHub-style sales heatmap calendar
+ * 
+ * HOW THE HEATMAP IS GENERATED:
+ * 1. Daily sales data is fetched from the metrics API
+ * 2. Each day is assigned an intensity level (0-4) based on sales
+ * 3. Intensity thresholds are calculated: [0, 25%, 50%, 75%, 100%] of max sales
+ * 4. Days are rendered in a calendar grid with colors based on intensity
+ * 
+ * Intensity levels:
+ * - 0: No data (gray)
+ * - 1: Low sales (light teal)
+ * - 2: Below average (medium teal)
+ * - 3: Above average (dark teal)
+ * - 4: Peak sales (saturated teal)
+ */
+export interface HeatmapDay {
+  date: string;
+  totalSales: number;
+  intensity: 0 | 1 | 2 | 3 | 4;
+  hasData: boolean;
+  dayOfWeek: string;
+  weekNumber: number;
+}
+
+/**
+ * Sales aggregated by weekday
+ * Used in the "Sales by Weekday" bar chart
+ */
+export interface WeekdaySalesData {
+  dayOfWeek: string;
+  dayIndex: number; // 0=Sunday, 6=Saturday
+  totalSales: number;
+  averageSales: number;
+  count: number;
+}
+
+/**
+ * Export configuration options
+ * Used when exporting charts to PNG or PDF
+ * 
+ * HOW EXPORT FUNCTIONS WORK:
+ * 1. html2canvas captures the chart DOM element as a canvas
+ * 2. For PNG: Canvas is converted to base64 and downloaded
+ * 3. For PDF: jsPDF creates a document and adds the canvas as an image
+ * 4. Metadata (title, date range, club name) is added to the export
+ */
+export interface ChartExportConfig {
+  format: "png" | "pdf";
+  includeTitle: boolean;
+  includeDateRange: boolean;
+  includeClubName: boolean;
+  quality: number; // 0-1, for PNG compression
+  scale: number; // Resolution multiplier (1-3)
+}
+
+/**
+ * Collapsible section state
+ * Stored in localStorage for persistence across sessions
+ */
+export interface InsightsSectionState {
+  summaryCards: boolean;
+  salesTrend: boolean;
+  toDoInsights: boolean;
+  salesBreakdown: boolean;
+  heatmap: boolean;
+  weekdayAnalysis: boolean;
+}

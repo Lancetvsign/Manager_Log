@@ -195,20 +195,55 @@ Metrics (all support `?clubId=` query parameter):
 
 ## Recent Changes
 
-### December 2, 2025 - Insights/Analytics Page
+### December 2, 2025 - Advanced Insights & Analytics Features
+- Added **Comparison Mode** for period-over-period analysis
+  - Compare to: Previous Period, Previous Month, Previous Year, Custom Range
+  - Overlay comparison data on Sales Trend chart (dashed line)
+  - % change indicators on summary cards (with trend icons)
+  - Second API call for comparison data handled client-side
+- Added **Sales Heatmap Calendar** (GitHub-style contribution chart)
+  - Days colored by sales intensity (0-4 levels)
+  - Click on day to view log details
+  - Compact grid for 7-30 day ranges, full calendar for longer ranges
+- Added **Sales by Weekday** bar chart
+  - Aggregates sales by day of week (Sun-Sat)
+  - Shows total and average sales per weekday
+- Added **Chart Customization Options** per chart
+  - Toggle gridlines, data labels, animations
+  - Corner style (rounded/straight) for bar charts
+  - Line smoothing (curved/straight) for line/area charts
+  - Color theme selector (Default SCP Teal, Monochrome, Multi-color, High Contrast)
+- Added **Chart Export** functionality (PNG/PDF)
+  - Uses html2canvas and jsPDF libraries
+  - Includes chart title, date range, and club name in exports
+- Added **Collapsible Sections** with localStorage persistence
+  - Summary, Sales Trend, Heatmap, To-Do Insights, Weekday Analysis, Top Days
+  - State persisted across sessions
+- Added **comprehensive TypeScript types** for new features
+  - ChartOptions, ChartColorTheme, ChartSmoothing, ChartCornerStyle
+  - ComparisonPeriod, ComparisonMetrics, ComparisonData
+  - HeatmapDay, WeekdaySalesData, ChartExportConfig, InsightsSectionState
+- New chart components in `/client/src/components/charts/`:
+  - ChartOptionsPopover.tsx, ChartExportButton.tsx, CollapsibleSection.tsx
+  - ComparisonModeSelector.tsx, SalesHeatmapCalendar.tsx, WeekdaySalesChart.tsx
+
+### December 2, 2025 - Insights/Analytics Page (Base)
 - Added **Insights page** as fourth tab in navigation
   - Summary cards: Days logged, Total sales, Average daily sales, To-Do status
-  - Sales trend line chart using Recharts (X-axis: date, Y-axis: total sales)
-  - To-Do status horizontal bar chart (Open vs Completed)
-  - Top performing days table with notes snippets and View Log navigation
+  - Sales trend chart with multiple types (Line, Bar, Area)
+  - Granularity controls (Daily, Weekly, Monthly)
+  - To-Do status pie chart (Open vs Completed with percentages)
+  - Sales breakdown pie chart (Food, Bar, Gaming)
+  - Top performing days table with View Log navigation
 - Added **date range filters** for all metrics
   - Presets: Last 7 Days, Last 30 Days, This Month
   - Custom range with date pickers
+- Added **Reset Filters** button and **Export CSV** functionality
 - Added **metrics API endpoint** (`GET /api/metrics`)
   - Accepts clubId, startDate, endDate query parameters
-  - Returns aggregated summary, daily sales array, to-do status, top days
+  - Returns aggregated summary, daily sales array, to-do status, top days, salesByCategory
 - Added **TypeScript types** for metrics response in shared/schema.ts
-  - MetricsSummary, DailySalesData, ToDoStatus, TopDayData, MetricsResponse
+  - MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory, MetricsResponse
 - Renamed all "Maintenance" references to "To-Do List" for clarity
 
 ### December 2, 2025 - Multi-Club Architecture & Social Club Pro Integration

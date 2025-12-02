@@ -7,9 +7,11 @@
  * Features:
  * - Chart type switching without re-fetching data
  * - Granularity support (daily, weekly, monthly aggregation)
+ * - Comparison mode with dashed overlay line
+ * - Customizable chart options (gridlines, labels, animations, colors)
+ * - Export to PNG/PDF
  * - Hover tooltips with date and sales info
  * - Social Club Pro theme colors
- * - Graceful handling of sparse data (1-2 points)
  * 
  * HOW TO ADD NEW CHART TYPES:
  * 1. Add the new type to ChartType in shared/schema.ts
@@ -20,13 +22,16 @@
  * @example
  * <SalesTrendChart
  *   data={metrics.dailySales}
+ *   comparisonData={comparisonMetrics?.dailySales}
  *   chartType="line"
  *   granularity="daily"
+ *   options={chartOptions}
  *   onChartTypeChange={setChartType}
+ *   onOptionsChange={setChartOptions}
  * />
  */
 
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { format, startOfWeek, startOfMonth, parseISO } from "date-fns";
 import {
   ResponsiveContainer,
@@ -41,18 +46,22 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  LabelList,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, BarChart3 as BarChartIcon, LineChart as LineChartIcon, AreaChart as AreaChartIcon } from "lucide-react";
-import type { DailySalesData, ChartType, GranularityType } from "@shared/schema";
-
-const PRIMARY_COLOR = "hsl(174, 83.9%, 31.6%)";
+import type { DailySalesData, ChartType, GranularityType, ChartOptions } from "@shared/schema";
+import ChartOptionsPopover, { DEFAULT_CHART_OPTIONS, CHART_COLOR_THEMES } from "./ChartOptionsPopover";
+import ChartExportButton from "./ChartExportButton";
 
 interface SalesTrendChartProps {
   data: DailySalesData[];
+  comparisonData?: DailySalesData[];
   chartType: ChartType;
   granularity: GranularityType;
+  dateRange: string;
+  clubName?: string;
   onChartTypeChange: (type: ChartType) => void;
 }
 
@@ -60,6 +69,7 @@ interface AggregatedDataPoint {
   date: string;
   label: string;
   totalSales: number;
+  comparisonSales?: number;
   foodSales: number;
   barSales: number;
   gamingSales: number;
@@ -67,36 +77,31 @@ interface AggregatedDataPoint {
 
 export default function SalesTrendChart({
   data,
+  comparisonData,
   chartType,
   granularity,
+  dateRange,
+  clubName,
   onChartTypeChange,
 }: SalesTrendChartProps) {
-  /**
-   * Aggregate data based on granularity setting
-   * - daily: no aggregation, use raw data
-   * - weekly: group by week start (Sunday)
-   * - monthly: group by month
-   */
-  const aggregatedData = useMemo((): AggregatedDataPoint[] => {
-    if (granularity === "daily") {
-      return data.map((d) => ({
-        date: d.date,
-        label: format(parseISO(d.date), "MMM d"),
-        totalSales: d.totalSales,
-        foodSales: d.foodSales,
-        barSales: d.barSales,
-        gamingSales: d.gamingSales,
-      }));
-    }
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [options, setOptions] = useState<ChartOptions>(DEFAULT_CHART_OPTIONS);
 
-    const grouped: Record<string, AggregatedDataPoint> = {};
+  const aggregateData = (
+    salesData: DailySalesData[],
+    gran: GranularityType
+  ): Map<string, AggregatedDataPoint> => {
+    const grouped = new Map<string, AggregatedDataPoint>();
 
-    data.forEach((d) => {
+    salesData.forEach((d) => {
       const dateObj = parseISO(d.date);
       let key: string;
       let label: string;
 
-      if (granularity === "weekly") {
+      if (gran === "daily") {
+        key = d.date;
+        label = format(dateObj, "MMM d");
+      } else if (gran === "weekly") {
         const weekStart = startOfWeek(dateObj, { weekStartsOn: 0 });
         key = format(weekStart, "yyyy-MM-dd");
         label = `Week of ${format(weekStart, "MMM d")}`;
@@ -106,25 +111,48 @@ export default function SalesTrendChart({
         label = format(monthStart, "MMM yyyy");
       }
 
-      if (!grouped[key]) {
-        grouped[key] = {
-          date: key,
-          label,
-          totalSales: 0,
-          foodSales: 0,
-          barSales: 0,
-          gamingSales: 0,
-        };
-      }
+      const existing = grouped.get(key) || {
+        date: key,
+        label,
+        totalSales: 0,
+        foodSales: 0,
+        barSales: 0,
+        gamingSales: 0,
+      };
 
-      grouped[key].totalSales += d.totalSales;
-      grouped[key].foodSales += d.foodSales;
-      grouped[key].barSales += d.barSales;
-      grouped[key].gamingSales += d.gamingSales;
+      grouped.set(key, {
+        ...existing,
+        totalSales: existing.totalSales + d.totalSales,
+        foodSales: existing.foodSales + d.foodSales,
+        barSales: existing.barSales + d.barSales,
+        gamingSales: existing.gamingSales + d.gamingSales,
+      });
     });
 
-    return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date));
-  }, [data, granularity]);
+    return grouped;
+  };
+
+  const aggregatedData = useMemo((): AggregatedDataPoint[] => {
+    const mainData = aggregateData(data, granularity);
+    const compData = comparisonData ? aggregateData(comparisonData, granularity) : null;
+
+    const result = Array.from(mainData.values()).sort((a, b) =>
+      a.date.localeCompare(b.date)
+    );
+
+    if (compData && result.length > 0) {
+      const compValues = Array.from(compData.values()).sort((a, b) =>
+        a.date.localeCompare(b.date)
+      );
+      result.forEach((point, index) => {
+        if (compValues[index]) {
+          point.comparisonSales = compValues[index].totalSales;
+        }
+      });
+    }
+
+    return result;
+  }, [data, comparisonData, granularity]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -135,15 +163,25 @@ export default function SalesTrendChart({
     }).format(value);
   };
 
+  const formatShortCurrency = (value: number) => {
+    if (value >= 1000) {
+      return `$${(value / 1000).toFixed(1)}k`;
+    }
+    return `$${value}`;
+  };
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const dataPoint = aggregatedData.find((d) => d.label === label);
       return (
         <div className="bg-card border rounded-lg p-3 shadow-lg">
-          <p className="font-medium mb-1">{dataPoint?.label || label}</p>
-          <p className="text-primary font-bold">
-            {formatCurrency(payload[0]?.value || 0)}
-          </p>
+          <p className="font-medium mb-2">{dataPoint?.label || label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} className="text-sm" style={{ color: entry.color }}>
+              <span className="font-medium">{entry.name}:</span>{" "}
+              {formatCurrency(entry.value || 0)}
+            </p>
+          ))}
         </div>
       );
     }
@@ -155,6 +193,14 @@ export default function SalesTrendChart({
     { type: "bar", icon: BarChartIcon, label: "Bar" },
     { type: "area", icon: AreaChartIcon, label: "Area" },
   ];
+
+  const themeColors = CHART_COLOR_THEMES[options.colorTheme].colors;
+  const primaryColor = themeColors[0];
+  const secondaryColor = themeColors[1] || "hsl(0, 0%, 60%)";
+
+  const lineType = options.smoothing === "curved" ? "monotone" : "linear";
+  const barRadius: [number, number, number, number] =
+    options.cornerStyle === "rounded" ? [4, 4, 0, 0] : [0, 0, 0, 0];
 
   const commonAxisProps = {
     tick: { fontSize: 12 },
@@ -170,10 +216,14 @@ export default function SalesTrendChart({
       );
     }
 
+    const hasComparison = comparisonData && comparisonData.length > 0;
+
     const chartComponents = {
       line: (
         <LineChart data={aggregatedData}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+          {options.showGridlines && (
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+          )}
           <XAxis dataKey="label" {...commonAxisProps} />
           <YAxis
             tickFormatter={(value) => `$${value.toLocaleString()}`}
@@ -183,19 +233,43 @@ export default function SalesTrendChart({
           <Tooltip content={<CustomTooltip />} />
           <Legend />
           <Line
-            type="monotone"
+            type={lineType}
             dataKey="totalSales"
-            name="Total Sales"
-            stroke={PRIMARY_COLOR}
+            name="Current Period"
+            stroke={primaryColor}
             strokeWidth={2}
-            dot={{ fill: PRIMARY_COLOR, strokeWidth: 2, r: aggregatedData.length <= 10 ? 4 : 2 }}
+            dot={{ fill: primaryColor, strokeWidth: 2, r: aggregatedData.length <= 10 ? 4 : 2 }}
             activeDot={{ r: 6 }}
-          />
+            isAnimationActive={options.enableAnimations}
+          >
+            {options.showDataLabels && (
+              <LabelList
+                dataKey="totalSales"
+                position="top"
+                formatter={formatShortCurrency}
+                fontSize={10}
+              />
+            )}
+          </Line>
+          {hasComparison && (
+            <Line
+              type={lineType}
+              dataKey="comparisonSales"
+              name="Comparison Period"
+              stroke={secondaryColor}
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              dot={{ fill: secondaryColor, strokeWidth: 2, r: 2 }}
+              isAnimationActive={options.enableAnimations}
+            />
+          )}
         </LineChart>
       ),
       bar: (
         <BarChart data={aggregatedData}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+          {options.showGridlines && (
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+          )}
           <XAxis dataKey="label" {...commonAxisProps} />
           <YAxis
             tickFormatter={(value) => `$${value.toLocaleString()}`}
@@ -206,15 +280,36 @@ export default function SalesTrendChart({
           <Legend />
           <Bar
             dataKey="totalSales"
-            name="Total Sales"
-            fill={PRIMARY_COLOR}
-            radius={[4, 4, 0, 0]}
-          />
+            name="Current Period"
+            fill={primaryColor}
+            radius={barRadius}
+            isAnimationActive={options.enableAnimations}
+          >
+            {options.showDataLabels && (
+              <LabelList
+                dataKey="totalSales"
+                position="top"
+                formatter={formatShortCurrency}
+                fontSize={10}
+              />
+            )}
+          </Bar>
+          {hasComparison && (
+            <Bar
+              dataKey="comparisonSales"
+              name="Comparison Period"
+              fill={secondaryColor}
+              radius={barRadius}
+              isAnimationActive={options.enableAnimations}
+            />
+          )}
         </BarChart>
       ),
       area: (
         <AreaChart data={aggregatedData}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+          {options.showGridlines && (
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+          )}
           <XAxis dataKey="label" {...commonAxisProps} />
           <YAxis
             tickFormatter={(value) => `$${value.toLocaleString()}`}
@@ -224,13 +319,35 @@ export default function SalesTrendChart({
           <Tooltip content={<CustomTooltip />} />
           <Legend />
           <Area
-            type="monotone"
+            type={lineType}
             dataKey="totalSales"
-            name="Total Sales"
-            stroke={PRIMARY_COLOR}
-            fill={PRIMARY_COLOR}
+            name="Current Period"
+            stroke={primaryColor}
+            fill={primaryColor}
             fillOpacity={0.3}
-          />
+            isAnimationActive={options.enableAnimations}
+          >
+            {options.showDataLabels && (
+              <LabelList
+                dataKey="totalSales"
+                position="top"
+                formatter={formatShortCurrency}
+                fontSize={10}
+              />
+            )}
+          </Area>
+          {hasComparison && (
+            <Area
+              type={lineType}
+              dataKey="comparisonSales"
+              name="Comparison Period"
+              stroke={secondaryColor}
+              fill={secondaryColor}
+              fillOpacity={0.1}
+              strokeDasharray="5 5"
+              isAnimationActive={options.enableAnimations}
+            />
+          )}
         </AreaChart>
       ),
     };
@@ -266,10 +383,22 @@ export default function SalesTrendChart({
                 <span className="hidden sm:inline">{label}</span>
               </Button>
             ))}
+            <ChartOptionsPopover
+              options={options}
+              onOptionsChange={setOptions}
+              showCornerStyle={chartType === "bar"}
+              showSmoothing={chartType === "line" || chartType === "area"}
+            />
+            <ChartExportButton
+              chartRef={chartRef}
+              title="Sales Trend"
+              dateRange={dateRange}
+              clubName={clubName}
+            />
           </div>
         </div>
       </CardHeader>
-      <CardContent>{renderChart()}</CardContent>
+      <CardContent ref={chartRef}>{renderChart()}</CardContent>
     </Card>
   );
 }
