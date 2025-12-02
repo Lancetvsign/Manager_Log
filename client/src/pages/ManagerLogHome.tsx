@@ -94,8 +94,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header - App title and theme toggle */}
-      <header className="border-b bg-card">
+      {/* Header - App title and theme toggle with dark teal background */}
+      <header className="border-b bg-primary">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -106,10 +106,10 @@ export default function Home() {
                 data-testid="img-logo"
               />
               <div>
-                <h1 className="text-2xl font-bold" data-testid="text-app-title">
+                <h1 className="text-2xl font-bold text-primary-foreground" data-testid="text-app-title">
                   Restaurant Manager's Log
                 </h1>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-primary-foreground/80">
                   Daily operations tracking with weather and sales data
                 </p>
               </div>
