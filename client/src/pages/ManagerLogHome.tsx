@@ -95,8 +95,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header - App title and theme toggle with light grey background */}
-      <header className="border-b bg-gray-100 dark:bg-gray-800">
+      {/* Header - App title and theme toggle with white background */}
+      <header className="border-b bg-white dark:bg-gray-900">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
