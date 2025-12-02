@@ -8,6 +8,24 @@ A restaurant management application designed for daily operational tracking and 
 
 Preferred communication style: Simple, everyday language.
 
+## Key Files
+
+This section provides a quick reference to the most important files in the codebase:
+
+### Schema & Models
+- **`shared/schema.ts`** - Database schema definitions using Drizzle ORM. Defines ManagerLog and MaintenanceItem tables with relationships and Zod validation schemas.
+
+### Backend
+- **`server/routes.ts`** - All API endpoints with detailed documentation. Includes manager logs CRUD, maintenance items CRUD, and weather API integration.
+- **`server/storage.ts`** - Database access layer implementing the Repository pattern. Contains all database queries using Drizzle ORM.
+- **`server/db.ts`** - Database connection configuration using Neon serverless PostgreSQL.
+
+### Frontend Pages & Components
+- **`client/src/pages/Home.tsx`** - Main application shell with 3-tab navigation (New Entry, Log History, Maintenance).
+- **`client/src/components/ManagerLogForm.tsx`** - Form for creating/editing daily log entries with weather integration.
+- **`client/src/components/ManagerLogList.tsx`** - History view with filters, search, and detail view for logs.
+- **`client/src/components/MaintenanceOverview.tsx`** - Consolidated view of all maintenance items across all days with status/date filters.
+
 ## System Architecture
 
 ### Frontend Architecture
@@ -51,9 +69,11 @@ Preferred communication style: Simple, everyday language.
 - Schema-first approach with migrations in `/migrations` directory
 
 **Data Models**
-- **Users**: Authentication and user management
+- **Users**: Authentication and user management (prepared for future auth)
 - **Manager Logs**: Daily operational logs with sales data, weather, and notes
+  - Fields: id, logDate (unique), dayOfWeek, managerName, weather, weatherLastYear, foodSales, barSales, gamingSales, totalSales, salesNotes, dailyNumber, weeklyNumber, dailyNotes, createdAt, updatedAt
 - **Maintenance Items**: Tracked maintenance tasks linked to specific log entries
+  - Fields: id, managerLogId (FK), description, status (open/completed), notes, createdAt, resolvedAt
 - Relational structure with cascading deletes for maintenance items
 
 **Storage Pattern**
@@ -92,15 +112,47 @@ Preferred communication style: Simple, everyday language.
 ### API Structure
 
 **RESTful Endpoints**
-- `/api/manager-logs` - CRUD operations for daily logs
-- `/api/manager-logs/:id` - Individual log operations
-- `/api/maintenance-items` - Maintenance task management
-- Weather data fetched server-side and included in log responses
+
+Manager Logs:
+- `GET /api/manager-logs` - Get all logs (sorted by date descending)
+- `GET /api/manager-logs/:id` - Get single log by ID
+- `GET /api/manager-logs/by-date/:date` - Get log by date (YYYY-MM-DD)
+- `GET /api/manager-logs/range/:startDate/:endDate` - Get logs in date range
+- `POST /api/manager-logs` - Create or update log (upsert by date)
+- `PATCH /api/manager-logs/:id` - Partial update
+- `DELETE /api/manager-logs/:id` - Delete log (cascades to maintenance items)
+
+Maintenance Items:
+- `GET /api/maintenance-items` - Get all items with optional filters (status, startDate, endDate)
+- `GET /api/manager-logs/:logId/maintenance` - Get items for a specific log
+- `POST /api/maintenance-items` - Create new item
+- `PATCH /api/maintenance-items/:id` - Update item (auto-sets resolvedAt when completed)
+- `DELETE /api/maintenance-items/:id` - Delete item
+
+Weather:
+- `GET /api/weather/current` - Current weather data
+- `GET /api/weather/current/formatted` - Current weather as formatted string
+- `GET /api/weather/historical?date=YYYY-MM-DD` - Weather from 1 year ago
+- `GET /api/weather/historical/formatted?date=YYYY-MM-DD` - Historical weather as formatted string
 
 **Data Flow**
 1. Client makes requests via TanStack Query
 2. Custom `apiRequest` wrapper handles fetch with credentials
-3. Express routes process requests
-4. Storage layer interacts with database via Drizzle
+3. Express routes process requests and validate with Zod schemas
+4. Storage layer interacts with database via Drizzle ORM
 5. Responses cached client-side until manually invalidated
 6. Toast notifications for user feedback on mutations
+
+## Recent Changes
+
+### December 2, 2025
+- Added **Maintenance Overview page** as third tab in navigation
+  - Shows all maintenance items across all days
+  - Filters by status (All, Open, Completed) and date range (Last 7 Days, Last 30 Days, All Time)
+  - "View Log" button navigates to History detail view for that log
+- Added **comprehensive code documentation** to all key files
+  - JSDoc comments explaining purpose, data flow, and key decisions
+  - Inline comments for complex logic
+- Added `GET /api/maintenance-items` endpoint with join query to include log dates
+- Added `MaintenanceItemWithLog` type for maintenance items with log information
+- Fixed cross-tab navigation using useRef guard to prevent re-triggering on data refetch

@@ -1,4 +1,25 @@
-import { useState } from "react";
+/**
+ * MANAGER LOG LIST / HISTORY COMPONENT
+ * =====================================
+ * Displays the history of all manager log entries with filtering and detail view.
+ * 
+ * Features:
+ * - Date range filters (All, Last 7 Days, Last 30 Days, Specific Date)
+ * - Search by manager name, date, or notes content
+ * - List view showing summary cards for each log
+ * - Detail view showing full log with maintenance items
+ * 
+ * Props:
+ * - logs: Optional array of logs (falls back to API fetch)
+ * - initialSelectedLogId: If provided, opens the detail view for this log ID
+ * - onLogSelected: Callback when a log is selected (used for cross-tab navigation)
+ * 
+ * Data Flow:
+ * - Fetches all logs from /api/manager-logs
+ * - When a log is selected, fetches its maintenance items from /api/manager-logs/:id/maintenance
+ */
+
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,9 +40,15 @@ type DateRangeFilter = "all" | "7days" | "30days" | "specific";
 
 interface ManagerLogListProps {
   logs?: ManagerLog[];
+  initialSelectedLogId?: number | null;
+  onLogSelected?: () => void;
 }
 
-export default function ManagerLogList({ logs: propLogs }: ManagerLogListProps) {
+export default function ManagerLogList({ 
+  logs: propLogs, 
+  initialSelectedLogId,
+  onLogSelected 
+}: ManagerLogListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLog, setSelectedLog] = useState<ManagerLog | null>(null);
   const [dateFilter, setDateFilter] = useState<DateRangeFilter>("all");
@@ -50,6 +77,35 @@ export default function ManagerLogList({ logs: propLogs }: ManagerLogListProps) 
   });
   
   const logs = apiLogs && apiLogs.length > 0 ? apiLogs : (propLogs || []);
+
+  /**
+   * Handle initial log selection from cross-tab navigation
+   * When navigating from Maintenance tab, this opens the specified log directly.
+   * Uses a ref to track if we've already processed this initialSelectedLogId
+   * to prevent re-triggering on every apiLogs refetch.
+   */
+  const processedLogIdRef = useRef<number | null>(null);
+  
+  useEffect(() => {
+    // Only process if we have a new initialSelectedLogId that we haven't handled yet
+    if (initialSelectedLogId && 
+        apiLogs && 
+        processedLogIdRef.current !== initialSelectedLogId) {
+      const logToSelect = apiLogs.find(log => log.id === initialSelectedLogId);
+      if (logToSelect) {
+        setSelectedLog(logToSelect);
+        processedLogIdRef.current = initialSelectedLogId;
+        if (onLogSelected) {
+          onLogSelected();
+        }
+      }
+    }
+    
+    // Reset ref when initialSelectedLogId becomes null (user navigated away)
+    if (!initialSelectedLogId) {
+      processedLogIdRef.current = null;
+    }
+  }, [initialSelectedLogId, apiLogs, onLogSelected]);
 
   const getFilteredLogs = () => {
     let filtered = logs;

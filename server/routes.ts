@@ -1,10 +1,36 @@
+/**
+ * API ROUTES
+ * ==========
+ * This file defines all HTTP endpoints for the Restaurant Manager's Log API.
+ * It handles incoming requests, validates data, and delegates to the storage layer.
+ * 
+ * Data Flow:
+ * HTTP Request → Express Route → Validation (Zod) → Storage Layer → Database → Response
+ * 
+ * Route Organization:
+ * - /api/manager-logs/* - CRUD operations for daily log entries
+ * - /api/maintenance-items/* - CRUD operations for maintenance tasks
+ * - /api/weather/* - Weather data from Open-Meteo API
+ */
+
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertManagerLogSchema, insertMaintenanceItemSchema } from "@shared/schema";
 import { z } from "zod";
 
-// Weather service functions using Open-Meteo API (free)
+// ==================
+// WEATHER SERVICE
+// ==================
+
+/**
+ * Fetches current weather data from Open-Meteo API
+ * This is a free weather service that doesn't require an API key.
+ * 
+ * @param lat - Latitude (default: NYC 40.7128)
+ * @param lon - Longitude (default: NYC -74.0060)
+ * @returns Weather data object with temperature, condition, humidity, windSpeed
+ */
 async function getCurrentWeather(lat: number = 40.7128, lon: number = -74.0060) {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph`;
@@ -26,6 +52,7 @@ async function getCurrentWeather(lat: number = 40.7128, lon: number = -74.0060) 
     };
   } catch (error) {
     console.error('Error fetching current weather:', error);
+    // Return fallback data when API is unavailable
     return {
       temperature: Math.floor(Math.random() * 30) + 50,
       condition: "Cloudy",
@@ -36,6 +63,16 @@ async function getCurrentWeather(lat: number = 40.7128, lon: number = -74.0060) 
   }
 }
 
+/**
+ * Fetches historical weather data from Open-Meteo Archive API
+ * Used to show weather comparison from the same date one year ago.
+ * Note: Archive API may not have data for very recent dates.
+ * 
+ * @param date - Date in YYYY-MM-DD format
+ * @param lat - Latitude
+ * @param lon - Longitude
+ * @returns Historical weather data object
+ */
 async function getHistoricalWeather(date: string, lat: number = 40.7128, lon: number = -74.0060) {
   try {
     const url = `https://api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${date}&end_date=${date}&daily=temperature_2m_max,relative_humidity_2m_mean,wind_speed_10m_max,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph`;
@@ -61,6 +98,7 @@ async function getHistoricalWeather(date: string, lat: number = 40.7128, lon: nu
     };
   } catch (error) {
     console.error('Error fetching historical weather:', error);
+    // Return fallback data when API is unavailable
     return {
       temperature: Math.floor(Math.random() * 25) + 45,
       condition: "Cloudy",
@@ -71,6 +109,10 @@ async function getHistoricalWeather(date: string, lat: number = 40.7128, lon: nu
   }
 }
 
+/**
+ * Converts WMO weather codes to human-readable conditions
+ * @see https://open-meteo.com/en/docs for weather code documentation
+ */
 function getWeatherCondition(weatherCode: number): string {
   if (weatherCode === 0) return "Clear";
   if (weatherCode >= 1 && weatherCode <= 3) return "Cloudy";
@@ -81,6 +123,9 @@ function getWeatherCondition(weatherCode: number): string {
   return "Cloudy";
 }
 
+/**
+ * Converts WMO weather codes to detailed descriptions
+ */
 function getWeatherDescription(weatherCode: number): string {
   const descriptions: { [key: number]: string } = {
     0: "Clear sky",
@@ -106,14 +151,28 @@ function getWeatherDescription(weatherCode: number): string {
   return descriptions[weatherCode] || "Unknown conditions";
 }
 
+/**
+ * Formats weather data into a human-readable string
+ */
 function formatWeatherString(weather: { temperature: number; condition: string; humidity: number; windSpeed: number; description: string }): string {
   return `${weather.temperature}°F, ${weather.description}, Humidity: ${weather.humidity}%, Wind: ${weather.windSpeed} mph`;
 }
 
+// ==================
+// ROUTE REGISTRATION
+// ==================
+
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Manager Logs API
   
-  // Get all manager logs
+  // ==================
+  // MANAGER LOGS API
+  // ==================
+
+  /**
+   * GET /api/manager-logs
+   * Retrieves all manager log entries, sorted by date descending.
+   * Used by the History page to display the list of all logs.
+   */
   app.get("/api/manager-logs", async (req, res) => {
     try {
       const logs = await storage.getAllManagerLogs();
@@ -124,7 +183,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get manager log by date
+  /**
+   * GET /api/manager-logs/by-date/:date
+   * Retrieves a single log entry by its date.
+   * Used by the Today's Log page to load existing data for a selected date.
+   * @param date - The date in YYYY-MM-DD format
+   */
   app.get("/api/manager-logs/by-date/:date", async (req, res) => {
     try {
       const { date } = req.params;
@@ -139,7 +203,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get a single manager log by ID
+  /**
+   * GET /api/manager-logs/:id
+   * Retrieves a single log entry by its numeric ID.
+   * Used by the History detail view to load a specific log.
+   * @param id - The log's serial ID
+   */
   app.get("/api/manager-logs/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
@@ -157,7 +226,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create or update manager log (upsert by date)
+  /**
+   * POST /api/manager-logs
+   * Creates a new log entry or updates an existing one for the same date.
+   * This is the main endpoint used by the "Save / Update Log Entry" button.
+   * Uses upsert behavior: if a log for the date exists, it updates; otherwise creates.
+   */
   app.post("/api/manager-logs", async (req, res) => {
     try {
       const validatedData = insertManagerLogSchema.parse(req.body);
@@ -175,7 +249,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update a manager log (partial update)
+  /**
+   * PATCH /api/manager-logs/:id
+   * Partially updates an existing log entry.
+   * Only the provided fields are updated; others remain unchanged.
+   */
   app.patch("/api/manager-logs/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
@@ -202,7 +280,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete a manager log
+  /**
+   * DELETE /api/manager-logs/:id
+   * Deletes a log entry and all its associated maintenance items (CASCADE).
+   */
   app.delete("/api/manager-logs/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
@@ -220,9 +301,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Maintenance Items API
-  
-  // Get maintenance items for a log
+  /**
+   * GET /api/manager-logs/range/:startDate/:endDate
+   * Retrieves logs within a date range.
+   * Used by History page date range filters.
+   */
+  app.get("/api/manager-logs/range/:startDate/:endDate", async (req, res) => {
+    try {
+      const { startDate, endDate } = req.params;
+      const logs = await storage.getManagerLogsByDateRange(startDate, endDate);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching manager logs by date range:", error);
+      res.status(500).json({ error: "Failed to fetch manager logs" });
+    }
+  });
+
+  // ==================
+  // MAINTENANCE ITEMS API
+  // ==================
+
+  /**
+   * GET /api/maintenance-items
+   * Retrieves all maintenance items with optional filters.
+   * Used by the Maintenance Overview page to show items across all days.
+   * 
+   * Query parameters:
+   * - status: Filter by status ('all', 'open', 'completed')
+   * - startDate: Start date for date range filter (YYYY-MM-DD)
+   * - endDate: End date for date range filter (YYYY-MM-DD)
+   */
+  app.get("/api/maintenance-items", async (req, res) => {
+    try {
+      const { status, startDate, endDate } = req.query;
+      
+      const filters: { status?: string; startDate?: string; endDate?: string } = {};
+      
+      if (status && typeof status === 'string') {
+        filters.status = status;
+      }
+      if (startDate && typeof startDate === 'string') {
+        filters.startDate = startDate;
+      }
+      if (endDate && typeof endDate === 'string') {
+        filters.endDate = endDate;
+      }
+      
+      const items = await storage.getAllMaintenanceItems(filters);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching all maintenance items:", error);
+      res.status(500).json({ error: "Failed to fetch maintenance items" });
+    }
+  });
+
+  /**
+   * GET /api/manager-logs/:logId/maintenance
+   * Retrieves all maintenance items for a specific log entry.
+   * Used by both the Today's Log form and History detail view.
+   */
   app.get("/api/manager-logs/:logId/maintenance", async (req, res) => {
     try {
       const logId = parseInt(req.params.logId, 10);
@@ -237,7 +374,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create maintenance item
+  /**
+   * POST /api/maintenance-items
+   * Creates a new maintenance item linked to a log entry.
+   * Requires managerLogId in the request body.
+   */
   app.post("/api/maintenance-items", async (req, res) => {
     try {
       const validatedData = insertMaintenanceItemSchema.parse(req.body);
@@ -255,7 +396,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update maintenance item
+  /**
+   * PATCH /api/maintenance-items/:id
+   * Updates a maintenance item.
+   * Commonly used to toggle status between 'open' and 'completed'.
+   */
   app.patch("/api/maintenance-items/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
@@ -282,7 +427,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete maintenance item
+  /**
+   * DELETE /api/maintenance-items/:id
+   * Deletes a maintenance item.
+   */
   app.delete("/api/maintenance-items/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
@@ -300,9 +448,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Weather API endpoints
-  
-  // Get current weather
+  // ==================
+  // WEATHER API
+  // ==================
+
+  /**
+   * GET /api/weather/current
+   * Fetches current weather data from Open-Meteo API.
+   * Returns raw weather object.
+   */
   app.get("/api/weather/current", async (req, res) => {
     try {
       const { lat, lon } = req.query;
@@ -317,7 +471,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get current weather as formatted string
+  /**
+   * GET /api/weather/current/formatted
+   * Fetches current weather and returns it as a formatted string.
+   * Used by the Today's Log form to populate the weather field.
+   */
   app.get("/api/weather/current/formatted", async (req, res) => {
     try {
       const { lat, lon } = req.query;
@@ -332,7 +490,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get historical weather (1 year ago from given date)
+  /**
+   * GET /api/weather/historical
+   * Fetches weather data from the same date one year ago.
+   * Used for year-over-year weather comparison.
+   * @query date - The current date in YYYY-MM-DD format (calculates 1 year prior)
+   */
   app.get("/api/weather/historical", async (req, res) => {
     try {
       const { date, lat, lon } = req.query;
@@ -359,7 +522,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get historical weather as formatted string
+  /**
+   * GET /api/weather/historical/formatted
+   * Fetches historical weather and returns it as a formatted string.
+   * Used by the Today's Log form to populate the year-ago weather field.
+   */
   app.get("/api/weather/historical/formatted", async (req, res) => {
     try {
       const { date, lat, lon } = req.query;
@@ -385,19 +552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get logs by date range
-  app.get("/api/manager-logs/range/:startDate/:endDate", async (req, res) => {
-    try {
-      const { startDate, endDate } = req.params;
-      const logs = await storage.getManagerLogsByDateRange(startDate, endDate);
-      res.json(logs);
-    } catch (error) {
-      console.error("Error fetching manager logs by date range:", error);
-      res.status(500).json({ error: "Failed to fetch manager logs" });
-    }
-  });
-
+  // Create and return HTTP server
   const httpServer = createServer(app);
-
   return httpServer;
 }
