@@ -44,7 +44,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const [weatherData, setWeatherData] = useState<{
     current: WeatherData | null;
     historical: WeatherData | null;
-  }>({ current: null, historical: null });
+    historicalFallbackNote: string | null;
+  }>({ current: null, historical: null, historicalFallbackNote: null });
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   const [existingLogId, setExistingLogId] = useState<number | null>(null);
   
@@ -105,22 +106,76 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   }, [existingLog, dateString]);
 
   useEffect(() => {
+    /**
+     * Fetches weather data with fallback strategy for historical weather.
+     * 
+     * FALLBACK LOGIC FOR HISTORICAL WEATHER:
+     * 1. First attempt: Try fetching weather from exactly 1 year ago (selectedDate - 1 year)
+     * 2. Second attempt: If first fails or returns "unavailable", try the previous day (selectedDate - 1 year - 1 day)
+     * 3. Final fallback: If both fail, use current weather with a note explaining the fallback
+     * 
+     * Note: The server returns fallback data with description containing "temporarily unavailable"
+     * when the external weather API fails. We detect this and apply our client-side fallback strategy.
+     */
     const fetchWeatherData = async () => {
       setIsLoadingWeather(true);
-      try {
-        const [currentResponse, historicalResponse] = await Promise.all([
-          fetch(`${apiBaseUrl}/api/weather/current`),
-          fetch(`${apiBaseUrl}/api/weather/historical?date=${dateString}`)
-        ]);
+      
+      // Helper function to fetch and parse weather response
+      const fetchWeather = async (url: string): Promise<WeatherData | null> => {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) return null;
+          const data = await response.json();
+          if (data && typeof data.temperature === 'number' && data.condition) {
+            return data;
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      };
+      
+      // Helper to check if weather data is a server-side fallback (unavailable)
+      const isServerFallback = (weather: WeatherData | null): boolean => {
+        if (!weather) return true;
+        return weather.description?.toLowerCase().includes('temporarily unavailable') ?? false;
+      };
 
-        const [currentWeather, historicalWeather] = await Promise.all([
-          currentResponse.json(),
-          historicalResponse.json()
-        ]);
+      try {
+        // Fetch current weather
+        const currentWeather = await fetchWeather(`${apiBaseUrl}/api/weather/current`);
+
+        // STEP 1: Try historical weather for exactly 1 year ago
+        let historicalWeather = await fetchWeather(`${apiBaseUrl}/api/weather/historical?date=${dateString}`);
+        let fallbackNote: string | null = null;
+
+        // STEP 2: If first attempt returned server fallback, try the previous day (1 year ago - 1 day)
+        if (isServerFallback(historicalWeather)) {
+          const selectedDate = new Date(dateString + 'T00:00:00');
+          const fallbackDate = new Date(selectedDate);
+          fallbackDate.setFullYear(fallbackDate.getFullYear() - 1);
+          fallbackDate.setDate(fallbackDate.getDate() - 1);
+          const fallbackDateString = format(fallbackDate, 'yyyy-MM-dd');
+          
+          const previousDayWeather = await fetchWeather(`${apiBaseUrl}/api/weather/historical?date=${fallbackDateString}`);
+          
+          if (!isServerFallback(previousDayWeather)) {
+            // Successfully got real data from the previous day
+            historicalWeather = previousDayWeather;
+            fallbackNote = `Data from ${format(fallbackDate, 'MMM d, yyyy')} (previous day)`;
+          }
+        }
+
+        // STEP 3: If both historical attempts returned server fallback, use current weather
+        if (isServerFallback(historicalWeather) && currentWeather && !isServerFallback(currentWeather)) {
+          historicalWeather = currentWeather;
+          fallbackNote = "Using current weather as fallback";
+        }
 
         setWeatherData({
           current: currentWeather,
-          historical: historicalWeather
+          historical: historicalWeather,
+          historicalFallbackNote: fallbackNote
         });
       } catch (error) {
         console.error('Failed to fetch weather data:', error);
@@ -135,7 +190,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     };
 
     fetchWeatherData();
-  }, [dateString, toast]);
+  }, [dateString, toast, apiBaseUrl]);
 
   const saveLogMutation = useMutation({
     mutationFn: async (logData: any) => {
@@ -432,6 +487,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
                 title="Weather 1 Year Ago"
                 weather={weatherData.historical}
                 isHistorical={true}
+                fallbackNote={weatherData.historicalFallbackNote}
               />
             )}
           </>

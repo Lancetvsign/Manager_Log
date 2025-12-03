@@ -14,6 +14,7 @@ interface WeatherCardProps {
   title: string;
   weather: WeatherData;
   isHistorical?: boolean;
+  fallbackNote?: string | null;
 }
 
 const getWeatherIcon = (condition: string) => {
@@ -35,7 +36,7 @@ const getWeatherIcon = (condition: string) => {
   }
 };
 
-export default function WeatherCard({ title, weather, isHistorical = false }: WeatherCardProps) {
+export default function WeatherCard({ title, weather, isHistorical = false, fallbackNote }: WeatherCardProps) {
   return (
     <Card data-testid={`card-weather-${isHistorical ? 'historical' : 'current'}`}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -70,6 +71,13 @@ export default function WeatherCard({ title, weather, isHistorical = false }: We
               <span data-testid="text-wind">{weather.windSpeed} mph</span>
             </div>
           </div>
+          
+          {/* Fallback note displayed when historical data was unavailable */}
+          {fallbackNote && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 italic" data-testid="text-fallback-note">
+              {fallbackNote}
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
