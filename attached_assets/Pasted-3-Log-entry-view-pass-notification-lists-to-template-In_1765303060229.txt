@@ -1,0 +1,47 @@
+3. Log entry view – pass notification lists to template
+
+In the route that renders a single daily log entry (view_log or similar), query the notification lists for the current user’s club_id and pass them to the template as notification_lists.
+
+4. New route: send_log_notification
+
+Add a POST route like:
+
+@app.post("/logs/<int:log_id>/notify")
+def send_log_notification(log_id):
+    from flask import request, flash, redirect, url_for, abort
+    from email_utils import send_notification_email
+    log = ManagerLogEntry.query.get_or_404(log_id)
+    if log.club_id != current_user.club_id:
+        abort(403)
+    reason = request.form.get("reason", "Urgent")
+    subject = request.form.get("subject") or f"Urgent issue - {reason}"
+    message = request.form.get("message") or ""
+    list_ids = request.form.getlist("list_ids")
+    if not list_ids:
+        flash("Please select at least one recipient list.", "warning")
+        return redirect(url_for("view_log", log_id=log_id))
+    lists = NotificationList.query.filter(
+        NotificationList.id.in_(list_ids),
+        NotificationList.club_id == current_user.club_id
+    ).all()
+    emails = []
+    for l in lists:
+        for r in l.recipients:
+            if r.email not in emails:
+                emails.append(r.email)
+    if not emails:
+        flash("No email addresses found for selected lists.", "warning")
+        return redirect(url_for("view_log", log_id=log_id))
+    log_url = url_for("view_log", log_id=log.id, _external=True)
+    html_body = f"""
+    <p><strong>Reason:</strong> {reason}</p>
+    <p><strong>Date:</strong> {log.date.strftime('%A, %B %d, %Y')}</p>
+    <p><strong>Manager:</strong> {log.manager_name}</p>
+    <p><strong>Club:</strong> {current_user.club.name}</p>
+    <p>{message.replace('\\n', '<br>')}</p>
+    <hr>
+    <p>View this entry in the Manager's Log: <a href="{log_url}">{log_url}</a></p>
+    """
+    send_notification_email(subject, html_body, emails)
+    flash(f"Notification sent to {len(emails)} recipient(s).", "success")
+    return redirect(url_for("view_log", log_id=log_id))

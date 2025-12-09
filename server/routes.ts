@@ -24,6 +24,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertManagerLogSchema, insertMaintenanceItemSchema } from "@shared/schema";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
+import { sendLogNotification, isEmailConfigured } from "./email";
 import { z } from "zod";
 
 // Default clubId for backwards compatibility when not provided
@@ -652,6 +653,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching metrics:", error);
       res.status(500).json({ error: "Failed to fetch metrics" });
+    }
+  });
+
+  // ==========================================
+  // EMAIL NOTIFICATION ENDPOINTS
+  // ==========================================
+
+  /**
+   * GET /api/notifications/status
+   * Check if email notifications are configured
+   * Returns: { configured: boolean }
+   */
+  app.get("/api/notifications/status", (_req, res) => {
+    res.json({ configured: isEmailConfigured() });
+  });
+
+  /**
+   * POST /api/notifications/send
+   * Send a notification email for a manager log
+   * Body: { logId: number, recipients: string[], clubName?: string }
+   */
+  app.post("/api/notifications/send", async (req, res) => {
+    try {
+      const schema = z.object({
+        logId: z.number(),
+        recipients: z.array(z.string().email()).min(1),
+        clubName: z.string().optional()
+      });
+
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          error: "Invalid request", 
+          details: parsed.error.issues 
+        });
+      }
+
+      const { logId, recipients, clubName } = parsed.data;
+
+      // Fetch the log
+      const log = await storage.getManagerLog(logId);
+      if (!log) {
+        return res.status(404).json({ error: "Log not found" });
+      }
+
+      // Send the notification
+      const result = await sendLogNotification(log, recipients, clubName);
+      
+      if (result.success) {
+        res.json({ success: true, message: result.message });
+      } else {
+        res.status(500).json({ success: false, error: result.message });
+      }
+    } catch (error) {
+      console.error("Error sending notification:", error);
+      res.status(500).json({ error: "Failed to send notification" });
     }
   });
 
