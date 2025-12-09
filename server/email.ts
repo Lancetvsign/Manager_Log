@@ -63,7 +63,7 @@ function formatCurrency(value: string | number | null | undefined): string {
 /**
  * Generates HTML email body for a manager log notification
  */
-export function generateLogEmailHtml(log: ManagerLog, clubName?: string): string {
+export function generateLogEmailHtml(log: ManagerLog, clubName?: string, customMessage?: string): string {
   const clubDisplay = clubName || log.clubId || 'Club';
   const dateDisplay = log.logDate;
   const dayOfWeek = log.dayOfWeek || '';
@@ -110,6 +110,15 @@ export function generateLogEmailHtml(log: ManagerLog, clubName?: string): string
     </div>
     
     <div class="content">
+      ${customMessage ? `
+      <div class="section">
+        <div class="notes-box" style="background: #fef3c7; border-left-color: #f59e0b;">
+          <strong>Message:</strong><br>
+          ${customMessage.replace(/\n/g, '<br>')}
+        </div>
+      </div>
+      ` : ''}
+      
       <div class="section">
         <div class="section-title">Overview</div>
         <div class="info-row">
@@ -193,11 +202,18 @@ export function generateLogEmailHtml(log: ManagerLog, clubName?: string): string
 /**
  * Generates plain text version of the email for clients that don't support HTML
  */
-export function generateLogEmailText(log: ManagerLog, clubName?: string): string {
+export function generateLogEmailText(log: ManagerLog, clubName?: string, customMessage?: string): string {
   const clubDisplay = clubName || log.clubId || 'Club';
   const lines = [
     `${clubDisplay} - Manager Log`,
     `${log.dayOfWeek || ''}, ${log.logDate}`,
+  ];
+  
+  if (customMessage) {
+    lines.push('', 'MESSAGE', customMessage);
+  }
+  
+  lines.push(
     '',
     'OVERVIEW',
     `Manager: ${log.managerName || 'Not specified'}`,
@@ -208,8 +224,8 @@ export function generateLogEmailText(log: ManagerLog, clubName?: string): string
     `Food: ${formatCurrency(log.foodSales)}`,
     `Bar: ${formatCurrency(log.barSales)}`,
     `Gaming: ${formatCurrency(log.gamingSales)}`,
-    `Total: ${formatCurrency(log.totalSales)}`,
-  ];
+    `Total: ${formatCurrency(log.totalSales)}`
+  );
 
   if (log.salesNotes) {
     lines.push('', `Sales Notes: ${log.salesNotes}`);
@@ -234,12 +250,16 @@ export function generateLogEmailText(log: ManagerLog, clubName?: string): string
  * @param log - The manager log to include in the notification
  * @param recipients - Array of email addresses to send to
  * @param clubName - Optional club name for display in the email
+ * @param customSubject - Optional custom subject line
+ * @param customMessage - Optional additional message to include at the top
  * @returns Promise that resolves when email is sent, or rejects on error
  */
 export async function sendLogNotification(
   log: ManagerLog,
   recipients: string[],
-  clubName?: string
+  clubName?: string,
+  customSubject?: string,
+  customMessage?: string
 ): Promise<{ success: boolean; message: string }> {
   if (!recipients || recipients.length === 0) {
     return { success: false, message: 'No recipients specified' };
@@ -250,9 +270,9 @@ export async function sendLogNotification(
     return { success: false, message: 'SMTP not configured' };
   }
 
-  const subject = `Manager Log - ${clubName || log.clubId || 'Club'} - ${log.logDate}`;
-  const html = generateLogEmailHtml(log, clubName);
-  const text = generateLogEmailText(log, clubName);
+  const subject = customSubject || `Manager Log - ${clubName || log.clubId || 'Club'} - ${log.logDate}`;
+  const html = generateLogEmailHtml(log, clubName, customMessage);
+  const text = generateLogEmailText(log, clubName, customMessage);
 
   try {
     await transporter.sendMail({

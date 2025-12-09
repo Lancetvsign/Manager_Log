@@ -669,17 +669,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ configured: isEmailConfigured() });
   });
 
+  // Shared mock notification lists for development
+  // In production, Social Club Pro would provide this data
+  interface NotificationRecipient {
+    id: number;
+    name: string;
+    email: string;
+  }
+  interface NotificationList {
+    id: number;
+    clubId: string;
+    name: string;
+    description: string;
+    isDefault: boolean;
+    recipients: NotificationRecipient[];
+  }
+  
+  function getMockNotificationLists(clubId: string): NotificationList[] {
+    return [
+      {
+        id: 1,
+        clubId,
+        name: "Core Team",
+        description: "Key staff and managers",
+        isDefault: true,
+        recipients: [
+          { id: 1, name: "Manager", email: "manager@example.com" },
+          { id: 2, name: "Assistant Manager", email: "assistant@example.com" }
+        ]
+      },
+      {
+        id: 2,
+        clubId,
+        name: "Kitchen Staff",
+        description: "Kitchen and food service team",
+        isDefault: false,
+        recipients: [
+          { id: 3, name: "Head Chef", email: "chef@example.com" },
+          { id: 4, name: "Line Cook", email: "cook@example.com" }
+        ]
+      },
+      {
+        id: 3,
+        clubId,
+        name: "Ownership",
+        description: "Club owners and stakeholders",
+        isDefault: false,
+        recipients: [
+          { id: 5, name: "Owner", email: "owner@example.com" }
+        ]
+      }
+    ];
+  }
+
+  /**
+   * GET /api/notifications/lists
+   * Get notification lists for a club
+   * Query: ?clubId=xxx
+   * Returns: Array of notification lists with recipients
+   * 
+   * Note: In production, this would be provided by Social Club Pro.
+   * For development, returns mock data.
+   */
+  app.get("/api/notifications/lists", (req, res) => {
+    const clubId = (req.query.clubId as string) || DEFAULT_CLUB_ID;
+    res.json(getMockNotificationLists(clubId));
+  });
+
   /**
    * POST /api/notifications/send
    * Send a notification email for a manager log
-   * Body: { logId: number, clubId: string, recipients: string[], clubName?: string }
+   * Body: { 
+   *   logId: number, 
+   *   clubId: string, 
+   *   listIds: number[],        // Notification list IDs
+   *   reason?: string,          // e.g., "Urgent", "FYI", "Action Required"
+   *   subject?: string,         // Custom subject line
+   *   message?: string,         // Additional message
+   *   clubName?: string 
+   * }
    */
   app.post("/api/notifications/send", async (req, res) => {
     try {
       const schema = z.object({
         logId: z.number(),
         clubId: z.string().default(DEFAULT_CLUB_ID),
-        recipients: z.array(z.string().email()).min(1),
+        listIds: z.array(z.number()).min(1),
+        reason: z.string().optional().default("FYI"),
+        subject: z.string().optional(),
+        message: z.string().optional(),
         clubName: z.string().optional()
       });
 
@@ -691,7 +769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { logId, clubId, recipients, clubName } = parsed.data;
+      const { logId, clubId, listIds, reason, subject, message, clubName } = parsed.data;
 
       // Fetch the log
       const log = await storage.getManagerLog(logId, clubId);
@@ -699,11 +777,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Log not found" });
       }
 
-      // Send the notification
-      const result = await sendLogNotification(log, recipients, clubName);
+      // In production, fetch lists from Social Club Pro
+      // For development, use the shared mock data
+      const allLists = getMockNotificationLists(clubId);
+
+      // Validate that all requested list IDs exist
+      const validListIds = allLists.map(l => l.id);
+      const invalidListIds = listIds.filter(id => !validListIds.includes(id));
+      if (invalidListIds.length > 0) {
+        return res.status(400).json({ 
+          error: `Invalid list IDs: ${invalidListIds.join(', ')}. Available lists: ${validListIds.join(', ')}` 
+        });
+      }
+
+      // Collect unique emails from selected lists
+      const emails: string[] = [];
+      for (const list of allLists) {
+        if (listIds.includes(list.id)) {
+          for (const r of list.recipients) {
+            if (!emails.includes(r.email)) {
+              emails.push(r.email);
+            }
+          }
+        }
+      }
+
+      if (emails.length === 0) {
+        return res.status(400).json({ error: "No email addresses found for selected lists" });
+      }
+
+      // Build custom subject if not provided
+      const emailSubject = subject || `Manager Log Alert - ${reason} - ${log.logDate}`;
+
+      // Send the notification with custom subject and message
+      const result = await sendLogNotification(log, emails, clubName, emailSubject, message);
       
       if (result.success) {
-        res.json({ success: true, message: result.message });
+        res.json({ success: true, message: `Notification sent to ${emails.length} recipient(s)` });
       } else {
         res.status(500).json({ success: false, error: result.message });
       }

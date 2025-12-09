@@ -56,8 +56,9 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   
   // Email notification state
   const [sendNotification, setSendNotification] = useState(false);
-  const [notificationRecipients, setNotificationRecipients] = useState<string[]>([]);
-  const [newRecipientEmail, setNewRecipientEmail] = useState("");
+  const [selectedListIds, setSelectedListIds] = useState<number[]>([]);
+  const [notificationReason, setNotificationReason] = useState("FYI");
+  const [notificationMessage, setNotificationMessage] = useState("");
   const [isSendingNotification, setIsSendingNotification] = useState(false);
   
   const { toast } = useToast();
@@ -102,42 +103,39 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
 
   const isEmailConfigured = emailStatus?.configured ?? false;
 
-  // Email recipient management
-  const handleAddRecipient = () => {
-    const email = newRecipientEmail.trim().toLowerCase();
-    if (!email) return;
-    
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    if (notificationRecipients.includes(email)) {
-      toast({
-        title: "Duplicate Email",
-        description: "This email is already in the list.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setNotificationRecipients([...notificationRecipients, email]);
-    setNewRecipientEmail("");
-  };
+  // Notification list type
+  interface NotificationList {
+    id: number;
+    clubId: string;
+    name: string;
+    description: string;
+    isDefault: boolean;
+    recipients: { id: number; name: string; email: string }[];
+  }
 
-  const handleRemoveRecipient = (email: string) => {
-    setNotificationRecipients(notificationRecipients.filter(e => e !== email));
+  // Fetch notification lists
+  const { data: notificationLists } = useQuery<NotificationList[]>({
+    queryKey: ['/api/notifications/lists', clubId],
+    queryFn: async () => {
+      const response = await fetch(`${apiBaseUrl}/api/notifications/lists?clubId=${clubId}`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: isEmailConfigured,
+  });
+
+  // Notification list selection toggle
+  const handleToggleList = (listId: number) => {
+    setSelectedListIds(prev => 
+      prev.includes(listId) 
+        ? prev.filter(id => id !== listId)
+        : [...prev, listId]
+    );
   };
 
   // Send notification after log is saved
   const sendNotificationEmail = async (logId: number) => {
-    if (!sendNotification || notificationRecipients.length === 0) return;
+    if (!sendNotification || selectedListIds.length === 0) return;
     
     setIsSendingNotification(true);
     try {
@@ -147,7 +145,9 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         body: JSON.stringify({
           logId,
           clubId,
-          recipients: notificationRecipients,
+          listIds: selectedListIds,
+          reason: notificationReason,
+          message: notificationMessage || undefined,
         }),
       });
       
@@ -158,6 +158,10 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           title: "Notification Sent",
           description: result.message,
         });
+        // Reset notification state after sending
+        setSendNotification(false);
+        setSelectedListIds([]);
+        setNotificationMessage("");
       } else {
         toast({
           title: "Notification Failed",
@@ -310,7 +314,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       setExistingLogId(data.id);
       
       // Send notification if enabled
-      if (sendNotification && notificationRecipients.length > 0) {
+      if (sendNotification && selectedListIds.length > 0) {
         await sendNotificationEmail(data.id);
       }
       
@@ -849,58 +853,90 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           {sendNotification && (
             <CardContent className="pt-0">
               <div className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    type="email"
-                    value={newRecipientEmail}
-                    onChange={(e) => setNewRecipientEmail(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddRecipient();
-                      }
-                    }}
-                    placeholder="Enter email address"
-                    className="flex-1"
-                    data-testid="input-recipient-email"
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={handleAddRecipient}
-                    disabled={!newRecipientEmail.trim()}
-                    data-testid="button-add-recipient"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add
-                  </Button>
+                {/* Reason Selector */}
+                <div className="space-y-2">
+                  <Label htmlFor="notification-reason">Reason</Label>
+                  <Select value={notificationReason} onValueChange={setNotificationReason}>
+                    <SelectTrigger data-testid="select-notification-reason">
+                      <SelectValue placeholder="Select reason" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FYI">FYI</SelectItem>
+                      <SelectItem value="Urgent">Urgent</SelectItem>
+                      <SelectItem value="Action Required">Action Required</SelectItem>
+                      <SelectItem value="Follow Up">Follow Up</SelectItem>
+                      <SelectItem value="Good News">Good News</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                
-                {notificationRecipients.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {notificationRecipients.map((email) => (
-                      <Badge
-                        key={email}
-                        variant="secondary"
-                        className="pl-3 pr-1 py-1 flex items-center gap-1"
-                      >
-                        {email}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-5 w-5 p-0 hover:bg-destructive/20"
-                          onClick={() => handleRemoveRecipient(email)}
-                          data-testid={`button-remove-recipient-${email}`}
+
+                {/* Notification Lists */}
+                <div className="space-y-2">
+                  <Label>Recipients</Label>
+                  {notificationLists && notificationLists.length > 0 ? (
+                    <div className="space-y-2">
+                      {notificationLists.map((list) => (
+                        <div
+                          key={list.id}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedListIds.includes(list.id)
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                          onClick={() => handleToggleList(list.id)}
+                          data-testid={`list-${list.id}`}
                         >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Add email addresses to receive the log summary when saved.
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                                selectedListIds.includes(list.id)
+                                  ? 'bg-primary border-primary'
+                                  : 'border-muted-foreground'
+                              }`}>
+                                {selectedListIds.includes(list.id) && (
+                                  <CheckCircle className="h-3 w-3 text-primary-foreground" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="font-medium flex items-center gap-2">
+                                  {list.name}
+                                  {list.isDefault && (
+                                    <Badge variant="secondary" className="text-xs">Default</Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">{list.description}</p>
+                              </div>
+                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              {list.recipients.length} recipient{list.recipients.length !== 1 ? 's' : ''}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No notification lists available.
+                    </p>
+                  )}
+                </div>
+
+                {/* Optional Message */}
+                <div className="space-y-2">
+                  <Label htmlFor="notification-message">Message (optional)</Label>
+                  <Textarea
+                    id="notification-message"
+                    value={notificationMessage}
+                    onChange={(e) => setNotificationMessage(e.target.value)}
+                    placeholder="Add an optional message to include with the notification..."
+                    className="min-h-[80px]"
+                    data-testid="textarea-notification-message"
+                  />
+                </div>
+
+                {selectedListIds.length === 0 && (
+                  <p className="text-sm text-amber-600">
+                    Please select at least one recipient list to send notifications.
                   </p>
                 )}
               </div>

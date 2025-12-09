@@ -75,19 +75,28 @@ Email notifications require SMTP configuration via environment variables:
 
 ### API Endpoints
 - `GET /api/notifications/status` - Returns { configured: boolean }
+- `GET /api/notifications/lists?clubId=X` - Returns notification lists for a club (mocked for development)
 - `POST /api/notifications/send` - Sends email with log summary
-  - Body: { logId, clubId, recipients[], clubName? }
+  - Body: { logId, clubId, listIds[], reason?, message?, clubName? }
+
+### Notification List Model (Social Club Pro Integration)
+In production, notification lists are managed by Social Club Pro. For development, mock data is provided:
+- Lists have `id`, `clubId`, `name`, `description`, `isDefault`, and `recipients[]`
+- Recipients have `id`, `name`, `email`
 
 ### UI Behavior
 - When SMTP is configured, an "Email Notification" card appears in the form
 - Toggle switch to enable/disable sending notifications on save
-- Email recipients can be added/removed dynamically
-- Professional HTML email template includes sales data, weather, and notes
+- Notification lists displayed as selectable cards with recipient counts
+- Reason selector (FYI, Urgent, Action Required, Follow Up, Good News)
+- Optional custom message field
+- Professional HTML email template includes custom message, sales data, weather, and notes
 
 ## Recent Changes
 
-### December 9, 2025 - Email Notification Feature
-- Added email notification system using nodemailer
-- HTML/text email templates with log summary
-- Recipient management UI in Manager Log form
-- API endpoints for notification status and sending
+### December 9, 2025 - Notification List Integration
+- Integrated with Social Club Pro's notification list architecture
+- API endpoints for fetching notification lists and sending with list IDs
+- UI updated to show notification lists with checkboxes instead of manual email entry
+- Added reason selector and optional custom message fields
+- Email template includes custom message section at top
