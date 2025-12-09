@@ -672,12 +672,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * POST /api/notifications/send
    * Send a notification email for a manager log
-   * Body: { logId: number, recipients: string[], clubName?: string }
+   * Body: { logId: number, clubId: string, recipients: string[], clubName?: string }
    */
   app.post("/api/notifications/send", async (req, res) => {
     try {
       const schema = z.object({
         logId: z.number(),
+        clubId: z.string().default(DEFAULT_CLUB_ID),
         recipients: z.array(z.string().email()).min(1),
         clubName: z.string().optional()
       });
@@ -690,10 +691,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { logId, recipients, clubName } = parsed.data;
+      const { logId, clubId, recipients, clubName } = parsed.data;
 
       // Fetch the log
-      const log = await storage.getManagerLog(logId);
+      const log = await storage.getManagerLog(logId, clubId);
       if (!log) {
         return res.status(404).json({ error: "Log not found" });
       }

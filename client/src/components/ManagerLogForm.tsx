@@ -9,7 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle } from "lucide-react";
+import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import WeatherCard from "./WeatherCard";
 import SalesInput from "./SalesInput";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +54,12 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const [newMaintenanceStatus, setNewMaintenanceStatus] = useState<"open" | "completed">("open");
   const [newMaintenanceNotes, setNewMaintenanceNotes] = useState("");
   
+  // Email notification state
+  const [sendNotification, setSendNotification] = useState(false);
+  const [notificationRecipients, setNotificationRecipients] = useState<string[]>([]);
+  const [newRecipientEmail, setNewRecipientEmail] = useState("");
+  const [isSendingNotification, setIsSendingNotification] = useState(false);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -82,6 +89,92 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     },
     enabled: !!existingLogId,
   });
+
+  // Check if email notifications are configured
+  const { data: emailStatus } = useQuery<{ configured: boolean }>({
+    queryKey: ['/api/notifications/status'],
+    queryFn: async () => {
+      const response = await fetch(`${apiBaseUrl}/api/notifications/status`);
+      if (!response.ok) return { configured: false };
+      return response.json();
+    },
+  });
+
+  const isEmailConfigured = emailStatus?.configured ?? false;
+
+  // Email recipient management
+  const handleAddRecipient = () => {
+    const email = newRecipientEmail.trim().toLowerCase();
+    if (!email) return;
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (notificationRecipients.includes(email)) {
+      toast({
+        title: "Duplicate Email",
+        description: "This email is already in the list.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setNotificationRecipients([...notificationRecipients, email]);
+    setNewRecipientEmail("");
+  };
+
+  const handleRemoveRecipient = (email: string) => {
+    setNotificationRecipients(notificationRecipients.filter(e => e !== email));
+  };
+
+  // Send notification after log is saved
+  const sendNotificationEmail = async (logId: number) => {
+    if (!sendNotification || notificationRecipients.length === 0) return;
+    
+    setIsSendingNotification(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/notifications/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          logId,
+          clubId,
+          recipients: notificationRecipients,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast({
+          title: "Notification Sent",
+          description: result.message,
+        });
+      } else {
+        toast({
+          title: "Notification Failed",
+          description: result.error || "Failed to send notification.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Notification Error",
+        description: "Failed to send notification email.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSendingNotification(false);
+    }
+  };
 
   useEffect(() => {
     if (existingLog) {
@@ -207,7 +300,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       toast({
         title: "Success",
         description: existingLogId ? "Manager log updated successfully!" : "Manager log created successfully!"
@@ -215,6 +308,12 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', clubId] });
       queryClient.invalidateQueries({ queryKey: ['/api/manager-logs/by-date', dateString, clubId] });
       setExistingLogId(data.id);
+      
+      // Send notification if enabled
+      if (sendNotification && notificationRecipients.length > 0) {
+        await sendNotificationEmail(data.id);
+      }
+      
       onSubmit(data);
     },
     onError: (error: any) => {
@@ -724,6 +823,92 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         </CardContent>
       </Card>
 
+      {/* Email Notification Section */}
+      {isEmailConfigured && (
+        <Card>
+          <CardHeader className="py-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <Mail className="h-5 w-5 text-primary" />
+                <CardTitle className="text-lg">Email Notification</CardTitle>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="send-notification" className="text-sm text-muted-foreground">
+                  Send notification when saved
+                </Label>
+                <Switch
+                  id="send-notification"
+                  checked={sendNotification}
+                  onCheckedChange={setSendNotification}
+                  data-testid="switch-send-notification"
+                />
+              </div>
+            </div>
+          </CardHeader>
+          
+          {sendNotification && (
+            <CardContent className="pt-0">
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    value={newRecipientEmail}
+                    onChange={(e) => setNewRecipientEmail(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddRecipient();
+                      }
+                    }}
+                    placeholder="Enter email address"
+                    className="flex-1"
+                    data-testid="input-recipient-email"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleAddRecipient}
+                    disabled={!newRecipientEmail.trim()}
+                    data-testid="button-add-recipient"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
+                
+                {notificationRecipients.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {notificationRecipients.map((email) => (
+                      <Badge
+                        key={email}
+                        variant="secondary"
+                        className="pl-3 pr-1 py-1 flex items-center gap-1"
+                      >
+                        {email}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 w-5 p-0 hover:bg-destructive/20"
+                          onClick={() => handleRemoveRecipient(email)}
+                          data-testid={`button-remove-recipient-${email}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Add email addresses to receive the log summary when saved.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
       {/* Submit Button */}
       <div className="flex justify-end gap-2">
         <Button 
@@ -738,13 +923,13 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         <Button 
           type="submit" 
           size="lg" 
-          disabled={isLoading}
+          disabled={isLoading || isSendingNotification}
           data-testid="button-submit"
         >
-          {saveLogMutation.isPending ? (
+          {saveLogMutation.isPending || isSendingNotification ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
+              {isSendingNotification ? "Sending Notification..." : "Saving..."}
             </>
           ) : (
             <>
