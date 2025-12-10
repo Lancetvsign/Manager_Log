@@ -946,7 +946,7 @@ Details:
                   type="button"
                   onClick={handleAddMaintenanceItem}
                   disabled={addMaintenanceMutation.isPending || !newMaintenanceDescription.trim()}
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-teal-600 hover:bg-teal-700 text-white"
                   data-testid="button-add-maintenance"
                 >
                   {addMaintenanceMutation.isPending ? (
