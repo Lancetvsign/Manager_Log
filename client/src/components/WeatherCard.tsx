@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Cloud, Sun, CloudRain, CloudSnow, Thermometer, Droplets, Wind } from "lucide-react";
 
 interface WeatherData {
@@ -17,7 +16,7 @@ interface WeatherCardProps {
 }
 
 const getWeatherIcon = (condition: string) => {
-  const iconClass = "h-4 w-4";
+  const iconClass = "h-4 w-4 inline-block mr-1";
   switch (condition.toLowerCase()) {
     case 'sunny':
     case 'clear':
@@ -39,40 +38,20 @@ const getWeatherIcon = (condition: string) => {
 export default function WeatherCard({ title, weather, isHistorical = false, fallbackNote }: WeatherCardProps) {
   return (
     <div 
-      className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+      className="text-sm text-muted-foreground"
       data-testid={`card-weather-${isHistorical ? 'historical' : 'current'}`}
     >
-      <div className="flex items-center gap-2">
-        {getWeatherIcon(weather.condition)}
-        <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{title}:</span>
-      </div>
-      
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-1">
-          <Thermometer className="h-3 w-3 text-muted-foreground" />
-          <span className="text-sm font-semibold" data-testid="text-temperature">
-            {weather.temperature}°F
-          </span>
-        </div>
-        
-        <Badge variant="secondary" className="text-xs py-0 px-1.5" data-testid="badge-condition">
-          {weather.condition}
-        </Badge>
-        
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="flex items-center gap-0.5">
-            <Droplets className="h-3 w-3" />
-            <span data-testid="text-humidity">{weather.humidity}%</span>
-          </span>
-          <span className="flex items-center gap-0.5">
-            <Wind className="h-3 w-3" />
-            <span data-testid="text-wind">{weather.windSpeed}mph</span>
-          </span>
-        </div>
-      </div>
-      
+      <span className="font-medium text-foreground">{title}:</span>{" "}
+      <Thermometer className="h-3.5 w-3.5 inline-block mx-0.5" />
+      <span data-testid="text-temperature">{weather.temperature}°F</span>,{" "}
+      {getWeatherIcon(weather.condition)}
+      <span data-testid="badge-condition">{weather.condition}</span>,{" "}
+      <Droplets className="h-3.5 w-3.5 inline-block mx-0.5" />
+      <span data-testid="text-humidity">{weather.humidity}%</span>,{" "}
+      <Wind className="h-3.5 w-3.5 inline-block mx-0.5" />
+      <span data-testid="text-wind">{weather.windSpeed}mph</span>
       {fallbackNote && (
-        <span className="text-xs text-amber-600 dark:text-amber-400 italic ml-auto" data-testid="text-fallback-note">
+        <span className="text-xs text-amber-600 dark:text-amber-400 italic ml-1" data-testid="text-fallback-note">
           ({fallbackNote})
         </span>
       )}

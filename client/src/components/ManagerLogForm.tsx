@@ -699,12 +699,12 @@ Details:
         </CardContent>
       </Card>
 
-      {/* Weather Information - Compact Layout */}
-      <div className="flex flex-col gap-2">
+      {/* Weather Information - Simple Text Rows */}
+      <div className="space-y-1 px-1">
         {isLoadingWeather ? (
-          <div className="flex items-center justify-center py-3 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            <span>Loading weather...</span>
+          <div className="text-sm text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin inline-block mr-1" />
+            Loading weather...
           </div>
         ) : (
           <>
