@@ -76,8 +76,9 @@ Email notifications require SMTP configuration via environment variables:
 ### API Endpoints
 - `GET /api/notifications/status` - Returns { configured: boolean }
 - `GET /api/notifications/lists?clubId=X` - Returns notification lists for a club (mocked for development)
-- `POST /api/notifications/send` - Sends email with log summary
-  - Body: { logId, clubId, listIds[], reason?, message?, clubName? }
+- `POST /api/logs/:logId/notify` - Sends email notification for a log entry
+  - Body: { reason, listIds[], subject?, message?, clubId? }
+  - Returns: { success: boolean, sentTo: number }
 
 ### Notification List Model (Social Club Pro Integration)
 In production, notification lists are managed by Social Club Pro. For development, mock data is provided:

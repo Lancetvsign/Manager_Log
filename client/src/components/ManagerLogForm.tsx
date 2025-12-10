@@ -139,15 +139,14 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     
     setIsSendingNotification(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/notifications/send`, {
+      const response = await fetch(`${apiBaseUrl}/api/logs/${logId}/notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          logId,
-          clubId,
-          listIds: selectedListIds,
           reason: notificationReason,
+          listIds: selectedListIds,
           message: notificationMessage || undefined,
+          clubId,
         }),
       });
       
@@ -156,7 +155,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       if (result.success) {
         toast({
           title: "Notification Sent",
-          description: result.message,
+          description: `Sent to ${result.sentTo} recipient(s)`,
         });
         // Reset notification state after sending
         setSendNotification(false);

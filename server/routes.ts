@@ -24,7 +24,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertManagerLogSchema, insertMaintenanceItemSchema } from "@shared/schema";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
-import { sendLogNotification, isEmailConfigured } from "./email";
+import { sendLogNotificationEmail, isEmailConfigured } from "./email";
 import { z } from "zod";
 
 // Default clubId for backwards compatibility when not provided
@@ -737,28 +737,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
-   * POST /api/notifications/send
+   * POST /api/logs/:logId/notify
    * Send a notification email for a manager log
    * Body: { 
-   *   logId: number, 
-   *   clubId: string, 
+   *   reason: string,           // e.g., "Urgent", "FYI", "Action Required"
    *   listIds: number[],        // Notification list IDs
-   *   reason?: string,          // e.g., "Urgent", "FYI", "Action Required"
    *   subject?: string,         // Custom subject line
    *   message?: string,         // Additional message
-   *   clubName?: string 
+   *   clubId?: string           // Club ID for data isolation
    * }
    */
-  app.post("/api/notifications/send", async (req, res) => {
+  app.post("/api/logs/:logId/notify", async (req, res) => {
     try {
+      const logId = Number(req.params.logId);
       const schema = z.object({
-        logId: z.number(),
-        clubId: z.string().default(DEFAULT_CLUB_ID),
+        reason: z.string().default("Urgent"),
         listIds: z.array(z.number()).min(1),
-        reason: z.string().optional().default("FYI"),
         subject: z.string().optional(),
         message: z.string().optional(),
-        clubName: z.string().optional()
+        clubId: z.string().default(DEFAULT_CLUB_ID)
       });
 
       const parsed = schema.safeParse(req.body);
@@ -769,7 +766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { logId, clubId, listIds, reason, subject, message, clubName } = parsed.data;
+      const { reason, listIds, subject, message, clubId } = parsed.data;
 
       // Fetch the log
       const log = await storage.getManagerLog(logId, clubId);
@@ -780,40 +777,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // In production, fetch lists from Social Club Pro
       // For development, use the shared mock data
       const allLists = getMockNotificationLists(clubId);
-
-      // Validate that all requested list IDs exist
-      const validListIds = allLists.map(l => l.id);
-      const invalidListIds = listIds.filter(id => !validListIds.includes(id));
-      if (invalidListIds.length > 0) {
-        return res.status(400).json({ 
-          error: `Invalid list IDs: ${invalidListIds.join(', ')}. Available lists: ${validListIds.join(', ')}` 
-        });
-      }
+      const selectedLists = allLists.filter(l => listIds.includes(l.id));
 
       // Collect unique emails from selected lists
-      const emails: string[] = [];
-      for (const list of allLists) {
-        if (listIds.includes(list.id)) {
-          for (const r of list.recipients) {
-            if (!emails.includes(r.email)) {
-              emails.push(r.email);
-            }
-          }
-        }
+      const recipients = Array.from(
+        new Set(
+          selectedLists.flatMap(l => l.recipients.map(r => r.email))
+        )
+      );
+
+      if (!recipients.length) {
+        return res.status(400).json({ error: "No recipients configured for selected lists" });
       }
 
-      if (emails.length === 0) {
-        return res.status(400).json({ error: "No email addresses found for selected lists" });
-      }
+      // Build log URL
+      const logUrl = `${req.protocol}://${req.get("host")}/logs/${log.id}`;
 
-      // Build custom subject if not provided
-      const emailSubject = subject || `Manager Log Alert - ${reason} - ${log.logDate}`;
+      // Build HTML body matching Social Club Pro pattern
+      const htmlBody = `
+        <p><strong>Reason:</strong> ${reason}</p>
+        <p><strong>Date:</strong> ${log.logDate}</p>
+        <p><strong>Manager:</strong> ${log.managerName || 'Not specified'}</p>
+        <p><strong>Total Sales:</strong> $${log.totalSales || 0}</p>
+        ${message ? `<p>${message.replace(/\n/g, '<br>')}</p>` : ''}
+        <hr />
+        <p>View this entry in the Manager's Log: <a href="${logUrl}">${logUrl}</a></p>
+      `;
 
-      // Send the notification with custom subject and message
-      const result = await sendLogNotification(log, emails, clubName, emailSubject, message);
+      // Build subject if not provided
+      const emailSubject = subject || `Urgent issue - ${reason}`;
+
+      const result = await sendLogNotificationEmail(emailSubject, htmlBody, recipients);
       
       if (result.success) {
-        res.json({ success: true, message: `Notification sent to ${emails.length} recipient(s)` });
+        res.json({ success: true, sentTo: recipients.length });
       } else {
         res.status(500).json({ success: false, error: result.message });
       }
