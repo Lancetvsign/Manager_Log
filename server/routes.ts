@@ -858,6 +858,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
+   * POST /api/notifications/lists/:id/recipients
+   * Add a recipient to a notification list
+   */
+  app.post("/api/notifications/lists/:id/recipients", async (req, res) => {
+    const listId = Number(req.params.id);
+    const { name, email } = req.body as { name?: string; email: string };
+
+    if (!email) {
+      return res.status(400).json({ error: "email required" });
+    }
+
+    const [inserted] = await db
+      .insert(notificationRecipients)
+      .values({
+        listId,
+        name: name ?? null,
+        email,
+      })
+      .returning();
+
+    res.status(201).json(inserted);
+  });
+
+  /**
    * GET /api/logs/:logId/notifications
    * Get notification history for a manager log
    * Returns: Array of recent notifications for this log
