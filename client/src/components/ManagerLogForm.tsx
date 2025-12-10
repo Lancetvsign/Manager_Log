@@ -1004,7 +1004,7 @@ Details:
                   {isSending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending...
+                      Sending…
                     </>
                   ) : (
                     <>
@@ -1032,7 +1032,7 @@ Details:
                         <br />
                         Sent to {n.recipientCount} recipient{n.recipientCount !== 1 ? 's' : ''} on{' '}
                         {new Date(n.createdAt).toLocaleString()}
-                        {n.simulated && ' (simulation only – no real email configured)'}
+                        {n.simulated && ' (simulation only – email server not configured yet)'}
                       </li>
                     ))}
                   </ul>
