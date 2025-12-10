@@ -138,6 +138,48 @@ export const notificationLogs = pgTable("notification_logs", {
 });
 
 /**
+ * NOTIFICATION_LISTS TABLE
+ * ------------------------
+ * Stores notification list definitions for each club.
+ * Lists group recipients who should receive certain types of notifications.
+ * 
+ * Fields:
+ * - id: Auto-incrementing primary key
+ * - clubId: The club this list belongs to
+ * - name: Display name for the list (e.g., "Core Team", "Maintenance Staff")
+ * - description: Optional description of the list's purpose
+ * - isDefault: Whether this list is auto-selected for new notifications
+ */
+export const notificationLists = pgTable("notification_lists", {
+  id: serial("id").primaryKey(),
+  clubId: varchar("club_id", { length: 64 }).notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
+  description: text("description"),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * NOTIFICATION_RECIPIENTS TABLE
+ * -----------------------------
+ * Stores individual recipients who belong to notification lists.
+ * Each recipient is linked to a specific list via foreign key.
+ * 
+ * Fields:
+ * - id: Auto-incrementing primary key
+ * - listId: Foreign key to the parent notification list
+ * - name: Optional display name for the recipient
+ * - email: Email address to send notifications to
+ */
+export const notificationRecipients = pgTable("notification_recipients", {
+  id: serial("id").primaryKey(),
+  listId: integer("list_id").notNull().references(() => notificationLists.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 120 }),
+  email: varchar("email", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * TABLE RELATIONSHIPS
  * -------------------
  * Defines the one-to-many relationship between ManagerLogs and MaintenanceItems.
@@ -160,6 +202,17 @@ export const notificationLogsRelations = relations(notificationLogs, ({ one }) =
   managerLog: one(managerLogs, {
     fields: [notificationLogs.logId],
     references: [managerLogs.id],
+  }),
+}));
+
+export const notificationListsRelations = relations(notificationLists, ({ many }) => ({
+  recipients: many(notificationRecipients),
+}));
+
+export const notificationRecipientsRelations = relations(notificationRecipients, ({ one }) => ({
+  list: one(notificationLists, {
+    fields: [notificationRecipients.listId],
+    references: [notificationLists.id],
   }),
 }));
 
@@ -211,6 +264,18 @@ export const insertNotificationLogSchema = createInsertSchema(notificationLogs).
   recipients: z.array(z.string().email()),
 });
 
+// NotificationList insert schema
+export const insertNotificationListSchema = createInsertSchema(notificationLists).omit({
+  id: true,        // Auto-generated
+  createdAt: true, // Auto-generated
+});
+
+// NotificationRecipient insert schema
+export const insertNotificationRecipientSchema = createInsertSchema(notificationRecipients).omit({
+  id: true,        // Auto-generated
+  createdAt: true, // Auto-generated
+});
+
 /**
  * TYPESCRIPT TYPE EXPORTS
  * -----------------------
@@ -226,6 +291,10 @@ export type InsertMaintenanceItem = z.infer<typeof insertMaintenanceItemSchema>;
 export type MaintenanceItem = typeof maintenanceItems.$inferSelect;
 export type InsertNotificationLog = z.infer<typeof insertNotificationLogSchema>;
 export type NotificationLog = typeof notificationLogs.$inferSelect;
+export type InsertNotificationList = z.infer<typeof insertNotificationListSchema>;
+export type NotificationList = typeof notificationLists.$inferSelect;
+export type InsertNotificationRecipient = z.infer<typeof insertNotificationRecipientSchema>;
+export type NotificationRecipient = typeof notificationRecipients.$inferSelect;
 
 /**
  * Extended type for maintenance items with their related log data
