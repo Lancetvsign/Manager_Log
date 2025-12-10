@@ -699,27 +699,25 @@ Details:
         </CardContent>
       </Card>
 
-      {/* Weather Information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Weather Information - Compact Layout */}
+      <div className="flex flex-col gap-2">
         {isLoadingWeather ? (
-          <Card className="col-span-full">
-            <CardContent className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              <span>Loading weather data...</span>
-            </CardContent>
-          </Card>
+          <div className="flex items-center justify-center py-3 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <span>Loading weather...</span>
+          </div>
         ) : (
           <>
             {weatherData.current && (
               <WeatherCard
-                title="Today's Weather"
+                title="Today"
                 weather={weatherData.current}
                 isHistorical={false}
               />
             )}
             {weatherData.historical && (
               <WeatherCard
-                title="Weather 1 Year Ago"
+                title="1 Year Ago"
                 weather={weatherData.historical}
                 isHistorical={true}
                 fallbackNote={weatherData.historicalFallbackNote}
