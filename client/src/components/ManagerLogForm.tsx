@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail } from "lucide-react";
+import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronRight } from "lucide-react";
 import WeatherCard from "./WeatherCard";
 import SalesInput from "./SalesInput";
 import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
@@ -476,6 +476,58 @@ Details:
     }
   });
 
+  // Rollover to-do items to next day
+  const rolloverMutation = useMutation({
+    mutationFn: async ({ fromDate, toDate }: { fromDate: string; toDate: string }) => {
+      const response = await fetch(`${apiBaseUrl}/api/maintenance-items/rollover?clubId=${clubId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromDate, toDate })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to rollover items');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.createdCount > 0) {
+        toast({
+          title: "Rolled Over",
+          description: `${data.createdCount} open item(s) rolled to ${data.toDate}`
+        });
+      } else {
+        toast({
+          title: "No Items to Roll",
+          description: "No open items to roll over.",
+          variant: "default"
+        });
+      }
+      // Invalidate both source and target dates
+      queryClient.invalidateQueries({ queryKey: ['/api/manager-logs'] });
+    },
+    onError: (error: any) => {
+      console.error('Failed to rollover items:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to rollover items.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleRolloverToNextDay = () => {
+    const nextDay = new Date(date);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const toDateString = format(nextDay, 'yyyy-MM-dd');
+    rolloverMutation.mutate({ fromDate: dateString, toDate: toDateString });
+  };
+
+  // Check if there are open items that can be rolled over
+  const hasOpenItems = maintenanceItems?.some(item => item.status === "open" && !item.rolledOverToDate);
+
   const getDayOfWeek = (date: Date) => {
     return date.toLocaleDateString('en-US', { weekday: 'long' });
   };
@@ -762,11 +814,28 @@ Details:
 
       {/* To-Do Items */}
       <Card data-testid="card-maintenance">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <Wrench className="h-5 w-5" />
             To-Do Items (Today)
           </CardTitle>
+          {hasOpenItems && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRolloverToNextDay}
+              disabled={rolloverMutation.isPending}
+              data-testid="button-rollover-todos"
+            >
+              {rolloverMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <ChevronRight className="h-4 w-4 mr-1" />
+              )}
+              Roll to Next Day
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Existing Maintenance Items List */}

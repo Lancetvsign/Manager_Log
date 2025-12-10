@@ -1,220 +1,50 @@
 # Restaurant Manager's Log
 
 ## Overview
-A restaurant management application designed for daily operational tracking and reporting. This embeddable module for Social Club Pro supports multi-club deployment with `clubId`-based data isolation, allowing restaurant managers to log daily sales (food, bar, gaming), track weather with year-over-year comparisons, maintain operational notes, and manage maintenance items. The system includes advanced analytics for insights into sales trends, to-do status, and performance comparisons, all while adhering to the Social Club Pro teal color scheme for visual consistency.
+A restaurant management application designed as an embeddable module for Social Club Pro. Its core purpose is to provide restaurant managers with tools for daily operational tracking, including logging daily sales (food, bar, gaming), monitoring weather with year-over-year comparisons, maintaining operational notes, and managing maintenance items. The system also offers advanced analytics for sales trends, to-do status, and performance comparisons, all while integrating seamlessly with Social Club Pro's visual identity. The application supports multi-club deployment with `clubId`-based data isolation.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
-The frontend is a React 18 Single-Page Application (SPA) built with Vite. It utilizes a component-based architecture with `shadcn/ui` (built on Radix UI) and Tailwind CSS for styling, adhering to the Social Club Pro teal theme (primary color `hsl(174, 83.9%, 31.6%)`) and Inter font. State management is handled by TanStack Query for server state and React Context (`ManagerLogContext`) for module configuration. Form handling uses React Hook Form with Zod for validation.
+### Frontend
+A React 18 SPA built with Vite, using `shadcn/ui` (Radix UI) and Tailwind CSS for styling, adhering to the Social Club Pro teal theme (`hsl(174, 83.9%, 31.6%)`) and Inter font. State management is handled by TanStack Query for server state and React Context (`ManagerLogContext`) for module configuration. Form handling uses React Hook Form with Zod validation.
 
-### Backend Architecture
-The backend is an Express.js REST API built with Node.js and TypeScript. It features modular route registration, custom error handling, and request/response logging. The database layer uses Drizzle ORM for type-safe operations with Neon Serverless PostgreSQL, following a schema-first approach with migrations. Data models include Manager Logs (with sales, weather, notes) and Maintenance Items, both scoped by `clubId` for multi-club support. A Repository pattern abstracts database interactions.
+### Backend
+An Express.js REST API developed with Node.js and TypeScript. It features modular routing, custom error handling, and request/response logging. Drizzle ORM is used for type-safe database operations with Neon Serverless PostgreSQL, following a schema-first approach. Data models include Manager Logs and Maintenance Items, both `clubId`-scoped. A Repository pattern abstracts database interactions.
 
 ### Multi-Club Architecture
-The application is designed as an embeddable module within Social Club Pro. Data isolation is achieved by including a `clubId` column in the database schema and filtering all API endpoints and storage operations by `clubId`. A `ManagerLogModule` React component serves as the entry point, providing `clubId` and `apiBaseUrl` via `ManagerLogContext` to ensure all API calls are properly scoped.
+Designed as an embeddable module, data isolation is managed via a `clubId` column in the database and filtered API endpoints. The `ManagerLogModule` React component provides `clubId` and `apiBaseUrl` via `ManagerLogContext` for proper scoping of all operations.
 
 ### UI/UX Decisions
-The application features a dark header with a teal background for consistent branding. The UI incorporates shadcn/ui components for a polished look. The Insights page includes interactive charts (line, bar, area) with customizable options (granularity, comparison modes, chart types, color themes, export functionality) and collapsible sections with persistence. All UI elements adhere to the Social Club Pro visual identity.
+The UI features a dark header with a teal background, leveraging `shadcn/ui` components for a polished look consistent with Social Club Pro's branding. The Insights page includes interactive charts (line, bar, area) with customizable options (granularity, comparison, chart types, export) and collapsible sections.
 
 ### Feature Specifications
-- **Daily Manager Logs**: Track food, bar, gaming sales, weather, and operational notes.
-- **Maintenance Tracking**: Manage to-do items linked to log entries, with status and date filters.
-- **Weather Integration**: Display current and historical weather data (year-over-year comparison).
-- **Insights & Analytics**:
-    - Summary cards (Days logged, Total sales, Average daily sales, To-Do status).
-    - Sales trend charts with daily, weekly, monthly granularity.
-    - Comparison Mode: Period-over-period analysis (previous period, month, year, custom range).
-    - Sales Heatmap Calendar: Visualizes sales intensity by day.
-    - Sales by Weekday chart.
-    - To-Do status and Sales breakdown pie charts.
-    - Top performing days table.
-    - Date range filtering, export (CSV, PNG/PDF), and chart customization.
+- **Daily Manager Logs**: Sales tracking (food, bar, gaming), weather, and operational notes.
+- **Maintenance Tracking**: Manage to-do items linked to logs, with status and date filters. Includes rollover functionality for open items and file attachments.
+- **Weather Integration**: Displays current and historical weather data with year-over-year comparisons.
+- **Insights & Analytics**: Summary cards, sales trend charts (daily, weekly, monthly granularity), period-over-period comparison, sales heatmap, sales by weekday, to-do status, sales breakdown pie charts, top performing days table, date range filtering, and export (CSV, PNG/PDF).
+- **Email Notifications**: Managers can send professional HTML emails with log summaries to specified recipients.
+- **Escalation Rules / Smart Automations**: Allows configuration of automated notifications based on triggers using preset-based models (e.g., Maintenance Alerts, Sales Drop Warning).
+- **Tomorrow's Prep Checklist**: Manages daily prep tasks with rollover tracking and status updates.
 
 ## External Dependencies
 
 ### Weather Data
-- **Open-Meteo API**: Used for fetching current and historical weather data, with a fallback to random data if unavailable.
+- **Open-Meteo API**: Fetches current and historical weather data.
 
 ### Database
-- **Neon Serverless PostgreSQL**: Cloud-hosted relational database, managed with Drizzle ORM and `DATABASE_URL` environment variable for connection.
+- **Neon Serverless PostgreSQL**: Cloud-hosted relational database.
 
 ### Third-Party Libraries
 - **Radix UI**: Accessible component primitives for `shadcn/ui`.
-- **date-fns**: Library for date manipulation and formatting.
-- **Zod**: Runtime schema validation for data integrity.
-- **nanoid**: For generating unique IDs.
-- **class-variance-authority & clsx**: Utilities for conditional CSS class names.
-- **TanStack Query (React Query)**: For server state management and data fetching.
-- **React Hook Form**: For form management, integrated with Zod for validation.
-- **html2canvas & jsPDF**: For client-side chart export functionality (PNG/PDF).
-
-### Development Tools
-- **Vite**: Frontend build tool and development server.
-- **tsx**: TypeScript execution for development.
-- **esbuild**: Production bundling for server code.
-- **Drizzle Kit**: For database schema migrations.
-- **nodemailer**: SMTP email sending for notifications.
-
-## Email Notification Feature
-
-### Overview
-The system supports email notifications when a manager log is saved. Managers can add recipient email addresses and the system sends a professional HTML email with the log summary.
-
-### Configuration
-Email notifications require SMTP configuration via environment variables:
-- `SMTP_HOST`: SMTP server hostname (e.g., smtp.gmail.com)
-- `SMTP_PORT`: SMTP port (default: 587)
-- `SMTP_USER`: SMTP authentication username
-- `SMTP_PASSWORD`: SMTP authentication password
-- `FROM_EMAIL`: Sender email address (defaults to SMTP_USER)
-- `FROM_NAME`: Sender display name (default: "Manager Log")
-
-### API Endpoints
-- `GET /api/notifications/status` - Returns { configured: boolean }
-- `GET /api/notifications/lists?clubId=X` - Returns notification lists for a club (mocked for development)
-- `POST /api/logs/:logId/notify` - Sends email notification for a log entry
-  - Body: { reason, listIds[], subject?, message?, clubId? }
-  - Returns: { success: boolean, sentTo: number }
-
-### Notification List Model (Social Club Pro Integration)
-In production, notification lists are managed by Social Club Pro. For development, mock data is provided:
-- Lists have `id`, `clubId`, `name`, `description`, `isDefault`, `roleKey`, and `recipients[]`
-- `roleKey` assigns a role to the list for automation targeting: `core_team`, `maintenance`, `ownership`, `kitchen_staff`, `custom`, or `null` (None)
-- Recipients have `id`, `name`, `email`
-- Role selector dropdown in Notification Settings page allows assigning roles to each list
-
-### UI Behavior
-- "Notify Core Team" card appears when editing an existing log entry
-- Radio buttons for reason (Maintenance, Behavior, Other)
-- Multi-select listbox for notification lists with Ctrl/Cmd support for multiple selection
-- Auto-populated subject and message based on log data
-- Dedicated "Send Urgent Email" button (red/destructive style)
-- Works in simulation mode when SMTP not configured - logs to console and shows "(simulated)" feedback
-- Professional HTML email template includes reason, date, manager, sales, custom message, and log link
-
-### Database Schema
-The `notification_logs` table stores an audit trail of all notifications:
-- `id`: Auto-incrementing primary key
-- `log_id`: Foreign key to manager_logs
-- `club_id`: Club identifier for data isolation
-- `reason`: Notification type (Maintenance, Behavior, Other)
-- `subject`: Email subject line
-- `message`: Custom message content
-- `list_ids`: JSON array of notification list IDs
-- `recipients`: JSON array of email addresses
-- `simulated`: Boolean indicating if email was simulated or actually sent
-- `created_at`: Timestamp when notification was sent
-
-## Escalation Rules / Smart Automations
-
-### Overview
-The escalation rules feature allows clubs to configure automated notifications based on triggers. The system uses a preset-based model for common scenarios with an optional advanced mode for custom rules.
-
-### Automation Presets
-Four built-in presets with on/off toggle switches:
-- **Maintenance Alerts**: When "Maintenance" reason is selected, notify Maintenance list
-- **Behavior Incident Alerts**: When "Behavior" reason is selected, notify Core Team + Ownership
-- **Sales Drop Warning**: Alert when total sales drop more than X% vs last week (configurable threshold)
-- **Gaming Outage Alert**: When gaming outage is flagged, notify technician list
-
-### Database Schema
-The `escalation_rules` table stores automation rules:
-- `id`: Auto-incrementing primary key
-- `club_id`: Club identifier for data isolation
-- `name`: Human-readable rule name
-- `trigger_type`: Type of trigger ("reason", "metric", "flag")
-- `trigger_reason`: For reason-based triggers ("maintenance", "behavior", "other")
-- `metric_key`: For metric-based triggers (e.g., "sales_drop_pct")
-- `metric_threshold`: Threshold value for metric triggers
-- `flag_key`: For flag-based triggers (e.g., "gaming_outage")
-- `auto_send`: Whether to send notifications automatically
-- `enabled`: Soft enable/disable toggle
-- `preset_key`: Links rule to a preset definition for UI sync
-- `created_at`: Timestamp
-
-The `escalation_rule_targets` table maps rules to notification lists:
-- `id`, `rule_id`, `list_id`
-
-### API Endpoints
-- `GET /api/escalation-rules?clubId=X` - Get all rules with targets for a club
-- `POST /api/escalation-rules` - Create new rule (supports presetKey, metricThreshold, targetListIds)
-- `PATCH /api/escalation-rules/:id` - Update rule (enable/disable, update threshold, etc.)
-- `DELETE /api/escalation-rules/:id` - Delete rule
-
-### UI Components
-- `EscalationRulesModal`: Main modal with preset toggles and advanced section
-- Uses React Query mutations with cache invalidation for real-time UI sync
-- Sales threshold input with save button for metric presets
-- Advanced section (hidden by default) shows custom rules
-
-## Recent Changes
-
-### December 10, 2025 - Notification List Roles
-- Added `roleKey` field to notification_lists table for role-based categorization
-- Role options: None, Core Team, Maintenance, Ownership, Kitchen Staff, Custom
-- Added role selector dropdown in Notification Settings page for each list
-- API GET/POST/PATCH endpoints updated to support roleKey field
-- Automation presets now use custom list selection instead of fixed role mappings
-
-### December 10, 2025 - Smart Automations Refactor
-- Refactored escalation rules from complex rule builder to preset-based automation system
-- Added preset toggles with on/off switches for common scenarios
-- Implemented sales threshold configuration for metric-based presets
-- Added "Advanced Automation" section hidden behind toggle for custom rules
-- Fixed React Query cache invalidation for preset enable/disable flows
-- Added useEffect for proper threshold hydration from existing rules
-- Each automation preset has a "Notify:" dropdown to select any notification list
-- Gaming Outage requires list selection before enabling (with warning message)
-
-### December 10, 2025 - Notification Audit Trail
-- Added `notification_logs` table to database for audit trail
-- All notifications (real and simulated) are now recorded in the database
-- Updated notification endpoint to save to database before sending
-
-### December 10, 2025 - Notification UI Improvements
-- Removed SMTP check for showing notification section - now always visible on existing logs
-- Added simulation mode when SMTP not configured
-- UI feedback shows "(simulated - SMTP not configured)" when simulating
-- Fixed notification lists query to always fetch (not gated by SMTP status)
-
-### December 10, 2025 - File Attachments Feature
-- Added `log_attachments` table to database schema for storing file metadata (id, clubId, logId, fileName, fileType, fileSize, storageKey, publicUrl, createdAt)
-- Uses FormData-based file uploads with multer for handling multipart uploads
-- Files stored locally in `/uploads` directory with unique filenames
-- FileAttachments component displays on Log Entry Details page below To-Do Items section
-- Features: file upload with progress feedback, attachment list with download links, delete functionality
-- Maximum file size: 10MB
-- API endpoints:
-  - `POST /api/logs/:logId/attachments` - Upload file (FormData with "file" field)
-  - `GET /api/logs/:logId/attachments?clubId=X` - List attachments for a log
-  - `DELETE /api/attachments/:id?clubId=X` - Delete attachment (validates clubId ownership)
-  - `GET /uploads/:filename` - Serve uploaded files
-- StorageProvider abstraction (`server/storageProvider.ts`) available for future migration to object storage
-- Dependencies: multer, @types/multer
-
-### December 10, 2025 - Tomorrow's Prep Checklist Feature
-- Added `prep_checklist_items` table to database schema with auto-rollover tracking
-- Fields: id, clubId, description, status, priority, assignedTo, targetDate, originalDate, rolledOverCount, completedAt, completedBy, createdAt
-- Tracks original creation date and rollover count for audit trail
-- Storage layer methods: createPrepChecklistItem, getPrepChecklistItemsByDate, updatePrepChecklistItem, deletePrepChecklistItem, rolloverPrepChecklistItems
-- API endpoints:
-  - `GET /api/prep-checklist?targetDate=X&clubId=X` - Get items for a date
-  - `POST /api/prep-checklist?clubId=X` - Create new item
-  - `PATCH /api/prep-checklist/:id?clubId=X` - Update item (toggle complete, edit)
-  - `DELETE /api/prep-checklist/:id?clubId=X` - Delete item
-  - `POST /api/prep-checklist/rollover?clubId=X` - Roll pending items to new date
-- PrepChecklist UI component with add/complete/delete functionality
-- Shows rollover badge with count when items have been rolled over
-- "Roll to Next Day" button moves pending items forward
-- Integrated into ManagerLogForm below FileAttachments
-
-### December 9, 2025 - Notification List Integration
-- Integrated with Social Club Pro's notification list architecture
-- API endpoints for fetching notification lists and sending with list IDs
-- UI updated to match Bootstrap pattern with radio buttons and multi-select
-- Added reason selector and optional custom message fields
-- Email template includes custom message section at top
+- **date-fns**: Date manipulation.
+- **Zod**: Runtime schema validation.
+- **nanoid**: Unique ID generation.
+- **class-variance-authority & clsx**: Conditional CSS class names.
+- **TanStack Query**: Server state management.
+- **React Hook Form**: Form management.
+- **html2canvas & jsPDF**: Client-side chart export.
+- **multer**: Handles multipart form data for file uploads.
+- **nodemailer**: SMTP email sending.
