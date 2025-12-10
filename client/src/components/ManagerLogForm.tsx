@@ -877,6 +877,37 @@ Details:
         </CardContent>
       </Card>
 
+      {/* Submit Button */}
+      <div className="flex justify-end gap-2">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={resetForm}
+          disabled={isLoading}
+          data-testid="button-reset"
+        >
+          Reset Form
+        </Button>
+        <Button 
+          type="submit" 
+          size="lg" 
+          disabled={isLoading}
+          data-testid="button-submit"
+        >
+          {saveLogMutation.isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="mr-2 h-4 w-4" />
+              {existingLogId ? "Update Log Entry" : "Save Log Entry"}
+            </>
+          )}
+        </Button>
+      </div>
+
       {/* Notify Core Team Section */}
       <Card>
           <CardHeader className="py-4">
@@ -1045,37 +1076,6 @@ Details:
             </div>
           </CardContent>
         </Card>
-
-      {/* Submit Button */}
-      <div className="flex justify-end gap-2">
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={resetForm}
-          disabled={isLoading}
-          data-testid="button-reset"
-        >
-          Reset Form
-        </Button>
-        <Button 
-          type="submit" 
-          size="lg" 
-          disabled={isLoading}
-          data-testid="button-submit"
-        >
-          {saveLogMutation.isPending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="mr-2 h-4 w-4" />
-              {existingLogId ? "Update Log Entry" : "Save Log Entry"}
-            </>
-          )}
-        </Button>
-      </div>
     </form>
   );
 }
