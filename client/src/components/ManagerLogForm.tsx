@@ -979,21 +979,34 @@ Details:
                   <button
                     type="button"
                     className="text-xs text-primary hover:underline"
-                    onClick={() => setShowNotifSettings(!showNotifSettings)}
+                    onClick={() => setShowNotifSettings(true)}
                     data-testid="button-manage-lists"
                   >
-                    {showNotifSettings ? "Hide settings" : "Manage lists & contacts"}
+                    Manage lists & contacts
                   </button>
                 </div>
 
                 {showNotifSettings && (
-                  <div className="border rounded-lg p-4 bg-muted/30 mb-4">
-                    <NotificationSettingsPanel
-                      clubId={clubId}
-                      onChanged={() => {
-                        queryClient.invalidateQueries({ queryKey: ['/api/notifications/lists', clubId] });
-                      }}
-                    />
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="bg-background rounded-xl shadow-xl max-w-4xl w-full mx-4 p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-semibold">Notification Settings</h2>
+                        <button
+                          type="button"
+                          className="text-sm text-muted-foreground hover:text-foreground"
+                          onClick={() => setShowNotifSettings(false)}
+                          data-testid="button-close-notif-settings"
+                        >
+                          Close
+                        </button>
+                      </div>
+                      <NotificationSettingsPanel
+                        clubId={clubId}
+                        onChanged={() => {
+                          queryClient.invalidateQueries({ queryKey: ['/api/notifications/lists', clubId] });
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
 
