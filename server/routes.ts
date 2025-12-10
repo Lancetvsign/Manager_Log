@@ -22,9 +22,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs } from "@shared/schema";
+import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
 import { sendLogNotificationEmail, isEmailConfigured } from "./email";
 import { getMockNotificationLists } from "./notificationLists";
@@ -241,6 +241,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating/updating manager log:", error);
       res.status(500).json({ error: "Failed to save manager log" });
+    }
+  });
+
+  /**
+   * POST /api/logs/ensure
+   * Ensures a log entry exists for a given club+date.
+   * If it exists, returns the logId. If not, creates a minimal log and returns the new logId.
+   * This is useful for ensuring a log exists before sending notifications.
+   */
+  app.post("/api/logs/ensure", async (req, res) => {
+    try {
+      const { clubId, date, managerName } = req.body as {
+        clubId: string;
+        date: string;
+        managerName?: string;
+      };
+
+      if (!clubId || !date) {
+        return res.status(400).json({ error: "clubId and date are required" });
+      }
+
+      // Try to find existing log for that club + date
+      const [existing] = await db
+        .select()
+        .from(managerLogs)
+        .where(
+          and(
+            eq(managerLogs.clubId, clubId),
+            eq(managerLogs.logDate, date)
+          )
+        )
+        .limit(1);
+
+      if (existing) {
+        return res.json({ logId: existing.id });
+      }
+
+      // Create minimal log - need dayOfWeek for the schema
+      const dateObj = new Date(date);
+      const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+
+      const [inserted] = await db
+        .insert(managerLogs)
+        .values({
+          clubId,
+          logDate: date,
+          dayOfWeek,
+          managerName: managerName || "Unassigned",
+        })
+        .returning({ id: managerLogs.id });
+
+      res.json({ logId: inserted.id });
+    } catch (error) {
+      console.error("Error ensuring log exists:", error);
+      res.status(500).json({ error: "Failed to ensure log exists" });
     }
   });
 
