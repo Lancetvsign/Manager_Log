@@ -728,7 +728,7 @@ Details:
 
           {/* Manager - Role dropdown + name input */}
           <div className="space-y-2">
-            <Label htmlFor="manager-name">Manager</Label>
+            <Label htmlFor="manager-name">Manager Type</Label>
             <div className="flex gap-2">
               <Select
                 value={activeManagerRole}
@@ -752,7 +752,6 @@ Details:
                 data-testid="input-manager-name"
               />
             </div>
-            <p className="text-xs text-muted-foreground">name</p>
           </div>
 
           {/* Weather - inline under the date row */}
