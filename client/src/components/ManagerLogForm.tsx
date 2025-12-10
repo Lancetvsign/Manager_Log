@@ -854,10 +854,10 @@ Details:
         </CardContent>
       </Card>
 
-      {/* Sales Notes */}
+      {/* Operational Notes (was Sales Notes) */}
       <Card data-testid="card-sales-notes">
         <CardHeader>
-          <CardTitle className="text-lg">Sales Notes</CardTitle>
+          <CardTitle className="text-lg">Operational Notes</CardTitle>
         </CardHeader>
         <CardContent>
           <Textarea
@@ -871,10 +871,10 @@ Details:
         </CardContent>
       </Card>
 
-      {/* Daily Notes */}
+      {/* Maintenance Notes (was Daily Notes) */}
       <Card data-testid="card-notes">
         <CardHeader>
-          <CardTitle className="text-lg">Daily Notes</CardTitle>
+          <CardTitle className="text-lg">Maintenance Notes</CardTitle>
         </CardHeader>
         <CardContent>
           <Textarea

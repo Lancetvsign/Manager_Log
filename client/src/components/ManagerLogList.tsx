@@ -279,11 +279,11 @@ export default function ManagerLogList({
           </CardContent>
         </Card>
 
-        {/* Sales Notes */}
+        {/* Operational Notes (was Sales Notes) */}
         {selectedLog.salesNotes && (
           <Card>
             <CardHeader>
-              <CardTitle>Sales Notes</CardTitle>
+              <CardTitle>Operational Notes</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="whitespace-pre-wrap">{selectedLog.salesNotes}</p>
@@ -291,10 +291,10 @@ export default function ManagerLogList({
           </Card>
         )}
 
-        {/* Daily Notes */}
+        {/* Maintenance Notes (was Daily Notes) */}
         <Card>
           <CardHeader>
-            <CardTitle>Daily Notes</CardTitle>
+            <CardTitle>Maintenance Notes</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="whitespace-pre-wrap">{selectedLog.dailyNotes || "No notes recorded."}</p>

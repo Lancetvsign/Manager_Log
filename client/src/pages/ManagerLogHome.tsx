@@ -145,12 +145,12 @@ export default function Home() {
             setSelectedLogId(null);
           }
         }} className="space-y-6">
-          {/* Tab Navigation - 4 tabs: New Entry, History, To-Do List, Insights */}
+          {/* Tab Navigation - 4 tabs: Today's Log, History, To-Do List, Insights */}
           <TabsList className="grid w-full grid-cols-4" data-testid="tabs-navigation">
             <TabsTrigger value="new-entry" className="flex items-center space-x-2" data-testid="tab-new-entry">
               <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">New Entry</span>
-              <span className="sm:hidden">New</span>
+              <span className="hidden sm:inline">Today's Log</span>
+              <span className="sm:hidden">Today</span>
             </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center space-x-2" data-testid="tab-history">
               <History className="h-4 w-4" />
@@ -168,7 +168,7 @@ export default function Home() {
             </TabsTrigger>
           </TabsList>
 
-          {/* New Entry Tab - Daily log form */}
+          {/* Today's Log Tab - Daily log form */}
           <TabsContent value="new-entry" className="space-y-6">
             <ManagerLogForm onSubmit={handleSubmitLog} />
           </TabsContent>
