@@ -203,11 +203,11 @@ export const escalationRules = pgTable("escalation_rules", {
   triggerType: varchar("trigger_type", { length: 24 }).notNull(), // "reason" | "metric" | "flag"
   triggerReason: varchar("trigger_reason", { length: 24 }), // For triggerType = "reason"
   metricKey: varchar("metric_key", { length: 64 }), // For triggerType = "metric"
-  metricOperator: varchar("metric_operator", { length: 8 }), // lt, lte, gt, gte, eq
-  metricValue: numeric("metric_value", { precision: 10, scale: 2 }),
+  metricThreshold: numeric("metric_threshold", { precision: 10, scale: 2 }),
   flagKey: varchar("flag_key", { length: 64 }), // For triggerType = "flag"
   enabled: boolean("enabled").notNull().default(true),
   autoSend: boolean("auto_send").notNull().default(false),
+  presetKey: varchar("preset_key", { length: 64 }), // Links to AUTOMATION_PRESETS
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
