@@ -881,21 +881,10 @@ Details:
       <div className="flex justify-end mt-4">
         <Button 
           type="submit" 
-          size="lg" 
           disabled={isLoading}
           data-testid="button-submit"
         >
-          {saveLogMutation.isPending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="mr-2 h-4 w-4" />
-              {existingLogId ? "Update Log Entry" : "Save Log Entry"}
-            </>
-          )}
+          {saveLogMutation.isPending ? "Saving..." : "Save Log Entry"}
         </Button>
       </div>
 
