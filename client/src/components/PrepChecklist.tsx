@@ -153,14 +153,13 @@ export function PrepChecklist({ targetDate, clubId, readOnly = false }: PrepChec
       </CardHeader>
       <CardContent className="space-y-3">
         {!readOnly && (
-          <div className="flex gap-2">
+          <div>
             {isAdding ? (
-              <>
+              <form onSubmit={(e) => { e.preventDefault(); handleAddItem(); }} className="flex gap-2">
                 <Input
                   placeholder="What needs to be prepped?"
                   value={newItemText}
                   onChange={(e) => setNewItemText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
                   className="flex-1"
                   autoFocus
                   data-testid="input-prep-item"
@@ -168,7 +167,6 @@ export function PrepChecklist({ targetDate, clubId, readOnly = false }: PrepChec
                 <Button
                   type="submit"
                   size="sm"
-                  onClick={handleAddItem}
                   disabled={createMutation.isPending || !newItemText.trim()}
                   className="bg-green-600 hover:bg-green-700 text-white"
                   data-testid="button-save-prep-item"
@@ -176,6 +174,7 @@ export function PrepChecklist({ targetDate, clubId, readOnly = false }: PrepChec
                   Add
                 </Button>
                 <Button
+                  type="button"
                   size="sm"
                   variant="ghost"
                   onClick={() => {
@@ -186,9 +185,10 @@ export function PrepChecklist({ targetDate, clubId, readOnly = false }: PrepChec
                 >
                   Cancel
                 </Button>
-              </>
+              </form>
             ) : (
               <Button
+                type="button"
                 size="sm"
                 variant="outline"
                 onClick={() => setIsAdding(true)}
