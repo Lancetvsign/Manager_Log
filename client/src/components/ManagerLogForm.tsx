@@ -974,15 +974,37 @@ Details:
 
               {/* Send to - Multi-select */}
               <div className="space-y-2">
-                <div className="flex justify-between items-center mb-1">
-                  <Label htmlFor="notify-lists" className="mb-0">Send to</Label>
+                <Label htmlFor="notify-lists">Send to</Label>
+                <select
+                  id="notify-lists"
+                  multiple
+                  value={notifyListIds.map(String)}
+                  onChange={(e) => {
+                    const values = Array.from(e.target.selectedOptions).map((o) =>
+                      Number(o.value)
+                    );
+                    setNotifyListIds(values);
+                  }}
+                  className="w-full min-h-[80px] p-2 border rounded-md bg-background"
+                  data-testid="select-notify-lists"
+                >
+                  {notificationLists?.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name} ({list.recipientCount} recipients)
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Hold Ctrl (Cmd on Mac) to select multiple groups.
+                </p>
+                <div className="text-right mt-2">
                   <button
                     type="button"
                     onClick={() => setShowNotifSettings(true)}
                     className="inline-flex items-center px-2 py-1 text-xs font-medium border border-emerald-600 text-emerald-700 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
                     data-testid="button-manage-lists"
                   >
-                    Manage lists & contacts
+                    Manage notification lists & contacts
                   </button>
                 </div>
 
@@ -1009,29 +1031,6 @@ Details:
                     </div>
                   </div>
                 )}
-
-                <select
-                  id="notify-lists"
-                  multiple
-                  value={notifyListIds.map(String)}
-                  onChange={(e) => {
-                    const values = Array.from(e.target.selectedOptions).map((o) =>
-                      Number(o.value)
-                    );
-                    setNotifyListIds(values);
-                  }}
-                  className="w-full min-h-[80px] p-2 border rounded-md bg-background"
-                  data-testid="select-notify-lists"
-                >
-                  {notificationLists?.map((list) => (
-                    <option key={list.id} value={list.id}>
-                      {list.name} ({list.recipientCount} recipients)
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground">
-                  Hold Ctrl (Cmd on Mac) to select multiple groups.
-                </p>
               </div>
 
               {/* Subject */}
