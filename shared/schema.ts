@@ -134,6 +134,7 @@ export const notificationLogs = pgTable("notification_logs", {
   listIds: jsonb("list_ids").notNull().$type<number[]>(),
   recipients: jsonb("recipients").notNull().$type<string[]>(),
   simulated: boolean("simulated").notNull().default(true),
+  autoTriggered: boolean("auto_triggered").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -180,6 +181,48 @@ export const notificationRecipients = pgTable("notification_recipients", {
 });
 
 /**
+ * ESCALATION_RULES TABLE
+ * ----------------------
+ * Stores automated escalation rules for each club.
+ * Rules can trigger notifications based on:
+ * - reason: When a specific notification reason is selected (maintenance, behavior, other)
+ * - metric: When a metric condition is met (e.g., sales drop > 20%)
+ * - flag: When a specific flag is set (e.g., gaming outage)
+ * 
+ * Fields:
+ * - triggerType: "reason" | "metric" | "flag"
+ * - triggerReason: For reason type - which reason triggers this rule
+ * - metricKey/metricOperator/metricValue: For metric type - the condition to check
+ * - flagKey: For flag type - which flag triggers this rule
+ * - autoSend: If true, sends immediately without user clicking send
+ */
+export const escalationRules = pgTable("escalation_rules", {
+  id: serial("id").primaryKey(),
+  clubId: varchar("club_id", { length: 64 }).notNull(),
+  name: varchar("name", { length: 160 }).notNull(),
+  triggerType: varchar("trigger_type", { length: 24 }).notNull(), // "reason" | "metric" | "flag"
+  triggerReason: varchar("trigger_reason", { length: 24 }), // For triggerType = "reason"
+  metricKey: varchar("metric_key", { length: 64 }), // For triggerType = "metric"
+  metricOperator: varchar("metric_operator", { length: 8 }), // lt, lte, gt, gte, eq
+  metricValue: numeric("metric_value", { precision: 10, scale: 2 }),
+  flagKey: varchar("flag_key", { length: 64 }), // For triggerType = "flag"
+  autoSend: boolean("auto_send").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * ESCALATION_RULE_TARGETS TABLE
+ * -----------------------------
+ * Many-to-many relationship between escalation rules and notification lists.
+ * When a rule matches, notifications are sent to all target lists.
+ */
+export const escalationRuleTargets = pgTable("escalation_rule_targets", {
+  id: serial("id").primaryKey(),
+  ruleId: integer("rule_id").notNull().references(() => escalationRules.id, { onDelete: "cascade" }),
+  listId: integer("list_id").notNull().references(() => notificationLists.id, { onDelete: "cascade" }),
+});
+
+/**
  * TABLE RELATIONSHIPS
  * -------------------
  * Defines the one-to-many relationship between ManagerLogs and MaintenanceItems.
@@ -212,6 +255,21 @@ export const notificationListsRelations = relations(notificationLists, ({ many }
 export const notificationRecipientsRelations = relations(notificationRecipients, ({ one }) => ({
   list: one(notificationLists, {
     fields: [notificationRecipients.listId],
+    references: [notificationLists.id],
+  }),
+}));
+
+export const escalationRulesRelations = relations(escalationRules, ({ many }) => ({
+  targets: many(escalationRuleTargets),
+}));
+
+export const escalationRuleTargetsRelations = relations(escalationRuleTargets, ({ one }) => ({
+  rule: one(escalationRules, {
+    fields: [escalationRuleTargets.ruleId],
+    references: [escalationRules.id],
+  }),
+  list: one(notificationLists, {
+    fields: [escalationRuleTargets.listId],
     references: [notificationLists.id],
   }),
 }));
@@ -276,6 +334,17 @@ export const insertNotificationRecipientSchema = createInsertSchema(notification
   createdAt: true, // Auto-generated
 });
 
+// EscalationRule insert schema
+export const insertEscalationRuleSchema = createInsertSchema(escalationRules).omit({
+  id: true,        // Auto-generated
+  createdAt: true, // Auto-generated
+});
+
+// EscalationRuleTarget insert schema
+export const insertEscalationRuleTargetSchema = createInsertSchema(escalationRuleTargets).omit({
+  id: true,        // Auto-generated
+});
+
 /**
  * TYPESCRIPT TYPE EXPORTS
  * -----------------------
@@ -295,6 +364,10 @@ export type InsertNotificationList = z.infer<typeof insertNotificationListSchema
 export type NotificationList = typeof notificationLists.$inferSelect;
 export type InsertNotificationRecipient = z.infer<typeof insertNotificationRecipientSchema>;
 export type NotificationRecipient = typeof notificationRecipients.$inferSelect;
+export type InsertEscalationRule = z.infer<typeof insertEscalationRuleSchema>;
+export type EscalationRule = typeof escalationRules.$inferSelect;
+export type InsertEscalationRuleTarget = z.infer<typeof insertEscalationRuleTargetSchema>;
+export type EscalationRuleTarget = typeof escalationRuleTargets.$inferSelect;
 
 /**
  * Extended type for maintenance items with their related log data
