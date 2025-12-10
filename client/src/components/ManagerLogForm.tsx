@@ -137,14 +137,12 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
 
   // Initialize default notification lists when data loads
   useEffect(() => {
-    if (notificationLists && notificationLists.length > 0 && notifyListIds.length === 0) {
-      // Select default lists automatically
-      const defaultListIds = notificationLists
-        .filter(list => list.isDefault)
-        .map(list => list.id);
-      if (defaultListIds.length > 0) {
-        setNotifyListIds(defaultListIds);
-      }
+    if (notificationLists && notificationLists.length && notifyListIds.length === 0) {
+      // Auto-select default(s), fallback to first list if none marked default
+      const defaultIds = notificationLists
+        .filter((l) => l.isDefault)
+        .map((l) => l.id);
+      setNotifyListIds(defaultIds.length ? defaultIds : [notificationLists[0].id]);
     }
   }, [notificationLists]);
 
