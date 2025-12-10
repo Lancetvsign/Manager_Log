@@ -314,4 +314,44 @@
     background-color: hsl(var(--header-bg));
     color: hsl(var(--header-foreground));
   }
+
+  /* ================================
+   * COMPACT UI STYLING
+   * Reduces padding and spacing for a tighter, more compact layout
+   * ================================ */
+
+  /* Cards - reduced padding and margin */
+  .rounded-lg.border.bg-card,
+  [class*="Card"] {
+    margin-bottom: 14px;
+  }
+
+  /* Card headers - smaller padding and text */
+  [class*="CardHeader"] {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+
+  /* Card content - tighter padding */
+  [class*="CardContent"] {
+    padding: 10px 12px;
+  }
+
+  /* Form inputs - smaller and more compact */
+  input.flex.h-9,
+  input.flex.h-10,
+  textarea {
+    padding: 6px 10px;
+    font-size: 0.9rem;
+  }
+
+  /* Labels - slightly smaller */
+  label {
+    font-size: 0.9rem;
+  }
+
+  /* Card titles - slightly smaller */
+  [class*="CardTitle"] {
+    font-size: 1rem;
+  }
 }
