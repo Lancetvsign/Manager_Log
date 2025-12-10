@@ -99,9 +99,13 @@ export default function EscalationRulesModal({
       const existingRule = getPresetRule(presetId);
 
       if (enable && !existingRule) {
+        // Require notification lists to be loaded
+        if (!lists || lists.length === 0) {
+          throw new Error("No notification lists available. Please create a list first.");
+        }
         // Create the rule
-        const targetList = lists?.find((l) => l.name === preset.defaultListName);
-        const targetListIds = targetList ? [targetList.id] : lists?.length ? [lists[0].id] : [];
+        const targetList = lists.find((l) => l.name === preset.defaultListName);
+        const targetListIds = targetList ? [targetList.id] : [lists[0].id];
         
         return apiRequest("POST", "/api/escalation-rules", {
           clubId,
@@ -123,8 +127,8 @@ export default function EscalationRulesModal({
       queryClient.invalidateQueries({ queryKey: ["/api/escalation-rules", clubId] });
       onRulesChanged?.();
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update automation.", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message || "Failed to update automation.", variant: "destructive" });
     },
   });
 
@@ -240,6 +244,7 @@ export default function EscalationRulesModal({
                     </div>
                     <Switch
                       checked={isEnabled}
+                      disabled={!lists || lists.length === 0}
                       onCheckedChange={(checked) =>
                         togglePresetMutation.mutate({ presetId: preset.id, enable: checked })
                       }
