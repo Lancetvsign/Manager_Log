@@ -1,7 +1,10 @@
-// server/emailPrepChecklist.ts
-import { sendNotificationEmail } from "./email_utils";
+/**
+ * EMAIL NOTIFICATIONS FOR PREP CHECKLIST ROLLOVER
+ * Sends email notifications when prep checklist items are rolled over to the next day.
+ */
+import { sendLogNotificationEmail } from "./email";
 import { db } from "./db";
-import { NotificationList, NotificationRecipient, clubs } from "@shared/schema";
+import { clubs, notificationLists, notificationRecipients } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export async function sendPrepChecklistEmail(
@@ -18,20 +21,21 @@ export async function sendPrepChecklistEmail(
 
   const [list] = await db
     .select()
-    .from(NotificationList)
-    .where(eq(NotificationList.id, listId));
+    .from(notificationLists)
+    .where(eq(notificationLists.id, listId));
 
   if (!list) return;
 
   const recipients = await db
     .select()
-    .from(NotificationRecipient)
-    .where(eq(NotificationRecipient.listId, listId));
+    .from(notificationRecipients)
+    .where(eq(notificationRecipients.listId, listId));
 
   const emails = recipients.map((r) => r.email);
   if (emails.length === 0) return;
 
-  const subject = `[${club.name}] Tomorrow's Prep Checklist – ${result.items.length} item(s) rolled over`;
+  const clubName = club.name || "Restaurant";
+  const subject = `[${clubName}] Tomorrow's Prep Checklist – ${result.items.length} item(s) rolled over`;
 
   const itemsHtml = result.items
     .map((i) => `<li>${i.description}</li>`)
@@ -43,5 +47,5 @@ export async function sendPrepChecklistEmail(
     <p>View tomorrow's To-Do list in the Manager's Log to update or complete items.</p>
   `;
 
-  await sendNotificationEmail(subject, htmlBody, emails);
+  await sendLogNotificationEmail(subject, htmlBody, emails);
 }

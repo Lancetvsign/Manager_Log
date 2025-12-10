@@ -29,6 +29,20 @@ export const users = pgTable("users", {
 });
 
 /**
+ * CLUBS TABLE
+ * -----------
+ * Stores club configuration for Social Club Pro integration.
+ * Each club can have custom notification list assignments.
+ */
+export const clubs = pgTable("clubs", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  prepChecklistNotificationListId: integer("prep_checklist_notification_list_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+/**
  * MANAGER_LOGS TABLE
  * ------------------
  * The primary table storing daily restaurant log entries.
@@ -439,6 +453,13 @@ export const insertPrepChecklistItemSchema = createInsertSchema(prepChecklistIte
   priority: z.string().optional(),
   assignedTo: z.string().nullable().optional(),
 });
+
+export const insertClubSchema = createInsertSchema(clubs).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertClub = z.infer<typeof insertClubSchema>;
+export type Club = typeof clubs.$inferSelect;
 
 /**
  * TYPESCRIPT TYPE EXPORTS
