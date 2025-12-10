@@ -698,48 +698,63 @@ Details:
         </CardContent>
       </Card>
 
-      {/* Weather Information - Consolidated */}
-      <Card data-testid="card-weather">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Weather</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoadingWeather ? (
-            <div className="text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
-              Loading weather...
-            </div>
-          ) : (
-            <div className="flex gap-4">
-              {weatherData.current && (
-                <div className="flex-1" data-testid="weather-current">
-                  <div className="text-xs text-muted-foreground mb-1">Today</div>
-                  <div className="text-xl font-bold">{weatherData.current.temperature}°F</div>
-                  <Badge variant="secondary" className="mt-1">{weatherData.current.condition}</Badge>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    💧 {weatherData.current.humidity}% &nbsp; 💨 {weatherData.current.windSpeed} mph
-                  </div>
-                </div>
-              )}
-              {weatherData.historical && (
-                <div className="flex-1 border-l pl-4" data-testid="weather-historical">
-                  <div className="text-xs text-muted-foreground mb-1">Last Year</div>
-                  <div className="text-xl font-bold">{weatherData.historical.temperature}°F</div>
-                  <Badge variant="secondary" className="mt-1">{weatherData.historical.condition}</Badge>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    💧 {weatherData.historical.humidity}% &nbsp; 💨 {weatherData.historical.windSpeed} mph
-                  </div>
-                  {weatherData.historicalFallbackNote && (
-                    <div className="text-xs text-amber-600 dark:text-amber-400 italic mt-1">
-                      {weatherData.historicalFallbackNote}
+      {/* Top stats row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Weather (Today vs Last Year) */}
+        <Card data-testid="card-weather">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Weather</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingWeather ? (
+              <div className="text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
+                Loading weather...
+              </div>
+            ) : (
+              <div className="flex gap-4">
+                {weatherData.current && (
+                  <div className="flex-1" data-testid="weather-current">
+                    <div className="text-xs text-muted-foreground mb-1">Today</div>
+                    <div className="text-xl font-bold">{weatherData.current.temperature}°F</div>
+                    <Badge variant="secondary" className="mt-1">{weatherData.current.condition}</Badge>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      💧 {weatherData.current.humidity}% &nbsp; 💨 {weatherData.current.windSpeed} mph
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+                {weatherData.historical && (
+                  <div className="flex-1 border-l pl-4" data-testid="weather-historical">
+                    <div className="text-xs text-muted-foreground mb-1">Last Year</div>
+                    <div className="text-xl font-bold">{weatherData.historical.temperature}°F</div>
+                    <Badge variant="secondary" className="mt-1">{weatherData.historical.condition}</Badge>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      💧 {weatherData.historical.humidity}% &nbsp; 💨 {weatherData.historical.windSpeed} mph
+                    </div>
+                    {weatherData.historicalFallbackNote && (
+                      <div className="text-xs text-amber-600 dark:text-amber-400 italic mt-1">
+                        {weatherData.historicalFallbackNote}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Right side card - placeholder for now */}
+        <Card data-testid="card-placeholder">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Coming Soon</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-muted-foreground">
+              Additional stats will go here
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Sales Data */}
       <SalesInput
