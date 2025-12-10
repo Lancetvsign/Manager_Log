@@ -192,7 +192,7 @@ export function PrepChecklist({ targetDate, clubId, readOnly = false }: PrepChec
                 size="sm"
                 variant="outline"
                 onClick={() => setIsAdding(true)}
-                className="w-full"
+                className="w-full border-gray-300 text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                 data-testid="button-add-prep-item"
               >
                 <Plus className="h-3 w-3 mr-1" />
