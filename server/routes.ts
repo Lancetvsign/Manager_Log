@@ -755,12 +755,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Build subject if not provided
       const emailSubject = subject || `Urgent issue - ${reason}`;
 
-      const result = await sendLogNotificationEmail(emailSubject, htmlBody, recipients);
-      
-      if (result.success) {
-        res.json({ success: true, sentTo: recipients.length });
+      const smtpConfigured = isEmailConfigured();
+
+      if (smtpConfigured) {
+        // Real send
+        const result = await sendLogNotificationEmail(emailSubject, htmlBody, recipients);
+        if (result.success) {
+          res.json({ success: true, sentTo: recipients.length, simulated: false });
+        } else {
+          res.status(500).json({ success: false, error: result.message });
+        }
       } else {
-        res.status(500).json({ success: false, error: result.message });
+        // Simulate send - log to console
+        console.log("[Notification simulate]", emailSubject, "→", recipients.join(", "));
+        console.log("[Notification body]", htmlBody);
+        res.json({ success: true, sentTo: recipients.length, simulated: true });
       }
     } catch (error) {
       console.error("Error sending notification:", error);

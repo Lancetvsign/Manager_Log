@@ -113,7 +113,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     recipients: { id: number; name: string; email: string }[];
   }
 
-  // Fetch notification lists
+  // Fetch notification lists (always fetch so notification section works even in simulation mode)
   const { data: notificationLists } = useQuery<NotificationList[]>({
     queryKey: ['/api/notifications/lists', clubId],
     queryFn: async () => {
@@ -121,7 +121,6 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       if (!response.ok) return [];
       return response.json();
     },
-    enabled: isEmailConfigured,
   });
 
   // Notification list selection toggle
@@ -181,10 +180,11 @@ Details:
       const result = await response.json();
       
       if (result.success) {
-        setSendResult(`Sent to ${result.sentTo} recipient(s)`);
+        const simulatedNote = result.simulated ? " (simulated - SMTP not configured)" : "";
+        setSendResult(`Sent to ${result.sentTo} recipient(s)${simulatedNote}`);
         toast({
-          title: "Notification Sent",
-          description: `Sent to ${result.sentTo} recipient(s)`,
+          title: result.simulated ? "Notification Simulated" : "Notification Sent",
+          description: `${result.simulated ? "Would send" : "Sent"} to ${result.sentTo} recipient(s)`,
         });
       } else {
         setSendResult(`Error: ${result.error}`);
@@ -849,7 +849,7 @@ Details:
       </Card>
 
       {/* Notify Core Team Section - Only show when log exists */}
-      {isEmailConfigured && existingLogId && (
+      {existingLogId && (
         <Card>
           <CardHeader className="py-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">

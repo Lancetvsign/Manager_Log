@@ -1,0 +1,76 @@
+router.post("/api/logs/:logId/notify", async (req, res) => {
+  try {
+    const logId = Number(req.params.logId);
+    const { reason, listIds, subject, message, clubId } = req.body;
+
+    const log = getLogById(logId); // however you already do this
+    if (!log) {
+      return res.status(404).json({ error: "Log not found" });
+    }
+
+    const allLists: NotificationList[] = getNotificationListsForClub(clubId);
+    const selectedLists = allLists.filter((l) => listIds.includes(l.id));
+
+    const recipients = Array.from(
+      new Set(
+        selectedLists.flatMap((l) => l.recipients.map((r) => r.email))
+      )
+    );
+
+    if (!recipients.length) {
+      return res
+        .status(400)
+        .json({ error: "No recipients configured for selected lists" });
+    }
+
+    const logUrl = `${req.protocol}://${req.get("host")}/logs/${log.id}`;
+
+    const htmlBody = `
+      <p><strong>Reason:</strong> ${reason}</p>
+      <p><strong>Date:</strong> ${new Date(log.date).toLocaleDateString()}</p>
+      <p><strong>Manager:</strong> ${log.managerName}</p>
+      <p><strong>Total sales:</strong> ${log.totalSales ?? 0}</p>
+      <p>${(message || "").replace(/\n/g, "<br>")}</p>
+      <hr />
+      <p>View this entry in the Manager's Log: <a href="${logUrl}">${logUrl}</a></p>
+    `;
+
+    const smtpConfigured =
+      !!process.env.SMTP_HOST &&
+      !!process.env.SMTP_USER &&
+      !!process.env.SMTP_PASSWORD;
+
+    // 1) Always record in NotificationLog (we’ll add this model in step 2)
+    await createNotificationLog({
+      logId,
+      clubId,
+      reason,
+      subject,
+      message,
+      listIds,
+      recipients,
+      simulated: !smtpConfigured,
+    });
+
+    // 2) Only attempt real send if SMTP is configured
+    if (smtpConfigured) {
+      await sendLogNotificationEmail(subject, htmlBody, recipients);
+    } else {
+      console.log(
+        "[Notification simulate]",
+        subject,
+        "→",
+        recipients.join(", ")
+      );
+    }
+
+    return res.json({
+      success: true,
+      sentTo: recipients.length,
+      simulated: !smtpConfigured,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to process notification" });
+  }
+});
