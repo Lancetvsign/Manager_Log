@@ -82,8 +82,10 @@ Email notifications require SMTP configuration via environment variables:
 
 ### Notification List Model (Social Club Pro Integration)
 In production, notification lists are managed by Social Club Pro. For development, mock data is provided:
-- Lists have `id`, `clubId`, `name`, `description`, `isDefault`, and `recipients[]`
+- Lists have `id`, `clubId`, `name`, `description`, `isDefault`, `roleKey`, and `recipients[]`
+- `roleKey` assigns a role to the list for automation targeting: `core_team`, `maintenance`, `ownership`, `kitchen_staff`, `custom`, or `null` (None)
 - Recipients have `id`, `name`, `email`
+- Role selector dropdown in Notification Settings page allows assigning roles to each list
 
 ### UI Behavior
 - "Notify Core Team" card appears when editing an existing log entry
@@ -151,6 +153,13 @@ The `escalation_rule_targets` table maps rules to notification lists:
 
 ## Recent Changes
 
+### December 10, 2025 - Notification List Roles
+- Added `roleKey` field to notification_lists table for role-based categorization
+- Role options: None, Core Team, Maintenance, Ownership, Kitchen Staff, Custom
+- Added role selector dropdown in Notification Settings page for each list
+- API GET/POST/PATCH endpoints updated to support roleKey field
+- Automation presets now use custom list selection instead of fixed role mappings
+
 ### December 10, 2025 - Smart Automations Refactor
 - Refactored escalation rules from complex rule builder to preset-based automation system
 - Added preset toggles with on/off switches for common scenarios
@@ -158,6 +167,8 @@ The `escalation_rule_targets` table maps rules to notification lists:
 - Added "Advanced Automation" section hidden behind toggle for custom rules
 - Fixed React Query cache invalidation for preset enable/disable flows
 - Added useEffect for proper threshold hydration from existing rules
+- Each automation preset has a "Notify:" dropdown to select any notification list
+- Gaming Outage requires list selection before enabling (with warning message)
 
 ### December 10, 2025 - Notification Audit Trail
 - Added `notification_logs` table to database for audit trail
