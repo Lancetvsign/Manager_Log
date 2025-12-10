@@ -32,6 +32,9 @@ interface WeatherData {
   description: string;
 }
 
+// Quick pick list for manager dropdowns - can be pulled from staff later
+const managerQuickPicks = ["Chris", "Sarah", "Mike", "Ana", "James"];
+
 export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const { clubId, managerName: defaultManagerName, apiBaseUrl } = useManagerLog();
   const [date, setDate] = useState<Date>(new Date());
@@ -695,53 +698,134 @@ Details:
             />
           </div>
 
-          {/* Manager Name */}
+          {/* Primary Manager - Quick pick or type */}
           <div className="space-y-2">
-            <Label htmlFor="manager-name">Primary Manager</Label>
-            <Input
-              id="manager-name"
-              value={managerName}
-              onChange={(e) => setManagerName(e.target.value)}
-              placeholder="e.g. John"
-              required
-              data-testid="input-manager-name"
-            />
+            <Label htmlFor="manager-name">Manager on duty</Label>
+            <div className="flex gap-2">
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (value) setManagerName(value);
+                }}
+              >
+                <SelectTrigger className="w-[140px]" data-testid="select-manager-quick">
+                  <SelectValue placeholder="Quick pick..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {managerQuickPicks.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                id="manager-name"
+                value={managerName}
+                onChange={(e) => setManagerName(e.target.value)}
+                placeholder="Type manager name..."
+                className="flex-1"
+                required
+                data-testid="input-manager-name"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Pick from list or type a name</p>
           </div>
 
-          {/* AM Manager */}
+          {/* AM Manager - Quick pick or type */}
           <div className="space-y-2">
             <Label htmlFor="am-manager">AM Manager</Label>
-            <Input
-              id="am-manager"
-              value={amManagerName}
-              onChange={(e) => setAmManagerName(e.target.value)}
-              placeholder="e.g. Sarah"
-              data-testid="input-am-manager"
-            />
+            <div className="flex gap-2">
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (value) setAmManagerName(value);
+                }}
+              >
+                <SelectTrigger className="w-[140px]" data-testid="select-am-manager-quick">
+                  <SelectValue placeholder="Quick pick..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {managerQuickPicks.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                id="am-manager"
+                value={amManagerName}
+                onChange={(e) => setAmManagerName(e.target.value)}
+                placeholder="Type manager name..."
+                className="flex-1"
+                data-testid="input-am-manager"
+              />
+            </div>
           </div>
 
-          {/* PM Manager */}
+          {/* PM Manager - Quick pick or type */}
           <div className="space-y-2">
             <Label htmlFor="pm-manager">PM Manager</Label>
-            <Input
-              id="pm-manager"
-              value={pmManagerName}
-              onChange={(e) => setPmManagerName(e.target.value)}
-              placeholder="e.g. Mike"
-              data-testid="input-pm-manager"
-            />
+            <div className="flex gap-2">
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (value) setPmManagerName(value);
+                }}
+              >
+                <SelectTrigger className="w-[140px]" data-testid="select-pm-manager-quick">
+                  <SelectValue placeholder="Quick pick..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {managerQuickPicks.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                id="pm-manager"
+                value={pmManagerName}
+                onChange={(e) => setPmManagerName(e.target.value)}
+                placeholder="Type manager name..."
+                className="flex-1"
+                data-testid="input-pm-manager"
+              />
+            </div>
           </div>
 
-          {/* Kitchen Manager */}
+          {/* Kitchen Manager - Quick pick or type */}
           <div className="space-y-2">
             <Label htmlFor="kitchen-manager">Kitchen Manager</Label>
-            <Input
-              id="kitchen-manager"
-              value={kitchenManagerName}
-              onChange={(e) => setKitchenManagerName(e.target.value)}
-              placeholder="e.g. Chef Ana"
-              data-testid="input-kitchen-manager"
-            />
+            <div className="flex gap-2">
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (value) setKitchenManagerName(value);
+                }}
+              >
+                <SelectTrigger className="w-[140px]" data-testid="select-kitchen-manager-quick">
+                  <SelectValue placeholder="Quick pick..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {managerQuickPicks.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                id="kitchen-manager"
+                value={kitchenManagerName}
+                onChange={(e) => setKitchenManagerName(e.target.value)}
+                placeholder="Type manager name..."
+                className="flex-1"
+                data-testid="input-kitchen-manager"
+              />
+            </div>
           </div>
 
           {/* Weather - inline under the date row */}
