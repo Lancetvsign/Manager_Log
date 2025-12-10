@@ -1202,6 +1202,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================
+  // FILE ATTACHMENTS API
+  // ==================
+
+  // Get presigned upload URL for file attachment
+  app.post("/api/attachments/upload-url", async (req, res) => {
+    try {
+      const { clubId, logId, fileName } = req.body;
+
+      if (!clubId || !logId || !fileName) {
+        return res.status(400).json({ error: "clubId, logId, and fileName are required" });
+      }
+
+      const { storageProvider } = await import("./storageProvider");
+      const uploadInfo = await storageProvider.getPresignedUploadUrl({
+        clubId,
+        logId: Number(logId),
+        fileName,
+      });
+
+      res.json(uploadInfo);
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: "Failed to get upload URL" });
+    }
+  });
+
+  // Save attachment metadata after upload
+  app.post("/api/attachments", async (req, res) => {
+    try {
+      const { clubId, logId, fileName, fileType, fileSize, uploadUrl } = req.body;
+
+      if (!clubId || !logId || !fileName || !uploadUrl) {
+        return res.status(400).json({ error: "clubId, logId, fileName, and uploadUrl are required" });
+      }
+
+      const { storageProvider } = await import("./storageProvider");
+      const storageKey = storageProvider.normalizeObjectPath(uploadUrl);
+      const publicUrl = storageKey;
+
+      const attachment = await storage.createLogAttachment({
+        clubId,
+        logId: Number(logId),
+        fileName,
+        fileType: fileType || "application/octet-stream",
+        fileSize: fileSize ? Number(fileSize) : null,
+        storageKey,
+        publicUrl,
+      });
+
+      res.status(201).json(attachment);
+    } catch (error) {
+      console.error("Error saving attachment:", error);
+      res.status(500).json({ error: "Failed to save attachment" });
+    }
+  });
+
+  // List attachments for a log
+  app.get("/api/logs/:logId/attachments", async (req, res) => {
+    try {
+      const logId = Number(req.params.logId);
+      const clubId = getClubId(req);
+
+      if (isNaN(logId)) {
+        return res.status(400).json({ error: "Invalid log ID" });
+      }
+
+      const attachments = await storage.getLogAttachmentsByLogId(logId, clubId);
+      res.json(attachments);
+    } catch (error) {
+      console.error("Error fetching attachments:", error);
+      res.status(500).json({ error: "Failed to fetch attachments" });
+    }
+  });
+
+  // Delete attachment
+  app.delete("/api/attachments/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const clubId = getClubId(req);
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid attachment ID" });
+      }
+
+      const attachment = await storage.getLogAttachment(id, clubId);
+      if (!attachment) {
+        return res.status(404).json({ error: "Attachment not found" });
+      }
+
+      // Delete from storage provider if needed
+      const { storageProvider } = await import("./storageProvider");
+      await storageProvider.deleteObject(attachment.storageKey);
+
+      // Delete from database
+      const deleted = await storage.deleteLogAttachment(id, clubId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Attachment not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting attachment:", error);
+      res.status(500).json({ error: "Failed to delete attachment" });
+    }
+  });
+
+  // Serve uploaded files
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    try {
+      const { ObjectStorageService, ObjectNotFoundError } = await import("./objectStorage");
+      const objectStorageService = new ObjectStorageService();
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error: any) {
+      console.error("Error serving object:", error);
+      if (error?.name === "ObjectNotFoundError") {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

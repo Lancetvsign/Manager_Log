@@ -1,0 +1,97 @@
+// server/routes-attachments.ts
+import express from "express";
+import multer from "multer";
+import { db } from "./db";
+import { logAttachments } from "@shared/schema";
+import { replitBlobStorage as storage } from "./storage-replitBlob";
+import { eq, and } from "drizzle-orm";
+
+const upload = multer(); // memory storage
+export const attachmentsRouter = express.Router();
+
+// List attachments for a log
+attachmentsRouter.get("/api/logs/:logId/attachments", async (req, res) => {
+  const logId = Number(req.params.logId);
+  const clubId = req.user.clubId; // however you store current club
+
+  const rows = await db
+    .select()
+    .from(logAttachments)
+    .where(and(eq(logAttachments.logId, logId), eq(logAttachments.clubId, clubId)));
+
+  res.json(rows);
+});
+
+// Upload one file
+attachmentsRouter.post(
+  "/api/logs/:logId/attachments",
+  upload.single("file"),
+  async (req, res) => {
+    const logId = Number(req.params.logId);
+    const clubId = req.user.clubId;
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const { buffer, originalname, mimetype, size } = req.file;
+
+    // Store in object storage
+    const stored = await storage.uploadObject({
+      buffer,
+      contentType: mimetype,
+      fileName: originalname,
+      clubId,
+      logId,
+    });
+
+    // Save DB record
+    const [row] = await db
+      .insert(logAttachments)
+      .values({
+        clubId,
+        logId,
+        fileName: originalname,
+        fileType: mimetype,
+        fileSize: size,
+        storageKey: stored.key,
+        publicUrl: stored.url,
+      })
+      .returning();
+
+    res.status(201).json(row);
+  },
+);
+
+// Delete attachment
+attachmentsRouter.delete(
+  "/api/logs/:logId/attachments/:attachmentId",
+  async (req, res) => {
+    const logId = Number(req.params.logId);
+    const id = Number(req.params.attachmentId);
+    const clubId = req.user.clubId;
+
+    const [attachment] = await db
+      .select()
+      .from(logAttachments)
+      .where(
+        and(
+          eq(logAttachments.id, id),
+          eq(logAttachments.logId, logId),
+          eq(logAttachments.clubId, clubId),
+        ),
+      );
+
+    if (!attachment) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    await storage.deleteObject(attachment.storageKey);
+
+    await db
+      .delete(logAttachments)
+      .where(eq(logAttachments.id, id));
+
+    res.json({ ok: true });
+  },
+);

@@ -20,7 +20,8 @@ import {
   type ManagerLog, type InsertManagerLog,
   type MaintenanceItem, type InsertMaintenanceItem,
   type MaintenanceItemWithLog,
-  users, managerLogs, maintenanceItems 
+  type LogAttachment, type InsertLogAttachment,
+  users, managerLogs, maintenanceItems, logAttachments 
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, lte, and } from "drizzle-orm";
@@ -53,6 +54,12 @@ export interface IStorage {
   getAllMaintenanceItems(clubId: string, filters?: { status?: string; startDate?: string; endDate?: string }): Promise<MaintenanceItemWithLog[]>;
   updateMaintenanceItem(id: number, updates: Partial<InsertMaintenanceItem>): Promise<MaintenanceItem | undefined>;
   deleteMaintenanceItem(id: number): Promise<boolean>;
+
+  // Log Attachment operations
+  createLogAttachment(attachment: InsertLogAttachment): Promise<LogAttachment>;
+  getLogAttachmentsByLogId(logId: number, clubId: string): Promise<LogAttachment[]>;
+  getLogAttachment(id: number, clubId: string): Promise<LogAttachment | undefined>;
+  deleteLogAttachment(id: number, clubId: string): Promise<boolean>;
 }
 
 /**
@@ -275,6 +282,41 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(maintenanceItems)
       .where(eq(maintenanceItems.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // ==================
+  // LOG ATTACHMENT OPERATIONS
+  // ==================
+
+  async createLogAttachment(attachment: InsertLogAttachment): Promise<LogAttachment> {
+    const [created] = await db
+      .insert(logAttachments)
+      .values(attachment)
+      .returning();
+    return created;
+  }
+
+  async getLogAttachmentsByLogId(logId: number, clubId: string): Promise<LogAttachment[]> {
+    return await db
+      .select()
+      .from(logAttachments)
+      .where(and(eq(logAttachments.logId, logId), eq(logAttachments.clubId, clubId)))
+      .orderBy(desc(logAttachments.createdAt));
+  }
+
+  async getLogAttachment(id: number, clubId: string): Promise<LogAttachment | undefined> {
+    const [attachment] = await db
+      .select()
+      .from(logAttachments)
+      .where(and(eq(logAttachments.id, id), eq(logAttachments.clubId, clubId)));
+    return attachment || undefined;
+  }
+
+  async deleteLogAttachment(id: number, clubId: string): Promise<boolean> {
+    const result = await db
+      .delete(logAttachments)
+      .where(and(eq(logAttachments.id, id), eq(logAttachments.clubId, clubId)));
     return (result.rowCount ?? 0) > 0;
   }
 }

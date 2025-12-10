@@ -181,6 +181,20 @@ The `escalation_rule_targets` table maps rules to notification lists:
 - UI feedback shows "(simulated - SMTP not configured)" when simulating
 - Fixed notification lists query to always fetch (not gated by SMTP status)
 
+### December 10, 2025 - File Attachments Feature
+- Added `log_attachments` table to database schema for storing file metadata
+- Implemented StorageProvider abstraction (`server/storageProvider.ts`) for swappable storage backends
+- ReplitObjectStorageProvider wraps ObjectStorageService for Replit's object storage
+- Created ObjectUploader component using Uppy for frontend file uploads with presigned URLs
+- Created FileAttachments component for displaying, uploading, and deleting attachments
+- API endpoints:
+  - `POST /api/attachments/upload-url` - Get presigned upload URL
+  - `POST /api/attachments` - Save attachment metadata after upload
+  - `GET /api/logs/:logId/attachments?clubId=X` - List attachments for a log
+  - `DELETE /api/attachments/:id?clubId=X` - Delete attachment
+  - `GET /objects/:objectPath(*)` - Serve uploaded files
+- Dependencies added: @google-cloud/storage, @uppy/core, @uppy/aws-s3, @uppy/dashboard, @uppy/react
+
 ### December 9, 2025 - Notification List Integration
 - Integrated with Social Club Pro's notification list architecture
 - API endpoints for fetching notification lists and sending with list IDs
