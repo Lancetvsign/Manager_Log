@@ -24,6 +24,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs } from "@shared/schema";
 import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
 import { sendLogNotificationEmail, isEmailConfigured } from "./email";
 import { getMockNotificationLists } from "./notificationLists";
@@ -683,6 +684,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/notifications/lists", (req, res) => {
     const clubId = (req.query.clubId as string) || DEFAULT_CLUB_ID;
     res.json(getMockNotificationLists(clubId));
+  });
+
+  /**
+   * GET /api/logs/:logId/notifications
+   * Get notification history for a manager log
+   * Returns: Array of recent notifications for this log
+   */
+  app.get("/api/logs/:logId/notifications", async (req, res) => {
+    try {
+      const logId = Number(req.params.logId);
+      
+      const notifications = await db
+        .select({
+          id: notificationLogs.id,
+          reason: notificationLogs.reason,
+          subject: notificationLogs.subject,
+          createdAt: notificationLogs.createdAt,
+          simulated: notificationLogs.simulated,
+          recipients: notificationLogs.recipients,
+        })
+        .from(notificationLogs)
+        .where(eq(notificationLogs.logId, logId))
+        .orderBy(desc(notificationLogs.createdAt))
+        .limit(5);
+
+      // Add recipient count to each notification
+      const result = notifications.map(n => ({
+        ...n,
+        recipientCount: (n.recipients as string[]).length,
+      }));
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching notification history:", error);
+      res.status(500).json({ error: "Failed to fetch notification history" });
+    }
   });
 
   /**
