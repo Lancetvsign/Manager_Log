@@ -1,15 +1,14 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Paperclip, Trash2, FileText, Image, File as FileIcon, Download } from "lucide-react";
-import { ObjectUploader } from "./ObjectUploader";
+import { Paperclip, Trash2, FileText, Image, File as FileIcon, Download, Upload } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { LogAttachment } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 interface FileAttachmentsProps {
-  logId: number;
+  logId: number | null;
   clubId: string;
   readOnly?: boolean;
 }
@@ -33,14 +32,10 @@ function formatFileSize(bytes: number | null) {
 
 export function FileAttachments({ logId, clubId, readOnly = false }: FileAttachmentsProps) {
   const { toast } = useToast();
-  const [pendingFile, setPendingFile] = useState<{
-    name: string;
-    type: string;
-    size: number;
-    uploadUrl: string;
-  } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: attachments = [], isLoading } = useQuery<LogAttachment[]>({
+  const { data: attachments = [], isLoading, refetch } = useQuery<LogAttachment[]>({
     queryKey: ["/api/logs", logId, "attachments", clubId],
     queryFn: async () => {
       const response = await fetch(`/api/logs/${logId}/attachments?clubId=${clubId}`);
@@ -48,40 +43,6 @@ export function FileAttachments({ logId, clubId, readOnly = false }: FileAttachm
       return response.json();
     },
     enabled: !!logId,
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: async (data: {
-      fileName: string;
-      fileType: string;
-      fileSize: number;
-      uploadUrl: string;
-    }) => {
-      return apiRequest("POST", "/api/attachments", {
-        clubId,
-        logId,
-        fileName: data.fileName,
-        fileType: data.fileType,
-        fileSize: data.fileSize,
-        uploadUrl: data.uploadUrl,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/logs", logId, "attachments", clubId] });
-      setPendingFile(null);
-      toast({
-        title: "File uploaded",
-        description: "Attachment saved successfully.",
-      });
-    },
-    onError: (error) => {
-      console.error("Error saving attachment:", error);
-      toast({
-        title: "Upload failed",
-        description: "Could not save attachment.",
-        variant: "destructive",
-      });
-    },
   });
 
   const deleteMutation = useMutation({
@@ -105,49 +66,98 @@ export function FileAttachments({ logId, clubId, readOnly = false }: FileAttachm
     },
   });
 
-  const handleGetUploadParameters = async () => {
-    const response = await apiRequest("POST", "/api/attachments/upload-url", {
-      clubId,
-      logId,
-      fileName: "upload",
-    });
-    const data = await response.json();
-    return {
-      method: "PUT" as const,
-      url: data.url,
-    };
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !logId) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("clubId", clubId);
+
+    setUploading(true);
+    try {
+      const response = await fetch(`/api/logs/${logId}/attachments`, {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+      
+      await refetch();
+      toast({
+        title: "File uploaded",
+        description: "Attachment saved successfully.",
+      });
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      toast({
+        title: "Upload failed",
+        description: "Could not upload attachment.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
-  const handleUploadComplete = (result: any) => {
-    if (result.successful && result.successful.length > 0) {
-      const file = result.successful[0];
-      const uploadUrl = file.uploadURL;
-      const fileName = file.name || "file";
-      const fileType = file.type || "application/octet-stream";
-      const fileSize = file.size || 0;
-
-      saveMutation.mutate({
-        fileName,
-        fileType,
-        fileSize,
-        uploadUrl,
-      });
+  const handleDeleteClick = (attachmentId: number) => {
+    if (window.confirm("Remove this attachment?")) {
+      deleteMutation.mutate(attachmentId);
     }
   };
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Paperclip className="h-4 w-4" />
-          Attachments
-        </CardTitle>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Paperclip className="h-4 w-4" />
+            Photos & Attachments
+          </CardTitle>
+          <span className="text-xs text-muted-foreground">
+            Add photos of damage, issues, etc.
+          </span>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {!readOnly && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf,.doc,.docx"
+                onChange={handleFileChange}
+                disabled={uploading || !logId}
+                className="text-sm file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 disabled:opacity-50"
+                data-testid="input-file-attachment"
+              />
+            </div>
+            {!logId && (
+              <p className="text-xs text-muted-foreground">
+                Save the log entry first, then you can upload attachments.
+              </p>
+            )}
+            {uploading && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Upload className="h-3 w-3 animate-pulse" />
+                Uploading...
+              </p>
+            )}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="text-sm text-muted-foreground">Loading attachments...</div>
         ) : attachments.length === 0 ? (
-          <div className="text-sm text-muted-foreground">No attachments</div>
+          <p className="text-sm text-muted-foreground">
+            No attachments yet. Add photos of broken equipment, damage, etc.
+          </p>
         ) : (
           <ul className="space-y-2">
             {attachments.map((attachment) => (
@@ -158,18 +168,23 @@ export function FileAttachments({ logId, clubId, readOnly = false }: FileAttachm
               >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   {getFileIcon(attachment.fileType)}
-                  <a
-                    href={attachment.publicUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-medium truncate hover:underline"
-                    data-testid={`attachment-link-${attachment.id}`}
-                  >
-                    {attachment.fileName}
-                  </a>
-                  <span className="text-xs text-muted-foreground">
-                    {formatFileSize(attachment.fileSize)}
-                  </span>
+                  <div className="min-w-0 flex-1">
+                    <a
+                      href={attachment.publicUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium truncate block hover:underline"
+                      data-testid={`attachment-link-${attachment.id}`}
+                    >
+                      {attachment.fileName}
+                    </a>
+                    <span className="text-xs text-muted-foreground">
+                      {formatFileSize(attachment.fileSize)}
+                      {attachment.createdAt && (
+                        <> · {new Date(attachment.createdAt).toLocaleString()}</>
+                      )}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">
                   <Button
@@ -186,7 +201,7 @@ export function FileAttachments({ logId, clubId, readOnly = false }: FileAttachm
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => deleteMutation.mutate(attachment.id)}
+                      onClick={() => handleDeleteClick(attachment.id)}
                       disabled={deleteMutation.isPending}
                       data-testid={`button-delete-attachment-${attachment.id}`}
                     >
@@ -197,21 +212,6 @@ export function FileAttachments({ logId, clubId, readOnly = false }: FileAttachm
               </li>
             ))}
           </ul>
-        )}
-
-        {!readOnly && (
-          <ObjectUploader
-            maxNumberOfFiles={1}
-            maxFileSize={10 * 1024 * 1024}
-            onGetUploadParameters={handleGetUploadParameters}
-            onComplete={handleUploadComplete}
-            buttonVariant="outline"
-            buttonSize="sm"
-            disabled={saveMutation.isPending}
-          >
-            <Paperclip className="h-4 w-4 mr-2" />
-            Attach File
-          </ObjectUploader>
         )}
       </CardContent>
     </Card>

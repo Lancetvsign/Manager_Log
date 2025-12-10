@@ -30,6 +30,29 @@ import { sendLogNotificationEmail, isEmailConfigured } from "./email";
 import { getNotificationLists, seedDefaultNotificationLists } from "./notificationLists";
 import { z } from "zod";
 import { escalationRules, escalationRuleTargets } from "@shared/schema";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const fileStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname);
+  },
+});
+
+const upload = multer({
+  storage: fileStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 // Default clubId for backwards compatibility when not provided
 const DEFAULT_CLUB_ID = "default";
@@ -1206,56 +1229,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // FILE ATTACHMENTS API
   // ==================
 
-  // Get presigned upload URL for file attachment
-  app.post("/api/attachments/upload-url", async (req, res) => {
+  // Upload file attachment with FormData
+  app.post("/api/logs/:logId/attachments", upload.single("file"), async (req, res) => {
     try {
-      const { clubId, logId, fileName } = req.body;
+      const logId = Number(req.params.logId);
+      const clubId = req.body.clubId || getClubId(req);
 
-      if (!clubId || !logId || !fileName) {
-        return res.status(400).json({ error: "clubId, logId, and fileName are required" });
+      if (isNaN(logId)) {
+        return res.status(400).json({ error: "Invalid log ID" });
       }
 
-      const { storageProvider } = await import("./storageProvider");
-      const uploadInfo = await storageProvider.getPresignedUploadUrl({
-        clubId,
-        logId: Number(logId),
-        fileName,
-      });
-
-      res.json(uploadInfo);
-    } catch (error) {
-      console.error("Error getting upload URL:", error);
-      res.status(500).json({ error: "Failed to get upload URL" });
-    }
-  });
-
-  // Save attachment metadata after upload
-  app.post("/api/attachments", async (req, res) => {
-    try {
-      const { clubId, logId, fileName, fileType, fileSize, uploadUrl } = req.body;
-
-      if (!clubId || !logId || !fileName || !uploadUrl) {
-        return res.status(400).json({ error: "clubId, logId, fileName, and uploadUrl are required" });
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
       }
 
-      const { storageProvider } = await import("./storageProvider");
-      const storageKey = storageProvider.normalizeObjectPath(uploadUrl);
+      const file = req.file;
+      const storageKey = `/uploads/${file.filename}`;
       const publicUrl = storageKey;
 
       const attachment = await storage.createLogAttachment({
         clubId,
-        logId: Number(logId),
-        fileName,
-        fileType: fileType || "application/octet-stream",
-        fileSize: fileSize ? Number(fileSize) : null,
+        logId,
+        fileName: file.originalname,
+        fileType: file.mimetype || "application/octet-stream",
+        fileSize: file.size,
         storageKey,
         publicUrl,
       });
 
       res.status(201).json(attachment);
     } catch (error) {
-      console.error("Error saving attachment:", error);
-      res.status(500).json({ error: "Failed to save attachment" });
+      console.error("Error uploading attachment:", error);
+      res.status(500).json({ error: "Failed to upload attachment" });
     }
   });
 
@@ -1292,9 +1297,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Attachment not found" });
       }
 
-      // Delete from storage provider if needed
-      const { storageProvider } = await import("./storageProvider");
-      await storageProvider.deleteObject(attachment.storageKey);
+      // Delete file from disk
+      const filePath = path.join(uploadDir, path.basename(attachment.storageKey));
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
 
       // Delete from database
       const deleted = await storage.deleteLogAttachment(id, clubId);
@@ -1309,19 +1316,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve uploaded files
-  app.get("/objects/:objectPath(*)", async (req, res) => {
+  // Serve uploaded files from disk
+  app.get("/uploads/:filename", async (req, res) => {
     try {
-      const { ObjectStorageService, ObjectNotFoundError } = await import("./objectStorage");
-      const objectStorageService = new ObjectStorageService();
-      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
-      objectStorageService.downloadObject(objectFile, res);
-    } catch (error: any) {
-      console.error("Error serving object:", error);
-      if (error?.name === "ObjectNotFoundError") {
-        return res.sendStatus(404);
+      const filename = req.params.filename;
+      const filePath = path.join(uploadDir, filename);
+      
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: "File not found" });
       }
-      return res.sendStatus(500);
+
+      res.sendFile(filePath);
+    } catch (error) {
+      console.error("Error serving file:", error);
+      res.status(500).json({ error: "Failed to serve file" });
     }
   });
 
