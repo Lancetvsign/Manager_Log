@@ -21,9 +21,8 @@ import ManagerLogForm from "@/components/ManagerLogForm";
 import ManagerLogList from "@/components/ManagerLogList";
 import MaintenanceOverview from "@/components/MaintenanceOverview";
 import InsightsPage from "@/components/InsightsPage";
-import NotificationSettingsPage from "@/pages/NotificationSettingsPage";
 import ThemeToggle from "@/components/ThemeToggle";
-import { History, Plus, Wrench, BarChart3, Settings } from "lucide-react";
+import { History, Plus, Wrench, BarChart3 } from "lucide-react";
 import logoImageDark from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
 import logoImageLight from "@assets/Restaurant_Manager's_Log_Daily_operations_tracking_with_weathe_1764696079981.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -146,8 +145,8 @@ export default function Home() {
             setSelectedLogId(null);
           }
         }} className="space-y-6">
-          {/* Tab Navigation - 5 tabs: New Entry, History, To-Do List, Insights, Settings */}
-          <TabsList className="grid w-full grid-cols-5" data-testid="tabs-navigation">
+          {/* Tab Navigation - 4 tabs: New Entry, History, To-Do List, Insights */}
+          <TabsList className="grid w-full grid-cols-4" data-testid="tabs-navigation">
             <TabsTrigger value="new-entry" className="flex items-center space-x-2" data-testid="tab-new-entry">
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">New Entry</span>
@@ -166,10 +165,6 @@ export default function Home() {
             <TabsTrigger value="insights" className="flex items-center space-x-2" data-testid="tab-insights">
               <BarChart3 className="h-4 w-4" />
               <span>Insights</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center space-x-2" data-testid="tab-settings">
-              <Settings className="h-4 w-4" />
-              <span>Settings</span>
             </TabsTrigger>
           </TabsList>
 
@@ -195,11 +190,6 @@ export default function Home() {
           {/* Insights Tab - Analytics and metrics dashboard */}
           <TabsContent value="insights" className="space-y-6">
             <InsightsPage onViewLog={handleViewLogFromMaintenance} />
-          </TabsContent>
-
-          {/* Settings Tab - Notification settings and configuration */}
-          <TabsContent value="settings" className="space-y-6">
-            <NotificationSettingsPage />
           </TabsContent>
         </Tabs>
       </main>

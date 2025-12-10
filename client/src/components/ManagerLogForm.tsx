@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail } from "lucide-react";
 import WeatherCard from "./WeatherCard";
 import SalesInput from "./SalesInput";
+import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ManagerLog, MaintenanceItem } from "@shared/schema";
@@ -60,6 +61,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const [notifyMessage, setNotifyMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [sendResult, setSendResult] = useState<string | null>(null);
+  const [showNotifSettings, setShowNotifSettings] = useState(false);
   
   // Notification history type
   interface NotificationHistoryItem {
@@ -972,7 +974,29 @@ Details:
 
               {/* Send to - Multi-select */}
               <div className="space-y-2">
-                <Label htmlFor="notify-lists">Send to</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="notify-lists">Send to</Label>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => setShowNotifSettings(!showNotifSettings)}
+                    data-testid="button-manage-lists"
+                  >
+                    {showNotifSettings ? "Hide settings" : "Manage lists & contacts"}
+                  </button>
+                </div>
+
+                {showNotifSettings && (
+                  <div className="border rounded-lg p-4 bg-muted/30 mb-4">
+                    <NotificationSettingsPanel
+                      clubId={clubId}
+                      onChanged={() => {
+                        queryClient.invalidateQueries({ queryKey: ['/api/notifications/lists', clubId] });
+                      }}
+                    />
+                  </div>
+                )}
+
                 <select
                   id="notify-lists"
                   multiple
