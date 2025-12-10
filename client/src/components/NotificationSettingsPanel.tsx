@@ -105,11 +105,10 @@ export function NotificationSettingsPanel({
         <h2 className="text-base font-semibold mb-2">Notification Lists</h2>
         <div className="border rounded-lg overflow-hidden">
           {lists.map((list) => (
-            <button
+            <div
               key={list.id}
-              type="button"
               className={
-                "w-full px-3 py-2 text-left flex items-center justify-between border-b last:border-b-0" +
+                "w-full px-3 py-2 text-left flex items-center justify-between border-b last:border-b-0 cursor-pointer hover:bg-muted/50" +
                 (list.id === selectedListId ? " bg-primary/10" : "")
               }
               onClick={() => setSelectedListId(list.id)}
@@ -141,7 +140,7 @@ export function NotificationSettingsPanel({
               >
                 Delete
               </button>
-            </button>
+            </div>
           ))}
           {lists.length === 0 && (
             <div className="px-3 py-2 text-sm text-muted-foreground">
