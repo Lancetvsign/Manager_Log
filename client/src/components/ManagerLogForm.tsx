@@ -524,7 +524,7 @@ Details:
     saveLogMutation.mutate(logData);
   };
 
-  const handleAddMaintenanceItem = async () => {
+  const handleAddMaintenanceItem = () => {
     if (!newMaintenanceDescription.trim()) {
       toast({
         title: "Validation Error",
@@ -534,22 +534,21 @@ Details:
       return;
     }
 
-    try {
-      const logId = await ensureLogId();
-      
-      addMaintenanceMutation.mutate({
-        managerLogId: logId,
-        description: newMaintenanceDescription.trim(),
-        status: newMaintenanceStatus,
-        notes: newMaintenanceNotes.trim() || undefined
-      });
-    } catch (error) {
+    if (!existingLogId) {
       toast({
-        title: "Error",
-        description: "Could not create daily log for to-do item.",
+        title: "Save Log First",
+        description: "Please save the log entry before adding maintenance items.",
         variant: "destructive"
       });
+      return;
     }
+
+    addMaintenanceMutation.mutate({
+      managerLogId: existingLogId,
+      description: newMaintenanceDescription.trim(),
+      status: newMaintenanceStatus,
+      notes: newMaintenanceNotes.trim() || undefined
+    });
   };
 
   const handleToggleMaintenanceStatus = (item: MaintenanceItem) => {
@@ -764,8 +763,9 @@ Details:
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Existing Maintenance Items List */}
+          {existingLogId ? (
             <div className="space-y-4">
-              {existingLogId && isLoadingMaintenance ? (
+              {isLoadingMaintenance ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-5 w-5 animate-spin mr-2" />
                   <span className="text-sm text-muted-foreground">Loading to-do items...</span>
@@ -826,8 +826,14 @@ Details:
                 </div>
               )}
             </div>
+          ) : (
+            <div className="text-center py-4 text-sm text-muted-foreground border rounded-lg bg-muted/20">
+              Save the log entry first to add maintenance items.
+            </div>
+          )}
 
           {/* Add New Maintenance Item Form */}
+          {existingLogId && (
             <div className="border-t pt-4">
               <h4 className="text-sm font-medium mb-3">Add New Maintenance Item</h4>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -890,6 +896,7 @@ Details:
                 </Button>
               </div>
             </div>
+          )}
         </CardContent>
       </Card>
 
