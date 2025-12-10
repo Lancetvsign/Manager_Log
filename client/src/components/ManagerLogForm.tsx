@@ -978,8 +978,8 @@ Details:
                   <Label htmlFor="notify-lists" className="mb-0">Send to</Label>
                   <button
                     type="button"
-                    className="text-xs text-emerald-700 hover:underline"
                     onClick={() => setShowNotifSettings(true)}
+                    className="inline-flex items-center px-2 py-1 text-xs font-medium border border-emerald-600 text-emerald-700 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
                     data-testid="button-manage-lists"
                   >
                     Manage lists & contacts
