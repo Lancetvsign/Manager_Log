@@ -185,6 +185,7 @@ Details:
     
     setIsSending(true);
     setSendResult(null);
+    
     try {
       const response = await fetch(`${apiBaseUrl}/api/logs/${logId}/notify`, {
         method: 'POST',
@@ -198,27 +199,32 @@ Details:
         }),
       });
       
-      const result = await response.json();
+      const data = await response.json();
       
-      if (result.success) {
-        const simulatedNote = result.simulated ? " (simulated - SMTP not configured)" : "";
-        setSendResult(`Sent to ${result.sentTo} recipient(s)${simulatedNote}`);
-        toast({
-          title: result.simulated ? "Notification Simulated" : "Notification Sent",
-          description: `${result.simulated ? "Would send" : "Sent"} to ${result.sentTo} recipient(s)`,
-        });
-        // Refresh notification history
-        refetchHistory();
-      } else {
-        setSendResult(`Error: ${result.error}`);
+      if (!response.ok || !data.success) {
+        setSendResult(data.error || "Failed to process notification.");
         toast({
           title: "Notification Failed",
-          description: result.error || "Failed to send notification.",
+          description: data.error || "Failed to send notification.",
           variant: "destructive"
         });
+        return;
       }
+      
+      const modeText = data.simulated
+        ? " (simulation only – email server not configured yet)"
+        : "";
+      
+      setSendResult(`Notification saved for ${data.sentTo} recipient(s)${modeText}.`);
+      toast({
+        title: data.simulated ? "Notification Saved" : "Notification Sent",
+        description: `Saved for ${data.sentTo} recipient(s)${modeText}`,
+      });
+      
+      // Reload history after sending
+      refetchHistory();
     } catch (error) {
-      setSendResult("Error: Failed to send notification");
+      setSendResult("Failed to process notification.");
       toast({
         title: "Notification Error",
         description: "Failed to send notification email.",
