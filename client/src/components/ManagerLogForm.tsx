@@ -13,6 +13,7 @@ import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Ma
 import WeatherCard from "./WeatherCard";
 import SalesInput from "./SalesInput";
 import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
+import EscalationRulesModal from "./EscalationRulesModal";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ManagerLog, MaintenanceItem } from "@shared/schema";
@@ -62,6 +63,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const [isSending, setIsSending] = useState(false);
   const [sendResult, setSendResult] = useState<string | null>(null);
   const [showNotifSettings, setShowNotifSettings] = useState(false);
+  const [showRulesModal, setShowRulesModal] = useState(false);
   
   // Notification history type
   interface NotificationHistoryItem {
@@ -916,10 +918,25 @@ Details:
       {/* Notify Core Team Section */}
       <Card>
           <CardHeader className="flex flex-row justify-between items-center gap-2">
-            <CardTitle>Notify Core Team</CardTitle>
-            <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
-              For urgent maintenance or behavior issues
-            </Badge>
+            <div className="flex items-center gap-2">
+              <span className="text-emerald-600">📧</span>
+              <CardTitle className="mb-0">Notify Core Team</CardTitle>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+                For urgent maintenance or behavior issues
+              </Badge>
+
+              <button
+                type="button"
+                className="inline-flex items-center px-2 py-1 text-xs font-medium border border-emerald-600 text-emerald-700 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                onClick={() => setShowRulesModal(true)}
+                data-testid="button-escalation-rules"
+              >
+                ⚡ Rules
+              </button>
+            </div>
           </CardHeader>
           
           <CardContent className="pt-0">
@@ -1116,6 +1133,17 @@ Details:
             </div>
           </CardContent>
         </Card>
+
+        {/* Escalation Rules Modal */}
+        {showRulesModal && (
+          <EscalationRulesModal
+            clubId={clubId}
+            onClose={() => setShowRulesModal(false)}
+            onRulesChanged={() => {
+              queryClient.invalidateQueries({ queryKey: ['/api/notifications/lists', clubId] });
+            }}
+          />
+        )}
     </form>
   );
 }

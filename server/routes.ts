@@ -29,6 +29,7 @@ import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDa
 import { sendLogNotificationEmail, isEmailConfigured } from "./email";
 import { getNotificationLists, seedDefaultNotificationLists } from "./notificationLists";
 import { z } from "zod";
+import { escalationRules, escalationRuleTargets } from "@shared/schema";
 
 // Default clubId for backwards compatibility when not provided
 const DEFAULT_CLUB_ID = "default";
@@ -1045,6 +1046,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error sending notification:", error);
       res.status(500).json({ error: "Failed to send notification" });
+    }
+  });
+
+  // ==================
+  // ESCALATION RULES ENDPOINTS
+  // ==================
+
+  // Get escalation rules for a club
+  app.get("/api/escalation-rules", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const rules = await db
+        .select()
+        .from(escalationRules)
+        .where(eq(escalationRules.clubId, clubId))
+        .orderBy(desc(escalationRules.createdAt));
+
+      // Get targets for each rule
+      const rulesWithTargets = await Promise.all(
+        rules.map(async (rule) => {
+          const targets = await db
+            .select({ listId: escalationRuleTargets.listId })
+            .from(escalationRuleTargets)
+            .where(eq(escalationRuleTargets.ruleId, rule.id));
+          return {
+            ...rule,
+            targetListIds: targets.map((t) => t.listId),
+          };
+        })
+      );
+
+      res.json(rulesWithTargets);
+    } catch (error) {
+      console.error("Error fetching escalation rules:", error);
+      res.status(500).json({ error: "Failed to fetch escalation rules" });
+    }
+  });
+
+  // Create escalation rule
+  app.post("/api/escalation-rules", async (req, res) => {
+    try {
+      const {
+        clubId,
+        name,
+        triggerType,
+        triggerReason,
+        metricKey,
+        metricOperator,
+        metricValue,
+        flagKey,
+        autoSend,
+        targetListIds,
+      } = req.body;
+
+      if (!clubId || !name || !triggerType) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const [rule] = await db
+        .insert(escalationRules)
+        .values({
+          clubId,
+          name,
+          triggerType,
+          triggerReason: triggerType === "reason" ? triggerReason : null,
+          metricKey: triggerType === "metric" ? metricKey : null,
+          metricOperator: triggerType === "metric" ? metricOperator : null,
+          metricValue: triggerType === "metric" ? metricValue : null,
+          flagKey: triggerType === "flag" ? flagKey : null,
+          autoSend: autoSend ?? false,
+        })
+        .returning();
+
+      // Add targets
+      if (targetListIds && targetListIds.length > 0) {
+        await db.insert(escalationRuleTargets).values(
+          targetListIds.map((listId: number) => ({
+            ruleId: rule.id,
+            listId,
+          }))
+        );
+      }
+
+      res.status(201).json(rule);
+    } catch (error) {
+      console.error("Error creating escalation rule:", error);
+      res.status(500).json({ error: "Failed to create escalation rule" });
+    }
+  });
+
+  // Update escalation rule
+  app.patch("/api/escalation-rules/:id", async (req, res) => {
+    try {
+      const ruleId = Number(req.params.id);
+      const { autoSend, name, targetListIds } = req.body;
+
+      const updates: any = {};
+      if (autoSend !== undefined) updates.autoSend = autoSend;
+      if (name !== undefined) updates.name = name;
+
+      if (Object.keys(updates).length > 0) {
+        await db
+          .update(escalationRules)
+          .set(updates)
+          .where(eq(escalationRules.id, ruleId));
+      }
+
+      // Update targets if provided
+      if (targetListIds !== undefined) {
+        await db
+          .delete(escalationRuleTargets)
+          .where(eq(escalationRuleTargets.ruleId, ruleId));
+        if (targetListIds.length > 0) {
+          await db.insert(escalationRuleTargets).values(
+            targetListIds.map((listId: number) => ({
+              ruleId,
+              listId,
+            }))
+          );
+        }
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating escalation rule:", error);
+      res.status(500).json({ error: "Failed to update escalation rule" });
+    }
+  });
+
+  // Delete escalation rule
+  app.delete("/api/escalation-rules/:id", async (req, res) => {
+    try {
+      const ruleId = Number(req.params.id);
+      await db.delete(escalationRules).where(eq(escalationRules.id, ruleId));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting escalation rule:", error);
+      res.status(500).json({ error: "Failed to delete escalation rule" });
     }
   });
 
