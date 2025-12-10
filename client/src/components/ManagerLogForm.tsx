@@ -695,53 +695,38 @@ Details:
               data-testid="input-manager-name"
             />
           </div>
+
+          {/* Weather - inline under the date row */}
+          <div 
+            className="md:col-span-3 rounded-lg border border-slate-700/60 bg-slate-900/40 p-3 text-sm text-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+            data-testid="card-weather"
+          >
+            <div className="font-medium text-slate-100">Weather</div>
+            {isLoadingWeather ? (
+              <div className="text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
+                Loading...
+              </div>
+            ) : (
+              <div className="space-y-1 md:text-right text-slate-300">
+                {weatherData.current && (
+                  <div data-testid="weather-current">
+                    Today: {weatherData.current.temperature}°F • {weatherData.current.condition} • {weatherData.current.humidity}% • {weatherData.current.windSpeed} mph
+                  </div>
+                )}
+                {weatherData.historical && (
+                  <div className="text-slate-400" data-testid="weather-historical">
+                    Last Year: {weatherData.historical.temperature}°F • {weatherData.historical.condition}
+                    {weatherData.historicalFallbackNote && (
+                      <span className="text-amber-400 ml-2">(fallback)</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
-
-      {/* Top stats row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Weather (Today vs Last Year) */}
-        <div 
-          className="rounded-lg border border-slate-700/60 bg-slate-900/40 p-3 text-sm text-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
-          data-testid="card-weather"
-        >
-          <div className="font-medium text-slate-100">Weather</div>
-          {isLoadingWeather ? (
-            <div className="text-slate-400">
-              <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
-              Loading...
-            </div>
-          ) : (
-            <div className="space-y-1 md:text-right text-slate-300">
-              {weatherData.current && (
-                <div data-testid="weather-current">
-                  Today: {weatherData.current.temperature}°F • {weatherData.current.condition} • {weatherData.current.humidity}% • {weatherData.current.windSpeed} mph
-                </div>
-              )}
-              {weatherData.historical && (
-                <div className="text-slate-400" data-testid="weather-historical">
-                  Last Year: {weatherData.historical.temperature}°F • {weatherData.historical.condition}
-                  {weatherData.historicalFallbackNote && (
-                    <span className="text-amber-400 ml-2">(fallback)</span>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right side card - placeholder for now */}
-        <Card data-testid="card-placeholder">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Coming Soon</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-muted-foreground">
-              Additional stats will go here
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Sales Data */}
       <SalesInput
