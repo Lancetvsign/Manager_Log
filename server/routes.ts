@@ -1011,6 +1011,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Log not found" });
       }
 
+      // Fetch attachments for this log
+      const attachments = await storage.getLogAttachmentsByLogId(logId, clubId);
+
       // Fetch lists from database
       const allLists = await getNotificationLists(clubId);
       const selectedLists = allLists.filter(l => listIds.includes(l.id));
@@ -1029,6 +1032,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Build log URL
       const logUrl = `${req.protocol}://${req.get("host")}/logs/${log.id}`;
 
+      // Build attachments HTML section
+      let attachmentsHtml = "";
+      if (attachments.length > 0) {
+        const baseUrl = `${req.protocol}://${req.get("host")}`;
+        const links = attachments
+          .map(
+            (a) =>
+              `<li><a href="${baseUrl}${a.publicUrl}">${a.fileName}</a> (${Math.round(
+                (a.fileSize || 0) / 1024
+              )} KB)</li>`
+          )
+          .join("");
+
+        attachmentsHtml = `
+          <h4>Attachments</h4>
+          <ul>${links}</ul>
+        `;
+      }
+
       // Build HTML body matching Social Club Pro pattern
       const htmlBody = `
         <p><strong>Reason:</strong> ${reason}</p>
@@ -1036,6 +1058,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         <p><strong>Manager:</strong> ${log.managerName || 'Not specified'}</p>
         <p><strong>Total Sales:</strong> $${log.totalSales || 0}</p>
         ${message ? `<p>${message.replace(/\n/g, '<br>')}</p>` : ''}
+        ${attachmentsHtml}
         <hr />
         <p>View this entry in the Manager's Log: <a href="${logUrl}">${logUrl}</a></p>
       `;
