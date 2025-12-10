@@ -90,6 +90,10 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const queryClient = useQueryClient();
 
   const dateString = format(date, 'yyyy-MM-dd');
+  
+  // Check if viewing a past log (read-only mode)
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const isPastLog = dateString < todayIso;
 
   const { data: existingLog, isLoading: isLoadingLog } = useQuery<ManagerLog>({
     queryKey: ['/api/manager-logs/by-date', dateString, clubId],
@@ -684,10 +688,18 @@ Details:
         <CardHeader>
           <CardTitle className="text-xl flex items-center gap-2">
             Daily Manager Log Entry
-            {existingLogId && (
+            {existingLogId && !isPastLog && (
               <span className="text-sm font-normal text-muted-foreground">(Editing existing entry)</span>
             )}
+            {isPastLog && (
+              <Badge variant="secondary" className="ml-2">View Only</Badge>
+            )}
           </CardTitle>
+          {isPastLog && (
+            <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-3 py-2 rounded-md text-sm mt-2">
+              <strong>Read-only:</strong> This log is from {format(date, 'MMMM d, yyyy')} and cannot be edited.
+            </div>
+          )}
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Date Picker */}
@@ -733,6 +745,7 @@ Details:
               <Select
                 value={activeManagerRole}
                 onValueChange={(value) => setActiveManagerRole(value as ManagerRole)}
+                disabled={isPastLog}
               >
                 <SelectTrigger className="w-[160px]" data-testid="select-manager-role">
                   <SelectValue />
@@ -749,6 +762,7 @@ Details:
                 onChange={(e) => setActiveManagerName(e.target.value)}
                 placeholder="Type your name..."
                 className="flex-1"
+                disabled={isPastLog}
                 data-testid="input-manager-name"
               />
             </div>
@@ -792,6 +806,7 @@ Details:
         salesData={salesData}
         onSalesChange={handleSalesChange}
         showComparison={true}
+        disabled={isPastLog}
       />
 
       {/* Sales Summary */}
@@ -819,6 +834,7 @@ Details:
               value={dailyNumber}
               onChange={(e) => setDailyNumber(e.target.value)}
               placeholder="Enter daily number"
+              disabled={isPastLog}
               data-testid="input-daily-number"
             />
           </div>
@@ -831,6 +847,7 @@ Details:
               value={weeklyNumber}
               onChange={(e) => setWeeklyNumber(e.target.value)}
               placeholder="Enter weekly number"
+              disabled={isPastLog}
               data-testid="input-weekly-number"
             />
           </div>
@@ -848,6 +865,7 @@ Details:
             onChange={(e) => setSalesNotes(e.target.value)}
             placeholder="Enter notes about sales performance, promotions, special events..."
             className="min-h-24"
+            disabled={isPastLog}
             data-testid="textarea-sales-notes"
           />
         </CardContent>
@@ -864,6 +882,7 @@ Details:
             onChange={(e) => setDailyNotes(e.target.value)}
             placeholder="Enter daily observations, incidents, staff notes, or any other important information..."
             className="min-h-24"
+            disabled={isPastLog}
             data-testid="textarea-daily-notes"
           />
         </CardContent>
@@ -939,7 +958,7 @@ Details:
                           variant="ghost"
                           size="sm"
                           onClick={() => handleToggleMaintenanceStatus(item)}
-                          disabled={updateMaintenanceMutation.isPending}
+                          disabled={updateMaintenanceMutation.isPending || isPastLog}
                           data-testid={`button-toggle-status-${item.id}`}
                         >
                           {item.status === "open" ? (
@@ -959,7 +978,8 @@ Details:
               )}
             </div>
 
-          {/* Add New Maintenance Item Form */}
+          {/* Add New Maintenance Item Form - only show for today/future */}
+          {!isPastLog && (
             <div className="border-t pt-4">
               <h4 className="text-sm font-medium mb-3">Add New Maintenance Item</h4>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1022,9 +1042,10 @@ Details:
                 </Button>
               </div>
             </div>
+          )}
 
           {/* Hint when no log saved */}
-          {!existingLogId && (
+          {!existingLogId && !isPastLog && (
             <p className="text-xs text-muted-foreground mt-2">
               First maintenance item will automatically create today's log entry.
             </p>
@@ -1038,16 +1059,18 @@ Details:
       )}
 
       {/* Submit Button */}
-      <div className="flex justify-end mt-4">
-        <button 
-          type="submit" 
-          disabled={isLoading}
-          className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          data-testid="button-submit"
-        >
-          {saveLogMutation.isPending ? "Saving..." : "Save Log Entry"}
-        </button>
-      </div>
+      {!isPastLog && (
+        <div className="flex justify-end mt-4">
+          <button 
+            type="submit" 
+            disabled={isLoading}
+            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="button-submit"
+          >
+            {saveLogMutation.isPending ? "Saving..." : "Save Log Entry"}
+          </button>
+        </div>
+      )}
 
       {/* Notify Core Team Section */}
       <Card>

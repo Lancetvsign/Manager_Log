@@ -22,6 +22,7 @@ interface SalesInputProps {
   salesData: SalesData;
   onSalesChange: (field: string, value: string) => void;
   showComparison?: boolean;
+  disabled?: boolean;
 }
 
 const calculateChange = (current: string, lastYear: string) => {
@@ -48,7 +49,7 @@ const getTrendIcon = (trend: string) => {
   }
 };
 
-export default function SalesInput({ title, salesData, onSalesChange, showComparison = true }: SalesInputProps) {
+export default function SalesInput({ title, salesData, onSalesChange, showComparison = true, disabled = false }: SalesInputProps) {
   const foodChange = calculateChange(salesData.current.food, salesData.lastYear.food);
   const barChange = calculateChange(salesData.current.bar, salesData.lastYear.bar);
   const gamingChange = calculateChange(salesData.current.gaming, salesData.lastYear.gaming);
@@ -71,6 +72,7 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
               placeholder="0.00"
               value={salesData.current.food}
               onChange={(e) => onSalesChange('food', e.target.value)}
+              disabled={disabled}
               data-testid="input-food-sales"
             />
             {showComparison && salesData.lastYear.food && (
@@ -95,6 +97,7 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
               placeholder="0.00"
               value={salesData.current.bar}
               onChange={(e) => onSalesChange('bar', e.target.value)}
+              disabled={disabled}
               data-testid="input-bar-sales"
             />
             {showComparison && salesData.lastYear.bar && (
@@ -119,6 +122,7 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
               placeholder="0.00"
               value={salesData.current.gaming}
               onChange={(e) => onSalesChange('gaming', e.target.value)}
+              disabled={disabled}
               data-testid="input-gaming-sales"
             />
             {showComparison && salesData.lastYear.gaming && (

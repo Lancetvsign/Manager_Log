@@ -65,6 +65,19 @@ function getClubId(req: { query: { clubId?: string } }): string {
   return (req.query.clubId as string) || DEFAULT_CLUB_ID;
 }
 
+/**
+ * Checks if a date string represents a past date (before today)
+ * @param dateStr - Date in YYYY-MM-DD format
+ * @returns true if the date is before today
+ */
+function isPastDate(dateStr: string): boolean {
+  const today = new Date();
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const logDate = new Date(y, m - 1, d);
+  return logDate < todayOnly;
+}
+
 // ==================
 // WEATHER SERVICE
 // ==================
@@ -254,6 +267,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/manager-logs", async (req, res) => {
     try {
       const validatedData = insertManagerLogSchema.parse(req.body);
+      
+      // Block creating/updating logs for past dates
+      if (validatedData.logDate && isPastDate(validatedData.logDate)) {
+        return res.status(403).json({
+          error: "Past logs are read-only. You cannot create or modify logs for past dates.",
+        });
+      }
+      
       const log = await storage.upsertManagerLog(validatedData);
       res.status(201).json(log);
     } catch (error) {
@@ -336,6 +357,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid ID" });
       }
       const clubId = getClubId(req);
+      
+      // Fetch existing log to check date
+      const existing = await storage.getManagerLog(id, clubId);
+      if (!existing) {
+        return res.status(404).json({ error: "Manager log not found" });
+      }
+      
+      // Block updating logs for past dates
+      if (existing.logDate && isPastDate(existing.logDate)) {
+        return res.status(403).json({
+          error: "Past logs are read-only and cannot be edited.",
+        });
+      }
+      
       const updates = insertManagerLogSchema.partial().parse(req.body);
       const updatedLog = await storage.updateManagerLog(id, updates, clubId);
       
