@@ -182,18 +182,19 @@ The `escalation_rule_targets` table maps rules to notification lists:
 - Fixed notification lists query to always fetch (not gated by SMTP status)
 
 ### December 10, 2025 - File Attachments Feature
-- Added `log_attachments` table to database schema for storing file metadata
-- Implemented StorageProvider abstraction (`server/storageProvider.ts`) for swappable storage backends
-- ReplitObjectStorageProvider wraps ObjectStorageService for Replit's object storage
-- Created ObjectUploader component using Uppy for frontend file uploads with presigned URLs
-- Created FileAttachments component for displaying, uploading, and deleting attachments
+- Added `log_attachments` table to database schema for storing file metadata (id, clubId, logId, fileName, fileType, fileSize, storageKey, publicUrl, createdAt)
+- Uses FormData-based file uploads with multer for handling multipart uploads
+- Files stored locally in `/uploads` directory with unique filenames
+- FileAttachments component displays on Log Entry Details page below To-Do Items section
+- Features: file upload with progress feedback, attachment list with download links, delete functionality
+- Maximum file size: 10MB
 - API endpoints:
-  - `POST /api/attachments/upload-url` - Get presigned upload URL
-  - `POST /api/attachments` - Save attachment metadata after upload
+  - `POST /api/logs/:logId/attachments` - Upload file (FormData with "file" field)
   - `GET /api/logs/:logId/attachments?clubId=X` - List attachments for a log
-  - `DELETE /api/attachments/:id?clubId=X` - Delete attachment
-  - `GET /objects/:objectPath(*)` - Serve uploaded files
-- Dependencies added: @google-cloud/storage, @uppy/core, @uppy/aws-s3, @uppy/dashboard, @uppy/react
+  - `DELETE /api/attachments/:id?clubId=X` - Delete attachment (validates clubId ownership)
+  - `GET /uploads/:filename` - Serve uploaded files
+- StorageProvider abstraction (`server/storageProvider.ts`) available for future migration to object storage
+- Dependencies: multer, @types/multer
 
 ### December 9, 2025 - Notification List Integration
 - Integrated with Social Club Pro's notification list architecture
