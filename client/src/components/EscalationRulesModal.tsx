@@ -164,7 +164,7 @@ export default function EscalationRulesModal({
     if (salesRule?.metricThreshold != null) {
       const threshold = Number(salesRule.metricThreshold);
       if (!isNaN(threshold) && threshold > 0) {
-        setSalesDropThreshold(threshold);
+        setSalesDropThreshold((prev) => (prev !== threshold ? threshold : prev));
       }
     }
 
@@ -188,7 +188,12 @@ export default function EscalationRulesModal({
         newSelectedLists[preset.key] = lists[0].id;
       }
     }
-    setSelectedLists(newSelectedLists);
+    setSelectedLists((prev) => {
+      const changed = Object.keys(newSelectedLists).some(
+        (key) => prev[key as AutomationPresetKey] !== newSelectedLists[key as AutomationPresetKey]
+      );
+      return changed ? newSelectedLists : prev;
+    });
   }, [rules, lists]);
 
   function getPresetRule(presetKey: AutomationPresetKey) {
@@ -345,7 +350,7 @@ export default function EscalationRulesModal({
                       <div className="flex items-center gap-2">
                         <Switch
                           checked={active}
-                          disabled={lists.length === 0}
+                          disabled={lists.length === 0 || (preset.key === "gaming_outage" && !currentListId)}
                           onCheckedChange={(checked) => handleToggle(preset, checked)}
                           data-testid={`switch-preset-${preset.key}`}
                         />
@@ -376,6 +381,12 @@ export default function EscalationRulesModal({
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {preset.key === "gaming_outage" && !currentListId && (
+                      <p className="text-xs text-amber-600">
+                        Select a list before turning this automation on.
+                      </p>
+                    )}
 
                     {preset.key === "sales_drop_warning" && (
                       <div className="flex items-center gap-2 text-xs">
