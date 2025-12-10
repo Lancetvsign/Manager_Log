@@ -169,6 +169,7 @@ export function PrepChecklist({ targetDate, clubId, readOnly = false }: PrepChec
                   size="sm"
                   onClick={handleAddItem}
                   disabled={createMutation.isPending || !newItemText.trim()}
+                  className="bg-green-600 hover:bg-green-700 text-white"
                   data-testid="button-save-prep-item"
                 >
                   Add

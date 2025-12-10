@@ -944,9 +944,9 @@ Details:
               <div className="mt-4">
                 <Button
                   type="button"
-                  variant="secondary"
                   onClick={handleAddMaintenanceItem}
                   disabled={addMaintenanceMutation.isPending || !newMaintenanceDescription.trim()}
+                  className="bg-green-600 hover:bg-green-700 text-white"
                   data-testid="button-add-maintenance"
                 >
                   {addMaintenanceMutation.isPending ? (
