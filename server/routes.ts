@@ -882,6 +882,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
+   * GET /api/notifications/lists/:id/recipients
+   * Get all recipients for a notification list
+   */
+  app.get("/api/notifications/lists/:id/recipients", async (req, res) => {
+    const listId = Number(req.params.id);
+    
+    const recipients = await db
+      .select()
+      .from(notificationRecipients)
+      .where(eq(notificationRecipients.listId, listId));
+
+    res.json(recipients);
+  });
+
+  /**
+   * DELETE /api/notifications/recipients/:id
+   * Delete a recipient from a notification list
+   */
+  app.delete("/api/notifications/recipients/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    await db
+      .delete(notificationRecipients)
+      .where(eq(notificationRecipients.id, id));
+    res.json({ success: true });
+  });
+
+  /**
    * GET /api/logs/:logId/notifications
    * Get notification history for a manager log
    * Returns: Array of recent notifications for this log
