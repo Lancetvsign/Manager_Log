@@ -712,29 +712,17 @@ Details:
                 Loading weather...
               </div>
             ) : (
-              <div className="flex gap-4">
+              <div className="text-sm space-y-1">
                 {weatherData.current && (
-                  <div className="flex-1" data-testid="weather-current">
-                    <div className="text-xs text-muted-foreground mb-1">Today</div>
-                    <div className="text-xl font-bold">{weatherData.current.temperature}°F</div>
-                    <Badge variant="secondary" className="mt-1">{weatherData.current.condition}</Badge>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      💧 {weatherData.current.humidity}% &nbsp; 💨 {weatherData.current.windSpeed} mph
-                    </div>
+                  <div data-testid="weather-current">
+                    Today: {weatherData.current.temperature}°F • {weatherData.current.condition} • {weatherData.current.humidity}% • {weatherData.current.windSpeed} mph
                   </div>
                 )}
                 {weatherData.historical && (
-                  <div className="flex-1 border-l pl-4" data-testid="weather-historical">
-                    <div className="text-xs text-muted-foreground mb-1">Last Year</div>
-                    <div className="text-xl font-bold">{weatherData.historical.temperature}°F</div>
-                    <Badge variant="secondary" className="mt-1">{weatherData.historical.condition}</Badge>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      💧 {weatherData.historical.humidity}% &nbsp; 💨 {weatherData.historical.windSpeed} mph
-                    </div>
+                  <div className="text-muted-foreground" data-testid="weather-historical">
+                    Last Year: {weatherData.historical.temperature}°F • {weatherData.historical.condition}
                     {weatherData.historicalFallbackNote && (
-                      <div className="text-xs text-amber-600 dark:text-amber-400 italic mt-1">
-                        {weatherData.historicalFallbackNote}
-                      </div>
+                      <span className="text-amber-600 dark:text-amber-400 ml-2">(fallback)</span>
                     )}
                   </div>
                 )}
