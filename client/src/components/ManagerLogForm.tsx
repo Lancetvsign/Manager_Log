@@ -1018,25 +1018,18 @@ Details:
               {/* Notification History */}
               {notificationHistory && notificationHistory.length > 0 && (
                 <div className="mt-4 pt-4 border-t">
-                  <p className="text-sm font-medium mb-2">Recent Notifications</p>
-                  <div className="space-y-2">
+                  <p className="text-sm font-semibold mb-2">Recent notifications</p>
+                  <ul className="space-y-2 list-none p-0 m-0">
                     {notificationHistory.map((n) => (
-                      <div key={n.id} className="text-xs text-muted-foreground flex items-center gap-2">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs ${
-                          n.simulated 
-                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' 
-                            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        }`}>
-                          {n.simulated ? 'Simulated' : 'Sent'}
-                        </span>
-                        <span>{format(new Date(n.createdAt), 'MMM d, h:mm a')}</span>
-                        <span>•</span>
-                        <span>{n.reason}</span>
-                        <span>•</span>
-                        <span>{n.recipientCount} recipient{n.recipientCount !== 1 ? 's' : ''}</span>
-                      </div>
+                      <li key={n.id} className="text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">{n.reason}</span> – {n.subject}
+                        <br />
+                        Sent to {n.recipientCount} recipient{n.recipientCount !== 1 ? 's' : ''} on{' '}
+                        {new Date(n.createdAt).toLocaleString()}
+                        {n.simulated && ' (simulation only – no real email configured)'}
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 </div>
               )}
             </div>
