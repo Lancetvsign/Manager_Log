@@ -877,9 +877,8 @@ Details:
         </CardContent>
       </Card>
 
-      {/* Notify Core Team Section - Only show when log exists */}
-      {existingLogId && (
-        <Card>
+      {/* Notify Core Team Section */}
+      <Card>
           <CardHeader className="py-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-2">
@@ -997,8 +996,8 @@ Details:
                 <Button
                   type="button"
                   variant="destructive"
-                  disabled={isSending || notifyListIds.length === 0}
-                  onClick={() => sendNotificationEmail(existingLogId)}
+                  disabled={isSending || notifyListIds.length === 0 || !existingLogId}
+                  onClick={() => existingLogId && sendNotificationEmail(existingLogId)}
                   data-testid="button-send-notification"
                 >
                   {isSending ? (
@@ -1014,8 +1013,13 @@ Details:
                   )}
                 </Button>
 
+                {!existingLogId && (
+                  <p className="text-sm text-muted-foreground">
+                    Save the log entry first to send notifications.
+                  </p>
+                )}
                 {sendResult && (
-                  <p className={`text-sm ${sendResult.includes('Error') ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  <p className={`text-sm ${sendResult.includes('Error') || sendResult.includes('Failed') ? 'text-destructive' : 'text-muted-foreground'}`}>
                     {sendResult}
                   </p>
                 )}
@@ -1041,7 +1045,6 @@ Details:
             </div>
           </CardContent>
         </Card>
-      )}
 
       {/* Submit Button */}
       <div className="flex justify-end gap-2">
