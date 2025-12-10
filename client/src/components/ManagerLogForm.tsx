@@ -118,9 +118,9 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     id: number;
     clubId: string;
     name: string;
-    description: string;
+    description: string | null;
     isDefault: boolean;
-    recipients: { id: number; name: string; email: string }[];
+    recipientCount: number;
   }
 
   // Fetch notification lists (always fetch so notification section works even in simulation mode)
@@ -988,7 +988,7 @@ Details:
                 >
                   {notificationLists?.map((list) => (
                     <option key={list.id} value={list.id}>
-                      {list.name} ({list.recipients.length} recipients)
+                      {list.name} ({list.recipientCount} recipients)
                     </option>
                   ))}
                 </select>

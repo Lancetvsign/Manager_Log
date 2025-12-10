@@ -22,9 +22,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs } from "@shared/schema";
+import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, count } from "drizzle-orm";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
 import { sendLogNotificationEmail, isEmailConfigured } from "./email";
 import { getNotificationLists, seedDefaultNotificationLists } from "./notificationLists";
@@ -740,8 +740,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const clubId = (req.query.clubId as string) || DEFAULT_CLUB_ID;
     
     await seedDefaultNotificationLists(clubId);
-    const lists = await getNotificationLists(clubId);
-    res.json(lists);
+    
+    const rows = await db
+      .select({
+        id: notificationLists.id,
+        clubId: notificationLists.clubId,
+        name: notificationLists.name,
+        description: notificationLists.description,
+        isDefault: notificationLists.isDefault,
+        recipientCount: count(notificationRecipients.id),
+      })
+      .from(notificationLists)
+      .leftJoin(
+        notificationRecipients,
+        eq(notificationRecipients.listId, notificationLists.id)
+      )
+      .where(eq(notificationLists.clubId, clubId))
+      .groupBy(notificationLists.id);
+
+    res.json(rows);
   });
 
   /**
