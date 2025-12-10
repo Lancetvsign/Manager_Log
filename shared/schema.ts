@@ -77,6 +77,10 @@ export const managerLogs = pgTable("manager_logs", {
   logDate: date("log_date").notNull(),
   dayOfWeek: text("day_of_week").notNull(),
   managerName: text("manager_name").notNull(),
+  // Additional manager tracking fields
+  amManagerName: text("am_manager_name"),
+  pmManagerName: text("pm_manager_name"),
+  kitchenManagerName: text("kitchen_manager_name"),
   weather: text("weather"),
   weatherLastYear: text("weather_last_year"),
   foodSales: numeric("food_sales", { precision: 10, scale: 2 }),

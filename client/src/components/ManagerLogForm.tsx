@@ -36,6 +36,9 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const { clubId, managerName: defaultManagerName, apiBaseUrl } = useManagerLog();
   const [date, setDate] = useState<Date>(new Date());
   const [managerName, setManagerName] = useState(defaultManagerName || "");
+  const [amManagerName, setAmManagerName] = useState("");
+  const [pmManagerName, setPmManagerName] = useState("");
+  const [kitchenManagerName, setKitchenManagerName] = useState("");
   const [dailyNotes, setDailyNotes] = useState("");
   const [salesNotes, setSalesNotes] = useState("");
   const [dailyNumber, setDailyNumber] = useState("");
@@ -267,6 +270,9 @@ Details:
     if (existingLog) {
       setExistingLogId(existingLog.id);
       setManagerName(existingLog.managerName || "");
+      setAmManagerName(existingLog.amManagerName || "");
+      setPmManagerName(existingLog.pmManagerName || "");
+      setKitchenManagerName(existingLog.kitchenManagerName || "");
       setDailyNotes(existingLog.dailyNotes || "");
       setSalesNotes(existingLog.salesNotes || "");
       setDailyNumber(existingLog.dailyNumber || "");
@@ -566,6 +572,9 @@ Details:
       logDate: dateString,
       dayOfWeek: getDayOfWeek(date),
       managerName: managerName.trim(),
+      amManagerName: amManagerName.trim() || null,
+      pmManagerName: pmManagerName.trim() || null,
+      kitchenManagerName: kitchenManagerName.trim() || null,
       weather: weatherData.current ? formatWeatherString(weatherData.current) : null,
       weatherLastYear: weatherData.historical ? formatWeatherString(weatherData.historical) : null,
       foodSales: salesData.current.food || null,
@@ -616,6 +625,9 @@ Details:
 
   const resetForm = () => {
     setManagerName("");
+    setAmManagerName("");
+    setPmManagerName("");
+    setKitchenManagerName("");
     setDailyNotes("");
     setSalesNotes("");
     setDailyNumber("");
@@ -685,14 +697,50 @@ Details:
 
           {/* Manager Name */}
           <div className="space-y-2">
-            <Label htmlFor="manager-name">Manager Name</Label>
+            <Label htmlFor="manager-name">Primary Manager</Label>
             <Input
               id="manager-name"
               value={managerName}
               onChange={(e) => setManagerName(e.target.value)}
-              placeholder="Enter manager name"
+              placeholder="e.g. John"
               required
               data-testid="input-manager-name"
+            />
+          </div>
+
+          {/* AM Manager */}
+          <div className="space-y-2">
+            <Label htmlFor="am-manager">AM Manager</Label>
+            <Input
+              id="am-manager"
+              value={amManagerName}
+              onChange={(e) => setAmManagerName(e.target.value)}
+              placeholder="e.g. Sarah"
+              data-testid="input-am-manager"
+            />
+          </div>
+
+          {/* PM Manager */}
+          <div className="space-y-2">
+            <Label htmlFor="pm-manager">PM Manager</Label>
+            <Input
+              id="pm-manager"
+              value={pmManagerName}
+              onChange={(e) => setPmManagerName(e.target.value)}
+              placeholder="e.g. Mike"
+              data-testid="input-pm-manager"
+            />
+          </div>
+
+          {/* Kitchen Manager */}
+          <div className="space-y-2">
+            <Label htmlFor="kitchen-manager">Kitchen Manager</Label>
+            <Input
+              id="kitchen-manager"
+              value={kitchenManagerName}
+              onChange={(e) => setKitchenManagerName(e.target.value)}
+              placeholder="e.g. Chef Ana"
+              data-testid="input-kitchen-manager"
             />
           </div>
 
