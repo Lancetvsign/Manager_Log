@@ -1,4 +1,4 @@
-import { Cloud, Sun, CloudRain, CloudSnow, Thermometer, Droplets, Wind } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface WeatherData {
   temperature: number;
@@ -15,45 +15,28 @@ interface WeatherCardProps {
   fallbackNote?: string | null;
 }
 
-const getWeatherIcon = (condition: string) => {
-  const iconClass = "h-4 w-4 inline-block mr-1";
-  switch (condition.toLowerCase()) {
-    case 'sunny':
-    case 'clear':
-      return <Sun className={`${iconClass} text-yellow-500`} />;
-    case 'cloudy':
-    case 'overcast':
-      return <Cloud className={`${iconClass} text-gray-500`} />;
-    case 'rainy':
-    case 'rain':
-      return <CloudRain className={`${iconClass} text-blue-500`} />;
-    case 'snowy':
-    case 'snow':
-      return <CloudSnow className={`${iconClass} text-gray-300`} />;
-    default:
-      return <Cloud className={`${iconClass} text-gray-500`} />;
-  }
-};
-
 export default function WeatherCard({ title, weather, isHistorical = false, fallbackNote }: WeatherCardProps) {
   return (
     <div 
-      className="text-sm text-muted-foreground"
+      className="rounded-lg border bg-card p-3 flex-1"
       data-testid={`card-weather-${isHistorical ? 'historical' : 'current'}`}
     >
-      <span className="font-medium text-foreground">{title}:</span>{" "}
-      <Thermometer className="h-3.5 w-3.5 inline-block mx-0.5" />
-      <span data-testid="text-temperature">{weather.temperature}°F</span>,{" "}
-      {getWeatherIcon(weather.condition)}
-      <span data-testid="badge-condition">{weather.condition}</span>,{" "}
-      <Droplets className="h-3.5 w-3.5 inline-block mx-0.5" />
-      <span data-testid="text-humidity">{weather.humidity}%</span>,{" "}
-      <Wind className="h-3.5 w-3.5 inline-block mx-0.5" />
-      <span data-testid="text-wind">{weather.windSpeed}mph</span>
+      <h6 className="text-muted-foreground text-xs mb-1">{title}</h6>
+      <div className="text-2xl font-bold" data-testid="text-temperature">
+        {weather.temperature}°F
+      </div>
+      <Badge variant="secondary" className="mt-1" data-testid="badge-condition">
+        {weather.condition}
+      </Badge>
+      <div className="text-xs text-muted-foreground mt-2" data-testid="text-details">
+        💧 <span data-testid="text-humidity">{weather.humidity}%</span>
+        &nbsp;&nbsp;
+        💨 <span data-testid="text-wind">{weather.windSpeed} mph</span>
+      </div>
       {fallbackNote && (
-        <span className="text-xs text-amber-600 dark:text-amber-400 italic ml-1" data-testid="text-fallback-note">
-          ({fallbackNote})
-        </span>
+        <div className="text-xs text-amber-600 dark:text-amber-400 italic mt-1" data-testid="text-fallback-note">
+          {fallbackNote}
+        </div>
       )}
     </div>
   );

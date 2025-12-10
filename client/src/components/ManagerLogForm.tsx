@@ -699,25 +699,25 @@ Details:
         </CardContent>
       </Card>
 
-      {/* Weather Information - Simple Text Rows */}
-      <div className="space-y-1 px-1">
+      {/* Weather Information - Two Cards Side by Side */}
+      <div className="flex gap-3">
         {isLoadingWeather ? (
-          <div className="text-sm text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin inline-block mr-1" />
+          <div className="flex-1 rounded-lg border bg-card p-3 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
             Loading weather...
           </div>
         ) : (
           <>
             {weatherData.current && (
               <WeatherCard
-                title="Today"
+                title="Today's Weather"
                 weather={weatherData.current}
                 isHistorical={false}
               />
             )}
             {weatherData.historical && (
               <WeatherCard
-                title="1 Year Ago"
+                title="Weather Last Year"
                 weather={weatherData.historical}
                 isHistorical={true}
                 fallbackNote={weatherData.historicalFallbackNote}
