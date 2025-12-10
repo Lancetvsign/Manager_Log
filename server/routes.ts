@@ -27,7 +27,7 @@ import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
 import { sendLogNotificationEmail, isEmailConfigured } from "./email";
-import { getMockNotificationLists } from "./notificationLists";
+import { getNotificationLists, seedDefaultNotificationLists } from "./notificationLists";
 import { z } from "zod";
 
 // Default clubId for backwards compatibility when not provided
@@ -736,9 +736,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * Note: In production, this would be provided by Social Club Pro.
    * For development, returns mock data.
    */
-  app.get("/api/notifications/lists", (req, res) => {
+  app.get("/api/notifications/lists", async (req, res) => {
     const clubId = (req.query.clubId as string) || DEFAULT_CLUB_ID;
-    res.json(getMockNotificationLists(clubId));
+    
+    await seedDefaultNotificationLists(clubId);
+    const lists = await getNotificationLists(clubId);
+    res.json(lists);
   });
 
   /**
@@ -815,9 +818,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Log not found" });
       }
 
-      // In production, fetch lists from Social Club Pro
-      // For development, use the shared mock data
-      const allLists = getMockNotificationLists(clubId);
+      // Fetch lists from database
+      const allLists = await getNotificationLists(clubId);
       const selectedLists = allLists.filter(l => listIds.includes(l.id));
 
       // Collect unique emails from selected lists

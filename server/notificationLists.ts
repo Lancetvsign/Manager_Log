@@ -1,69 +1,102 @@
-/**
- * Notification Lists Module
- * 
- * In production, these would be fetched from Social Club Pro's database.
- * For development, we provide mock data that matches the Social Club Pro schema.
- */
+import { db } from "./db";
+import {
+  notificationLists,
+  notificationRecipients,
+} from "@shared/schema";
+import { eq } from "drizzle-orm";
 
-export interface NotificationRecipient {
+export interface NotificationRecipientWithList {
   id: number;
-  name: string;
+  name: string | null;
   email: string;
 }
 
-export interface NotificationList {
+export interface NotificationListWithRecipients {
   id: number;
   clubId: string;
   name: string;
-  description: string;
+  description: string | null;
   isDefault: boolean;
-  recipients: NotificationRecipient[];
+  recipients: NotificationRecipientWithList[];
 }
 
-/**
- * Get notification lists for a club.
- * 
- * In production, replace this with a database query:
- * ```typescript
- * const lists = await db.query.notificationLists.findMany({
- *   where: eq(notificationLists.clubId, clubId),
- *   with: { recipients: true }
- * });
- * ```
- */
-export function getMockNotificationLists(clubId: string): NotificationList[] {
-  return [
-    {
-      id: 1,
+export async function getNotificationLists(clubId: string): Promise<NotificationListWithRecipients[]> {
+  const lists = await db
+    .select()
+    .from(notificationLists)
+    .where(eq(notificationLists.clubId, clubId));
+
+  const listsWithRecipients: NotificationListWithRecipients[] = [];
+
+  for (const list of lists) {
+    const recipients = await db
+      .select({
+        id: notificationRecipients.id,
+        name: notificationRecipients.name,
+        email: notificationRecipients.email,
+      })
+      .from(notificationRecipients)
+      .where(eq(notificationRecipients.listId, list.id));
+
+    listsWithRecipients.push({
+      id: list.id,
+      clubId: list.clubId,
+      name: list.name,
+      description: list.description,
+      isDefault: list.isDefault,
+      recipients,
+    });
+  }
+
+  return listsWithRecipients;
+}
+
+export async function seedDefaultNotificationLists(clubId: string): Promise<void> {
+  const existing = await db
+    .select()
+    .from(notificationLists)
+    .where(eq(notificationLists.clubId, clubId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    return;
+  }
+
+  const [coreTeam] = await db
+    .insert(notificationLists)
+    .values({
       clubId,
       name: "Core Team",
       description: "Key staff and managers",
       isDefault: true,
-      recipients: [
-        { id: 1, name: "Manager", email: "manager@example.com" },
-        { id: 2, name: "Assistant Manager", email: "assistant@example.com" }
-      ]
-    },
-    {
-      id: 2,
+    })
+    .returning();
+
+  const [kitchenStaff] = await db
+    .insert(notificationLists)
+    .values({
       clubId,
       name: "Kitchen Staff",
       description: "Kitchen and food service team",
       isDefault: false,
-      recipients: [
-        { id: 3, name: "Head Chef", email: "chef@example.com" },
-        { id: 4, name: "Line Cook", email: "cook@example.com" }
-      ]
-    },
-    {
-      id: 3,
+    })
+    .returning();
+
+  const [ownership] = await db
+    .insert(notificationLists)
+    .values({
       clubId,
       name: "Ownership",
       description: "Club owners and stakeholders",
       isDefault: false,
-      recipients: [
-        { id: 5, name: "Owner", email: "owner@example.com" }
-      ]
-    }
-  ];
+    })
+    .returning();
+
+  await db.insert(notificationRecipients).values([
+    { listId: coreTeam.id, name: "Manager", email: "manager@example.com" },
+    { listId: coreTeam.id, name: "Assistant Manager", email: "assistant@example.com" },
+    { listId: kitchenStaff.id, name: "Head Chef", email: "chef@example.com" },
+    { listId: kitchenStaff.id, name: "Line Cook", email: "cook@example.com" },
+    { listId: ownership.id, name: "Owner", email: "owner@example.com" },
+  ]);
 }
