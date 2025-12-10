@@ -206,6 +206,7 @@ export const escalationRules = pgTable("escalation_rules", {
   metricOperator: varchar("metric_operator", { length: 8 }), // lt, lte, gt, gte, eq
   metricValue: numeric("metric_value", { precision: 10, scale: 2 }),
   flagKey: varchar("flag_key", { length: 64 }), // For triggerType = "flag"
+  enabled: boolean("enabled").notNull().default(true),
   autoSend: boolean("auto_send").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

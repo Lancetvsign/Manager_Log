@@ -1063,16 +1063,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(escalationRules.clubId, clubId))
         .orderBy(desc(escalationRules.createdAt));
 
-      // Get targets for each rule
+      // Get targets for each rule with list names
       const rulesWithTargets = await Promise.all(
         rules.map(async (rule) => {
           const targets = await db
-            .select({ listId: escalationRuleTargets.listId })
+            .select({ 
+              listId: escalationRuleTargets.listId,
+              listName: notificationLists.name,
+            })
             .from(escalationRuleTargets)
+            .innerJoin(notificationLists, eq(escalationRuleTargets.listId, notificationLists.id))
             .where(eq(escalationRuleTargets.ruleId, rule.id));
           return {
             ...rule,
             targetListIds: targets.map((t) => t.listId),
+            targetLists: targets.map((t) => t.listName),
           };
         })
       );
@@ -1140,10 +1145,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/escalation-rules/:id", async (req, res) => {
     try {
       const ruleId = Number(req.params.id);
-      const { autoSend, name, targetListIds } = req.body;
+      const { autoSend, enabled, name, targetListIds } = req.body;
 
       const updates: any = {};
       if (autoSend !== undefined) updates.autoSend = autoSend;
+      if (enabled !== undefined) updates.enabled = enabled;
       if (name !== undefined) updates.name = name;
 
       if (Object.keys(updates).length > 0) {
