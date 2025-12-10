@@ -15,6 +15,7 @@ import SalesInput from "./SalesInput";
 import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
 import EscalationRulesModal from "./EscalationRulesModal";
 import { FileAttachments } from "./FileAttachments";
+import { PrepChecklist } from "./PrepChecklist";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ManagerLog, MaintenanceItem } from "@shared/schema";
@@ -909,6 +910,9 @@ Details:
       {existingLogId && (
         <FileAttachments logId={existingLogId} clubId={clubId} />
       )}
+
+      {/* Tomorrow's Prep Checklist */}
+      <PrepChecklist targetDate={format(date, "yyyy-MM-dd")} clubId={clubId} />
 
       {/* Submit Button */}
       <div className="flex justify-end mt-4">

@@ -248,6 +248,8 @@ export const prepChecklistItems = pgTable("prep_checklist_items", {
   clubId: varchar("club_id", { length: 64 }).notNull(),
   description: text("description").notNull(),
   status: varchar("status", { length: 24 }).notNull().default("pending"),
+  priority: varchar("priority", { length: 24 }).notNull().default("medium"),
+  assignedTo: varchar("assigned_to", { length: 120 }),
   targetDate: date("target_date").notNull(),
   originalDate: date("original_date").notNull(),
   rolledOverCount: integer("rolled_over_count").notNull().default(0),
@@ -429,6 +431,10 @@ export const insertPrepChecklistItemSchema = createInsertSchema(prepChecklistIte
   rolledOverCount: true, // Defaults to 0
   completedAt: true,  // Set when completed
   completedBy: true,  // Set when completed
+  priority: true,     // Has default value
+}).extend({
+  priority: z.string().optional(),
+  assignedTo: z.string().nullable().optional(),
 });
 
 /**

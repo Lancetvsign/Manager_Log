@@ -1356,6 +1356,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================
+  // PREP CHECKLIST API
+  // ==================
+
+  // Get prep checklist items for a date
+  app.get("/api/prep-checklist", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const targetDate = req.query.targetDate as string;
+
+      if (!targetDate) {
+        return res.status(400).json({ error: "targetDate is required" });
+      }
+
+      const items = await storage.getPrepChecklistItemsByDate(targetDate, clubId);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching prep checklist:", error);
+      res.status(500).json({ error: "Failed to fetch prep checklist" });
+    }
+  });
+
+  // Create prep checklist item
+  app.post("/api/prep-checklist", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const { description, targetDate, priority, assignedTo } = req.body;
+
+      if (!description || !targetDate) {
+        return res.status(400).json({ error: "description and targetDate are required" });
+      }
+
+      const item = await storage.createPrepChecklistItem({
+        clubId,
+        description,
+        targetDate,
+        originalDate: targetDate,
+        priority: priority || "medium",
+        assignedTo: assignedTo || null,
+        status: "pending",
+      });
+
+      res.status(201).json(item);
+    } catch (error) {
+      console.error("Error creating prep checklist item:", error);
+      res.status(500).json({ error: "Failed to create prep checklist item" });
+    }
+  });
+
+  // Update prep checklist item (toggle complete, edit, etc.)
+  app.patch("/api/prep-checklist/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const clubId = getClubId(req);
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid item ID" });
+      }
+
+      // Only allow specific fields to be updated (prevent clubId, originalDate, etc. tampering)
+      const allowedFields = ["description", "status", "priority", "assignedTo"];
+      const updates: Record<string, any> = {};
+      
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updates[field] = req.body[field];
+        }
+      }
+
+      // If completing, set completedAt and completedBy
+      if (updates.status === "completed") {
+        updates.completedAt = new Date();
+        updates.completedBy = req.body.completedBy || "Manager";
+      } else if (updates.status === "pending") {
+        // If uncompleting, clear completion fields
+        updates.completedAt = null;
+        updates.completedBy = null;
+      }
+
+      const updated = await storage.updatePrepChecklistItem(id, updates, clubId);
+      if (!updated) {
+        return res.status(404).json({ error: "Item not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating prep checklist item:", error);
+      res.status(500).json({ error: "Failed to update prep checklist item" });
+    }
+  });
+
+  // Delete prep checklist item
+  app.delete("/api/prep-checklist/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const clubId = getClubId(req);
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid item ID" });
+      }
+
+      const deleted = await storage.deletePrepChecklistItem(id, clubId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Item not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting prep checklist item:", error);
+      res.status(500).json({ error: "Failed to delete prep checklist item" });
+    }
+  });
+
+  // Rollover uncompleted items to a new date
+  app.post("/api/prep-checklist/rollover", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const { fromDate, toDate } = req.body;
+
+      if (!fromDate || !toDate) {
+        return res.status(400).json({ error: "fromDate and toDate are required" });
+      }
+
+      const rolledOver = await storage.rolloverPrepChecklistItems(fromDate, toDate, clubId);
+      res.json({ success: true, rolledOverCount: rolledOver });
+    } catch (error) {
+      console.error("Error rolling over prep checklist:", error);
+      res.status(500).json({ error: "Failed to rollover prep checklist items" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

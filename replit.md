@@ -196,6 +196,22 @@ The `escalation_rule_targets` table maps rules to notification lists:
 - StorageProvider abstraction (`server/storageProvider.ts`) available for future migration to object storage
 - Dependencies: multer, @types/multer
 
+### December 10, 2025 - Tomorrow's Prep Checklist Feature
+- Added `prep_checklist_items` table to database schema with auto-rollover tracking
+- Fields: id, clubId, description, status, priority, assignedTo, targetDate, originalDate, rolledOverCount, completedAt, completedBy, createdAt
+- Tracks original creation date and rollover count for audit trail
+- Storage layer methods: createPrepChecklistItem, getPrepChecklistItemsByDate, updatePrepChecklistItem, deletePrepChecklistItem, rolloverPrepChecklistItems
+- API endpoints:
+  - `GET /api/prep-checklist?targetDate=X&clubId=X` - Get items for a date
+  - `POST /api/prep-checklist?clubId=X` - Create new item
+  - `PATCH /api/prep-checklist/:id?clubId=X` - Update item (toggle complete, edit)
+  - `DELETE /api/prep-checklist/:id?clubId=X` - Delete item
+  - `POST /api/prep-checklist/rollover?clubId=X` - Roll pending items to new date
+- PrepChecklist UI component with add/complete/delete functionality
+- Shows rollover badge with count when items have been rolled over
+- "Roll to Next Day" button moves pending items forward
+- Integrated into ManagerLogForm below FileAttachments
+
 ### December 9, 2025 - Notification List Integration
 - Integrated with Social Club Pro's notification list architecture
 - API endpoints for fetching notification lists and sending with list IDs
