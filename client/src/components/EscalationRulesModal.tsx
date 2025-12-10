@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Trash2, Plus, Zap } from "lucide-react";
+import { Plus, Zap } from "lucide-react";
 import type { EscalationRule, NotificationList } from "@shared/schema";
 
 interface EscalationRulesModalProps {
@@ -120,11 +120,11 @@ export default function EscalationRulesModal({
           </div>
           <button
             type="button"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="inline-flex items-center px-2 py-1 text-xs font-medium border border-muted-foreground/30 text-muted-foreground rounded hover:bg-muted"
             onClick={onClose}
             data-testid="button-close-rules-modal"
           >
-            Close
+            ✕ Close
           </button>
         </div>
 
@@ -161,14 +161,14 @@ export default function EscalationRulesModal({
                         />
                         <span className="text-xs text-muted-foreground">Auto</span>
                       </div>
-                      <Button
-                        size="icon"
-                        variant="ghost"
+                      <button
+                        type="button"
+                        className="text-xs text-destructive hover:underline"
                         onClick={() => deleteRuleMutation.mutate(rule.id)}
                         data-testid={`button-delete-rule-${rule.id}`}
                       >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                        Remove
+                      </button>
                     </div>
                   </div>
                   {rule.autoSend && (
@@ -318,18 +318,23 @@ export default function EscalationRulesModal({
                 <Label className="text-sm">Auto-send when triggered</Label>
               </div>
 
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" size="sm" onClick={() => setIsCreating(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-medium bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => createRuleMutation.mutate(newRule)}
                   disabled={!newRule.name || newRule.targetListIds.length === 0}
                   data-testid="button-save-rule"
                 >
-                  Save Rule
-                </Button>
+                  Save rule
+                </button>
+                <button
+                  type="button"
+                  className="w-full text-center text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => setIsCreating(false)}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           ) : (
