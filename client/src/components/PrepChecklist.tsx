@@ -165,8 +165,9 @@ export function PrepChecklist({ targetDate, clubId, readOnly = false }: PrepChec
                   data-testid="input-prep-item"
                 />
                 <Button
-                  type="submit"
+                  type="button"
                   size="sm"
+                  onClick={handleAddItem}
                   disabled={createMutation.isPending || !newItemText.trim()}
                   className="bg-green-600 hover:bg-green-700 text-white"
                   data-testid="button-save-prep-item"
