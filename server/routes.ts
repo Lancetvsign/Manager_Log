@@ -527,6 +527,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * POST /api/maintenance-items/rollover
+   * Rolls over open to-do items from one date to another.
+   * Creates copies of open items on the target date's log and marks originals as rolled.
+   */
+  app.post("/api/maintenance-items/rollover", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const { fromDate, toDate } = req.body;
+
+      if (!fromDate || !toDate) {
+        return res.status(400).json({ error: "fromDate and toDate are required" });
+      }
+
+      // Validate date formats
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(fromDate) || !dateRegex.test(toDate)) {
+        return res.status(400).json({ error: "Dates must be in YYYY-MM-DD format" });
+      }
+
+      const { rollOpenTodosForDate } = await import("./todoRollover");
+      const result = await rollOpenTodosForDate(clubId, fromDate, toDate);
+      res.json(result);
+    } catch (error) {
+      console.error("Error rolling over maintenance items:", error);
+      res.status(500).json({ error: "Failed to rollover maintenance items" });
+    }
+  });
+
   // ==================
   // WEATHER API
   // ==================
