@@ -974,11 +974,11 @@ Details:
 
               {/* Send to - Multi-select */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="notify-lists">Send to</Label>
+                <div className="flex justify-between items-center mb-1">
+                  <Label htmlFor="notify-lists" className="mb-0">Send to</Label>
                   <button
                     type="button"
-                    className="text-xs text-primary hover:underline"
+                    className="text-xs text-emerald-700 hover:underline"
                     onClick={() => setShowNotifSettings(true)}
                     data-testid="button-manage-lists"
                   >
