@@ -14,6 +14,7 @@ import WeatherCard from "./WeatherCard";
 import SalesInput from "./SalesInput";
 import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
 import EscalationRulesModal from "./EscalationRulesModal";
+import { FileAttachments } from "./FileAttachments";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ManagerLog, MaintenanceItem } from "@shared/schema";
@@ -903,6 +904,11 @@ Details:
           )}
         </CardContent>
       </Card>
+
+      {/* File Attachments */}
+      {existingLogId && (
+        <FileAttachments logId={existingLogId} clubId={clubId} />
+      )}
 
       {/* Submit Button */}
       <div className="flex justify-end mt-4">
