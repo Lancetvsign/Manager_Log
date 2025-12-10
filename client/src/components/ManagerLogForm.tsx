@@ -179,6 +179,29 @@ Details:
 [Add any extra details here...]`);
   }, [date, managerName, salesNotes, dailyNotes, notifyReason]);
 
+  // Ensure a log exists for this date, creating if needed
+  const ensureLogId = async (): Promise<number> => {
+    if (existingLogId) return existingLogId;
+
+    const res = await fetch(`${apiBaseUrl}/api/logs/ensure`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clubId,
+        date: format(date, 'yyyy-MM-dd'),
+        managerName,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error("Could not create daily log for notification.");
+    }
+
+    const data = await res.json();
+    setExistingLogId(data.logId);
+    return data.logId;
+  };
+
   // Send notification email
   const sendNotificationEmail = async (logId: number) => {
     if (notifyListIds.length === 0) return;
@@ -1007,8 +1030,19 @@ Details:
                 <Button
                   type="button"
                   variant="destructive"
-                  disabled={isSending || notifyListIds.length === 0 || !existingLogId}
-                  onClick={() => existingLogId && sendNotificationEmail(existingLogId)}
+                  disabled={isSending || notifyListIds.length === 0}
+                  onClick={async () => {
+                    try {
+                      const logId = await ensureLogId();
+                      await sendNotificationEmail(logId);
+                    } catch (error) {
+                      toast({
+                        title: "Error",
+                        description: "Could not create daily log for notification.",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
                   data-testid="button-send-notification"
                 >
                   {isSending ? (
@@ -1024,11 +1058,6 @@ Details:
                   )}
                 </Button>
 
-                {!existingLogId && (
-                  <p className="text-sm text-muted-foreground">
-                    Save the log entry first to send notifications.
-                  </p>
-                )}
                 {sendResult && (
                   <p className={`text-sm ${sendResult.includes('Error') || sendResult.includes('Failed') ? 'text-destructive' : 'text-muted-foreground'}`}>
                     {sendResult}
