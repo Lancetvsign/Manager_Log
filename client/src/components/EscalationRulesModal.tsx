@@ -132,10 +132,20 @@ export default function EscalationRulesModal({
 
   const { data: rules = [], isLoading: loadingRules } = useQuery<EscalationRule[]>({
     queryKey: ["/api/escalation-rules", clubId],
+    queryFn: async () => {
+      const res = await fetch(`/api/escalation-rules?clubId=${encodeURIComponent(clubId)}`);
+      if (!res.ok) throw new Error("Failed to fetch escalation rules");
+      return res.json();
+    },
   });
 
   const { data: lists = [] } = useQuery<(NotificationList & { recipientCount: number })[]>({
     queryKey: ["/api/notifications/lists", clubId],
+    queryFn: async () => {
+      const res = await fetch(`/api/notifications/lists?clubId=${encodeURIComponent(clubId)}`);
+      if (!res.ok) throw new Error("Failed to fetch notification lists");
+      return res.json();
+    },
   });
 
   // Hydrate threshold from existing rule

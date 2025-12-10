@@ -107,7 +107,57 @@ The `notification_logs` table stores an audit trail of all notifications:
 - `simulated`: Boolean indicating if email was simulated or actually sent
 - `created_at`: Timestamp when notification was sent
 
+## Escalation Rules / Smart Automations
+
+### Overview
+The escalation rules feature allows clubs to configure automated notifications based on triggers. The system uses a preset-based model for common scenarios with an optional advanced mode for custom rules.
+
+### Automation Presets
+Four built-in presets with on/off toggle switches:
+- **Maintenance Alerts**: When "Maintenance" reason is selected, notify Maintenance list
+- **Behavior Incident Alerts**: When "Behavior" reason is selected, notify Core Team + Ownership
+- **Sales Drop Warning**: Alert when total sales drop more than X% vs last week (configurable threshold)
+- **Gaming Outage Alert**: When gaming outage is flagged, notify technician list
+
+### Database Schema
+The `escalation_rules` table stores automation rules:
+- `id`: Auto-incrementing primary key
+- `club_id`: Club identifier for data isolation
+- `name`: Human-readable rule name
+- `trigger_type`: Type of trigger ("reason", "metric", "flag")
+- `trigger_reason`: For reason-based triggers ("maintenance", "behavior", "other")
+- `metric_key`: For metric-based triggers (e.g., "sales_drop_pct")
+- `metric_threshold`: Threshold value for metric triggers
+- `flag_key`: For flag-based triggers (e.g., "gaming_outage")
+- `auto_send`: Whether to send notifications automatically
+- `enabled`: Soft enable/disable toggle
+- `preset_key`: Links rule to a preset definition for UI sync
+- `created_at`: Timestamp
+
+The `escalation_rule_targets` table maps rules to notification lists:
+- `id`, `rule_id`, `list_id`
+
+### API Endpoints
+- `GET /api/escalation-rules?clubId=X` - Get all rules with targets for a club
+- `POST /api/escalation-rules` - Create new rule (supports presetKey, metricThreshold, targetListIds)
+- `PATCH /api/escalation-rules/:id` - Update rule (enable/disable, update threshold, etc.)
+- `DELETE /api/escalation-rules/:id` - Delete rule
+
+### UI Components
+- `EscalationRulesModal`: Main modal with preset toggles and advanced section
+- Uses React Query mutations with cache invalidation for real-time UI sync
+- Sales threshold input with save button for metric presets
+- Advanced section (hidden by default) shows custom rules
+
 ## Recent Changes
+
+### December 10, 2025 - Smart Automations Refactor
+- Refactored escalation rules from complex rule builder to preset-based automation system
+- Added preset toggles with on/off switches for common scenarios
+- Implemented sales threshold configuration for metric-based presets
+- Added "Advanced Automation" section hidden behind toggle for custom rules
+- Fixed React Query cache invalidation for preset enable/disable flows
+- Added useEffect for proper threshold hydration from existing rules
 
 ### December 10, 2025 - Notification Audit Trail
 - Added `notification_logs` table to database for audit trail
