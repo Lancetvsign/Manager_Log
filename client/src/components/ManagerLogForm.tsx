@@ -61,6 +61,16 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const [isSending, setIsSending] = useState(false);
   const [sendResult, setSendResult] = useState<string | null>(null);
   
+  // Notification history type
+  interface NotificationHistoryItem {
+    id: number;
+    reason: string;
+    subject: string;
+    createdAt: string;
+    simulated: boolean;
+    recipientCount: number;
+  }
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -121,6 +131,17 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       if (!response.ok) return [];
       return response.json();
     },
+  });
+
+  // Fetch notification history for this log
+  const { data: notificationHistory, refetch: refetchHistory } = useQuery<NotificationHistoryItem[]>({
+    queryKey: ['/api/logs', existingLogId, 'notifications'],
+    queryFn: async () => {
+      const response = await fetch(`${apiBaseUrl}/api/logs/${existingLogId}/notifications`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!existingLogId,
   });
 
   // Notification list selection toggle
@@ -186,6 +207,8 @@ Details:
           title: result.simulated ? "Notification Simulated" : "Notification Sent",
           description: `${result.simulated ? "Would send" : "Sent"} to ${result.sentTo} recipient(s)`,
         });
+        // Refresh notification history
+        refetchHistory();
       } else {
         setSendResult(`Error: ${result.error}`);
         toast({
@@ -991,6 +1014,31 @@ Details:
                   </p>
                 )}
               </div>
+
+              {/* Notification History */}
+              {notificationHistory && notificationHistory.length > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-sm font-medium mb-2">Recent Notifications</p>
+                  <div className="space-y-2">
+                    {notificationHistory.map((n) => (
+                      <div key={n.id} className="text-xs text-muted-foreground flex items-center gap-2">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs ${
+                          n.simulated 
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' 
+                            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                        }`}>
+                          {n.simulated ? 'Simulated' : 'Sent'}
+                        </span>
+                        <span>{format(new Date(n.createdAt), 'MMM d, h:mm a')}</span>
+                        <span>•</span>
+                        <span>{n.reason}</span>
+                        <span>•</span>
+                        <span>{n.recipientCount} recipient{n.recipientCount !== 1 ? 's' : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
