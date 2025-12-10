@@ -1098,10 +1098,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         triggerType,
         triggerReason,
         metricKey,
-        metricOperator,
-        metricValue,
+        metricThreshold,
         flagKey,
         autoSend,
+        enabled,
+        presetKey,
         targetListIds,
       } = req.body;
 
@@ -1117,10 +1118,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           triggerType,
           triggerReason: triggerType === "reason" ? triggerReason : null,
           metricKey: triggerType === "metric" ? metricKey : null,
-          metricOperator: triggerType === "metric" ? metricOperator : null,
-          metricValue: triggerType === "metric" ? metricValue : null,
+          metricThreshold: triggerType === "metric" ? metricThreshold : null,
           flagKey: triggerType === "flag" ? flagKey : null,
           autoSend: autoSend ?? false,
+          enabled: enabled ?? true,
+          presetKey: presetKey ?? null,
         })
         .returning();
 
@@ -1145,12 +1147,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/escalation-rules/:id", async (req, res) => {
     try {
       const ruleId = Number(req.params.id);
-      const { autoSend, enabled, name, targetListIds } = req.body;
+      const { autoSend, enabled, name, metricThreshold, presetKey, targetListIds } = req.body;
 
       const updates: any = {};
       if (autoSend !== undefined) updates.autoSend = autoSend;
       if (enabled !== undefined) updates.enabled = enabled;
       if (name !== undefined) updates.name = name;
+      if (metricThreshold !== undefined) updates.metricThreshold = metricThreshold;
+      if (presetKey !== undefined) updates.presetKey = presetKey;
 
       if (Object.keys(updates).length > 0) {
         await db

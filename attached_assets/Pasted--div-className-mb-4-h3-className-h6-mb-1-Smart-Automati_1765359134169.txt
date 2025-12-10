@@ -1,0 +1,78 @@
+<div className="mb-4">
+  <h3 className="h6 mb-1">Smart Automations</h3>
+  <p className="small text-muted mb-2">
+    Turn on automations that help your team respond faster. You can still add custom rules below.
+  </p>
+
+  {loadingRules ? (
+    <p className="text-muted small">Loading automations…</p>
+  ) : (
+    <div className="list-group">
+      {AUTOMATION_PRESETS.map((preset) => {
+        const rule = getPresetRule(preset.key);
+        const active = !!rule?.enabled;
+
+        return (
+          <div
+            key={preset.key}
+            className="list-group-item d-flex justify-content-between align-items-start"
+          >
+            <div>
+              <div className="fw-semibold d-flex align-items-center gap-2">
+                {preset.title}
+                {rule && (
+                  <span className="badge bg-light text-muted border">
+                    {rule.autoSend ? "Auto-send" : "Manual email"}
+                  </span>
+                )}
+              </div>
+              <div className="small text-muted">{preset.description}</div>
+
+              {preset.key === "sales_drop_warning" && (
+                <div className="d-flex align-items-center gap-2 mt-2 small">
+                  <span>Warn me if sales drop more than</span>
+                  <input
+                    type="number"
+                    min={5}
+                    max={100}
+                    step={1}
+                    value={salesDropThreshold}
+                    onChange={(e) => setSalesDropThreshold(Number(e.target.value || 0))}
+                    className="form-control form-control-sm"
+                    style={{ width: 80 }}
+                  />
+                  <span>% vs last week</span>
+                  <button
+                    type="button"
+                    className="btn btn-link btn-sm p-0 ms-1"
+                    onClick={() => rule && enablePreset(preset)}
+                  >
+                    Save
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="form-check form-switch ms-3">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id={`preset-${preset.key}`}
+                checked={active}
+                onChange={(e) =>
+                  e.target.checked ? enablePreset(preset) : disablePreset(preset)
+                }
+              />
+              <label
+                className="form-check-label small"
+                htmlFor={`preset-${preset.key}`}
+              >
+                {active ? "On" : "Off"}
+              </label>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  )}
+</div>
