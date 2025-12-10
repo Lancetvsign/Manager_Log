@@ -226,6 +226,35 @@ export const escalationRuleTargets = pgTable("escalation_rule_targets", {
 });
 
 /**
+ * LOG_ATTACHMENTS TABLE
+ * ---------------------
+ * Stores file attachments linked to manager logs.
+ * Each attachment references a specific manager log entry.
+ * 
+ * Fields:
+ * - id: Auto-incrementing primary key
+ * - clubId: Club identifier for data isolation
+ * - logId: Foreign key to manager_logs table
+ * - fileName: Original filename of the uploaded file
+ * - fileType: MIME type of the file
+ * - fileSize: Size of the file in bytes
+ * - storageKey: Key/path used in storage system (S3/Blob)
+ * - publicUrl: URL to view/download the file
+ * - createdAt: Timestamp when attachment was uploaded
+ */
+export const logAttachments = pgTable("log_attachments", {
+  id: serial("id").primaryKey(),
+  clubId: varchar("club_id", { length: 64 }).notNull(),
+  logId: integer("log_id").notNull().references(() => managerLogs.id, { onDelete: "cascade" }),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileType: varchar("file_type", { length: 128 }).notNull(),
+  fileSize: integer("file_size").notNull(),
+  storageKey: varchar("storage_key", { length: 512 }).notNull(),
+  publicUrl: varchar("public_url", { length: 1024 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * TABLE RELATIONSHIPS
  * -------------------
  * Defines the one-to-many relationship between ManagerLogs and MaintenanceItems.
@@ -235,6 +264,14 @@ export const escalationRuleTargets = pgTable("escalation_rule_targets", {
 export const managerLogsRelations = relations(managerLogs, ({ many }) => ({
   maintenanceItems: many(maintenanceItems),
   notificationLogs: many(notificationLogs),
+  attachments: many(logAttachments),
+}));
+
+export const logAttachmentsRelations = relations(logAttachments, ({ one }) => ({
+  managerLog: one(managerLogs, {
+    fields: [logAttachments.logId],
+    references: [managerLogs.id],
+  }),
 }));
 
 export const maintenanceItemsRelations = relations(maintenanceItems, ({ one }) => ({
@@ -348,6 +385,12 @@ export const insertEscalationRuleTargetSchema = createInsertSchema(escalationRul
   id: true,        // Auto-generated
 });
 
+// LogAttachment insert schema
+export const insertLogAttachmentSchema = createInsertSchema(logAttachments).omit({
+  id: true,        // Auto-generated
+  createdAt: true, // Auto-generated
+});
+
 /**
  * TYPESCRIPT TYPE EXPORTS
  * -----------------------
@@ -371,6 +414,8 @@ export type InsertEscalationRule = z.infer<typeof insertEscalationRuleSchema>;
 export type EscalationRule = typeof escalationRules.$inferSelect;
 export type InsertEscalationRuleTarget = z.infer<typeof insertEscalationRuleTargetSchema>;
 export type EscalationRuleTarget = typeof escalationRuleTargets.$inferSelect;
+export type InsertLogAttachment = z.infer<typeof insertLogAttachmentSchema>;
+export type LogAttachment = typeof logAttachments.$inferSelect;
 
 /**
  * Extended type for maintenance items with their related log data
