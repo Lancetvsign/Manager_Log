@@ -201,27 +201,20 @@ export default function EscalationRulesModal({
 
               <div className="space-y-2">
                 <Label>Trigger Type</Label>
-                <div className="inline-flex rounded-md border border-input" role="group">
-                  {(["reason", "metric", "flag"] as const).map((type, idx) => {
-                    const isActive = newRule.triggerType === type;
-                    const baseClasses = "px-3 py-1.5 text-sm font-medium transition-colors";
-                    const activeClasses = isActive
-                      ? "bg-emerald-600 text-white"
-                      : "bg-background text-foreground hover:bg-muted";
-                    const borderClasses = idx > 0 ? "border-l border-input" : "";
-                    const roundedClasses = idx === 0 ? "rounded-l-md" : idx === 2 ? "rounded-r-md" : "";
-                    return (
-                      <button
-                        key={type}
-                        type="button"
-                        className={`${baseClasses} ${activeClasses} ${borderClasses} ${roundedClasses}`}
-                        onClick={() => setNewRule({ ...newRule, triggerType: type })}
-                        data-testid={`button-trigger-${type}`}
-                      >
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </button>
-                    );
-                  })}
+                <div className="inline-flex" role="group">
+                  {(["reason", "metric", "flag"] as const).map((type) => (
+                    <Button
+                      key={type}
+                      type="button"
+                      variant={newRule.triggerType === type ? "success" : "outline-secondary"}
+                      size="sm"
+                      className={type === "reason" ? "rounded-r-none" : type === "flag" ? "rounded-l-none" : "rounded-none"}
+                      onClick={() => setNewRule({ ...newRule, triggerType: type })}
+                      data-testid={`button-trigger-${type}`}
+                    >
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </Button>
+                  ))}
                 </div>
               </div>
 
