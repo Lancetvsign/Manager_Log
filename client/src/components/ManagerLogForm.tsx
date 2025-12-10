@@ -915,16 +915,11 @@ Details:
 
       {/* Notify Core Team Section */}
       <Card>
-          <CardHeader className="py-4">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Mail className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Notify Core Team</CardTitle>
-              </div>
-              <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
-                For urgent maintenance or behavior issues
-              </Badge>
-            </div>
+          <CardHeader className="flex flex-row justify-between items-center gap-2">
+            <CardTitle>Notify Core Team</CardTitle>
+            <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+              For urgent maintenance or behavior issues
+            </Badge>
           </CardHeader>
           
           <CardContent className="pt-0">
