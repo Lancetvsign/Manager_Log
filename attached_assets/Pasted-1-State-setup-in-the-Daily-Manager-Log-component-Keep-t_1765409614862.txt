@@ -1,0 +1,117 @@
+1️⃣ State setup in the Daily Manager Log component
+
+Keep the three fields in state, but add a separate active role:
+
+// existing, pulled from log
+const [amManagerName, setAmManagerName] =
+  useState(log?.amManagerName ?? "");
+const [pmManagerName, setPmManagerName] =
+  useState(log?.pmManagerName ?? "");
+const [kitchenManagerName, setKitchenManagerName] =
+  useState(log?.kitchenManagerName ?? "");
+
+// NEW: which role is being edited right now
+type ManagerRole = "am" | "pm" | "kitchen";
+
+const [activeManagerRole, setActiveManagerRole] = useState<ManagerRole>(() => {
+  if (log?.amManagerName) return "am";
+  if (log?.pmManagerName) return "pm";
+  if (log?.kitchenManagerName) return "kitchen";
+  return "am"; // default when empty
+});
+
+
+A tiny helper to get the active name:
+
+const getActiveManagerName = () => {
+  switch (activeManagerRole) {
+    case "am":
+      return amManagerName;
+    case "pm":
+      return pmManagerName;
+    case "kitchen":
+      return kitchenManagerName;
+  }
+};
+
+
+And to update the right one:
+
+const setActiveManagerName = (value: string) => {
+  switch (activeManagerRole) {
+    case "am":
+      setAmManagerName(value);
+      break;
+    case "pm":
+      setPmManagerName(value);
+      break;
+    case "kitchen":
+      setKitchenManagerName(value);
+      break;
+  }
+};
+
+2️⃣ Replace the “Primary Manager” UI with dropdown + single input
+
+In your Row 1, right column (where “Primary Manager” / “Manager on duty” is now), swap that block for this:
+
+<div className="col-md-4">
+  <label className="form-label small mb-1">Manager</label>
+
+  <div className="input-group input-group-sm">
+    {/* Role dropdown */}
+    <select
+      className="form-select"
+      value={activeManagerRole}
+      onChange={(e) =>
+        setActiveManagerRole(e.target.value as ManagerRole)
+      }
+    >
+      <option value="am">AM Manager</option>
+      <option value="pm">PM Manager</option>
+      <option value="kitchen">Kitchen Manager</option>
+    </select>
+
+    {/* Name text box */}
+    <input
+      type="text"
+      className="form-control"
+      placeholder="Type your name…"
+      value={getActiveManagerName()}
+      onChange={(e) => setActiveManagerName(e.target.value)}
+    />
+  </div>
+
+  <div className="form-text">
+    Choose your role and type your name.  
+    Each manager can fill this out separately.
+  </div>
+</div>
+
+3️⃣ Remove the extra AM / PM / Kitchen text fields row
+
+You no longer need the separate boxes in Row 2:
+
+{/* REMOVE / COMMENT OUT this entire row */}
+<div className="row g-3 mt-2">
+  <div className="col-md-4">AM Manager input…</div>
+  <div className="col-md-4">PM Manager input…</div>
+  <div className="col-md-4">Kitchen Manager input…</div>
+</div>
+
+
+The three state variables still exist and are saved to the DB; they’re just being edited through that single dropdown+input combo.
+
+4️⃣ Saving to the backend
+
+Your save logic can stay almost exactly the same—just make sure it uses the three state vars:
+
+await db
+  .update(managerLogs)
+  .set({
+    amManagerName,
+    pmManagerName,
+    kitchenManagerName,
+    // ...other fields
+  })
+  .where(eq(managerLogs.id, logId));

@@ -32,16 +32,20 @@ interface WeatherData {
   description: string;
 }
 
-// Quick pick list for manager dropdowns - can be pulled from staff later
-const managerQuickPicks = ["Chris", "Sarah", "Mike", "Ana", "James"];
+// Manager role type for the unified dropdown
+type ManagerRole = "am" | "pm" | "kitchen";
 
 export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const { clubId, managerName: defaultManagerName, apiBaseUrl } = useManagerLog();
   const [date, setDate] = useState<Date>(new Date());
-  const [managerName, setManagerName] = useState(defaultManagerName || "");
+  
+  // Manager name fields - stored separately but edited via unified control
   const [amManagerName, setAmManagerName] = useState("");
   const [pmManagerName, setPmManagerName] = useState("");
   const [kitchenManagerName, setKitchenManagerName] = useState("");
+  
+  // Which role is being edited right now
+  const [activeManagerRole, setActiveManagerRole] = useState<ManagerRole>("am");
   const [dailyNotes, setDailyNotes] = useState("");
   const [salesNotes, setSalesNotes] = useState("");
   const [dailyNumber, setDailyNumber] = useState("");
@@ -178,9 +182,10 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   // Update default subject and message when form data changes
   useEffect(() => {
     const formattedDate = format(date, 'MMMM d, yyyy');
+    const managerSummary = [amManagerName, pmManagerName, kitchenManagerName].filter(Boolean).join(', ') || 'Not specified';
     setNotifySubject(`[Club] ${formattedDate} - Urgent ${notifyReason.toLowerCase()}`);
     setNotifyMessage(`Date: ${formattedDate}
-Manager: ${managerName || 'Not specified'}
+Manager(s): ${managerSummary}
 
 Summary:
 - Sales notes: ${salesNotes || 'N/A'}
@@ -188,7 +193,7 @@ Summary:
 
 Details:
 [Add any extra details here...]`);
-  }, [date, managerName, salesNotes, dailyNotes, notifyReason]);
+  }, [date, amManagerName, pmManagerName, kitchenManagerName, salesNotes, dailyNotes, notifyReason]);
 
   // Ensure a log exists for this date, creating if needed
   const ensureLogId = async (): Promise<number> => {
@@ -200,7 +205,7 @@ Details:
       body: JSON.stringify({
         clubId,
         date: format(date, 'yyyy-MM-dd'),
-        managerName,
+        managerName: amManagerName || pmManagerName || kitchenManagerName || "Unknown",
       }),
     });
 
@@ -272,10 +277,14 @@ Details:
   useEffect(() => {
     if (existingLog) {
       setExistingLogId(existingLog.id);
-      setManagerName(existingLog.managerName || "");
       setAmManagerName(existingLog.amManagerName || "");
       setPmManagerName(existingLog.pmManagerName || "");
       setKitchenManagerName(existingLog.kitchenManagerName || "");
+      // Set active role to the first one that has a name
+      if (existingLog.amManagerName) setActiveManagerRole("am");
+      else if (existingLog.pmManagerName) setActiveManagerRole("pm");
+      else if (existingLog.kitchenManagerName) setActiveManagerRole("kitchen");
+      else setActiveManagerRole("am");
       setDailyNotes(existingLog.dailyNotes || "");
       setSalesNotes(existingLog.salesNotes || "");
       setDailyNumber(existingLog.dailyNumber || "");
@@ -540,6 +549,24 @@ Details:
     return date.toLocaleDateString('en-US', { weekday: 'long' });
   };
 
+  // Helper to get the active manager name based on selected role
+  const getActiveManagerName = () => {
+    switch (activeManagerRole) {
+      case "am": return amManagerName;
+      case "pm": return pmManagerName;
+      case "kitchen": return kitchenManagerName;
+    }
+  };
+
+  // Helper to update the correct manager name based on selected role
+  const setActiveManagerName = (value: string) => {
+    switch (activeManagerRole) {
+      case "am": setAmManagerName(value); break;
+      case "pm": setPmManagerName(value); break;
+      case "kitchen": setKitchenManagerName(value); break;
+    }
+  };
+
   const formatWeatherString = (weather: WeatherData): string => {
     return `${weather.temperature}°F, ${weather.description}, Humidity: ${weather.humidity}%, Wind: ${weather.windSpeed} mph`;
   };
@@ -562,10 +589,12 @@ Details:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!managerName.trim()) {
+    // At least one manager name is required
+    const hasManager = amManagerName.trim() || pmManagerName.trim() || kitchenManagerName.trim();
+    if (!hasManager) {
       toast({
         title: "Validation Error",
-        description: "Manager name is required.",
+        description: "At least one manager name is required.",
         variant: "destructive"
       });
       return;
@@ -574,7 +603,6 @@ Details:
     const logData = {
       logDate: dateString,
       dayOfWeek: getDayOfWeek(date),
-      managerName: managerName.trim(),
       amManagerName: amManagerName.trim() || null,
       pmManagerName: pmManagerName.trim() || null,
       kitchenManagerName: kitchenManagerName.trim() || null,
@@ -627,10 +655,10 @@ Details:
   };
 
   const resetForm = () => {
-    setManagerName("");
     setAmManagerName("");
     setPmManagerName("");
     setKitchenManagerName("");
+    setActiveManagerRole("am");
     setDailyNotes("");
     setSalesNotes("");
     setDailyNumber("");
@@ -698,134 +726,33 @@ Details:
             />
           </div>
 
-          {/* Primary Manager - Quick pick or type */}
+          {/* Manager - Role dropdown + name input */}
           <div className="space-y-2">
-            <Label htmlFor="manager-name">Manager on duty</Label>
+            <Label htmlFor="manager-name">Manager</Label>
             <div className="flex gap-2">
               <Select
-                value=""
-                onValueChange={(value) => {
-                  if (value) setManagerName(value);
-                }}
+                value={activeManagerRole}
+                onValueChange={(value) => setActiveManagerRole(value as ManagerRole)}
               >
-                <SelectTrigger className="w-[140px]" data-testid="select-manager-quick">
-                  <SelectValue placeholder="Quick pick..." />
+                <SelectTrigger className="w-[160px]" data-testid="select-manager-role">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {managerQuickPicks.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="am">AM Manager</SelectItem>
+                  <SelectItem value="pm">PM Manager</SelectItem>
+                  <SelectItem value="kitchen">Kitchen Manager</SelectItem>
                 </SelectContent>
               </Select>
               <Input
                 id="manager-name"
-                value={managerName}
-                onChange={(e) => setManagerName(e.target.value)}
-                placeholder="Type manager name..."
+                value={getActiveManagerName()}
+                onChange={(e) => setActiveManagerName(e.target.value)}
+                placeholder="Type your name..."
                 className="flex-1"
-                required
                 data-testid="input-manager-name"
               />
             </div>
-            <p className="text-xs text-muted-foreground">Pick from list or type a name</p>
-          </div>
-
-          {/* AM Manager - Quick pick or type */}
-          <div className="space-y-2">
-            <Label htmlFor="am-manager">AM Manager</Label>
-            <div className="flex gap-2">
-              <Select
-                value=""
-                onValueChange={(value) => {
-                  if (value) setAmManagerName(value);
-                }}
-              >
-                <SelectTrigger className="w-[140px]" data-testid="select-am-manager-quick">
-                  <SelectValue placeholder="Quick pick..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {managerQuickPicks.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                id="am-manager"
-                value={amManagerName}
-                onChange={(e) => setAmManagerName(e.target.value)}
-                placeholder="Type manager name..."
-                className="flex-1"
-                data-testid="input-am-manager"
-              />
-            </div>
-          </div>
-
-          {/* PM Manager - Quick pick or type */}
-          <div className="space-y-2">
-            <Label htmlFor="pm-manager">PM Manager</Label>
-            <div className="flex gap-2">
-              <Select
-                value=""
-                onValueChange={(value) => {
-                  if (value) setPmManagerName(value);
-                }}
-              >
-                <SelectTrigger className="w-[140px]" data-testid="select-pm-manager-quick">
-                  <SelectValue placeholder="Quick pick..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {managerQuickPicks.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                id="pm-manager"
-                value={pmManagerName}
-                onChange={(e) => setPmManagerName(e.target.value)}
-                placeholder="Type manager name..."
-                className="flex-1"
-                data-testid="input-pm-manager"
-              />
-            </div>
-          </div>
-
-          {/* Kitchen Manager - Quick pick or type */}
-          <div className="space-y-2">
-            <Label htmlFor="kitchen-manager">Kitchen Manager</Label>
-            <div className="flex gap-2">
-              <Select
-                value=""
-                onValueChange={(value) => {
-                  if (value) setKitchenManagerName(value);
-                }}
-              >
-                <SelectTrigger className="w-[140px]" data-testid="select-kitchen-manager-quick">
-                  <SelectValue placeholder="Quick pick..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {managerQuickPicks.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                id="kitchen-manager"
-                value={kitchenManagerName}
-                onChange={(e) => setKitchenManagerName(e.target.value)}
-                placeholder="Type manager name..."
-                className="flex-1"
-                data-testid="input-kitchen-manager"
-              />
-            </div>
+            <p className="text-xs text-muted-foreground">Choose your role and type your name. Each manager can fill this out separately.</p>
           </div>
 
           {/* Weather - inline under the date row */}
