@@ -226,6 +226,37 @@ export const escalationRuleTargets = pgTable("escalation_rule_targets", {
 });
 
 /**
+ * PREP_CHECKLIST_ITEMS TABLE
+ * --------------------------
+ * Stores "Tomorrow's Prep Checklist" items with auto-rollover support.
+ * Uncompleted items automatically roll forward to the next day.
+ * 
+ * Fields:
+ * - id: Auto-incrementing primary key
+ * - clubId: Club identifier for data isolation
+ * - description: What needs to be prepared
+ * - status: "pending" or "completed"
+ * - targetDate: The date this item should appear on (rolls forward if not completed)
+ * - originalDate: When this item was originally created (tracks rollover history)
+ * - rolledOverCount: Number of times this item has been rolled forward
+ * - completedAt: Timestamp when the item was marked completed
+ * - completedBy: Name of person who completed the item
+ * - createdAt: Timestamp when item was created
+ */
+export const prepChecklistItems = pgTable("prep_checklist_items", {
+  id: serial("id").primaryKey(),
+  clubId: varchar("club_id", { length: 64 }).notNull(),
+  description: text("description").notNull(),
+  status: varchar("status", { length: 24 }).notNull().default("pending"),
+  targetDate: date("target_date").notNull(),
+  originalDate: date("original_date").notNull(),
+  rolledOverCount: integer("rolled_over_count").notNull().default(0),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  completedBy: varchar("completed_by", { length: 120 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * LOG_ATTACHMENTS TABLE
  * ---------------------
  * Stores file attachments linked to manager logs.
@@ -391,6 +422,15 @@ export const insertLogAttachmentSchema = createInsertSchema(logAttachments).omit
   createdAt: true, // Auto-generated
 });
 
+// PrepChecklistItem insert schema
+export const insertPrepChecklistItemSchema = createInsertSchema(prepChecklistItems).omit({
+  id: true,           // Auto-generated
+  createdAt: true,    // Auto-generated
+  rolledOverCount: true, // Defaults to 0
+  completedAt: true,  // Set when completed
+  completedBy: true,  // Set when completed
+});
+
 /**
  * TYPESCRIPT TYPE EXPORTS
  * -----------------------
@@ -416,6 +456,8 @@ export type InsertEscalationRuleTarget = z.infer<typeof insertEscalationRuleTarg
 export type EscalationRuleTarget = typeof escalationRuleTargets.$inferSelect;
 export type InsertLogAttachment = z.infer<typeof insertLogAttachmentSchema>;
 export type LogAttachment = typeof logAttachments.$inferSelect;
+export type InsertPrepChecklistItem = z.infer<typeof insertPrepChecklistItemSchema>;
+export type PrepChecklistItem = typeof prepChecklistItems.$inferSelect;
 
 /**
  * Extended type for maintenance items with their related log data

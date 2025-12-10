@@ -21,7 +21,8 @@ import {
   type MaintenanceItem, type InsertMaintenanceItem,
   type MaintenanceItemWithLog,
   type LogAttachment, type InsertLogAttachment,
-  users, managerLogs, maintenanceItems, logAttachments 
+  type PrepChecklistItem, type InsertPrepChecklistItem,
+  users, managerLogs, maintenanceItems, logAttachments, prepChecklistItems 
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, lte, and } from "drizzle-orm";
@@ -60,6 +61,14 @@ export interface IStorage {
   getLogAttachmentsByLogId(logId: number, clubId: string): Promise<LogAttachment[]>;
   getLogAttachment(id: number, clubId: string): Promise<LogAttachment | undefined>;
   deleteLogAttachment(id: number, clubId: string): Promise<boolean>;
+
+  // Prep Checklist operations
+  createPrepChecklistItem(item: InsertPrepChecklistItem): Promise<PrepChecklistItem>;
+  getPrepChecklistItemsByDate(targetDate: string, clubId: string): Promise<PrepChecklistItem[]>;
+  getPrepChecklistItem(id: number, clubId: string): Promise<PrepChecklistItem | undefined>;
+  updatePrepChecklistItem(id: number, updates: Partial<PrepChecklistItem>, clubId: string): Promise<PrepChecklistItem | undefined>;
+  deletePrepChecklistItem(id: number, clubId: string): Promise<boolean>;
+  rolloverPrepChecklistItems(fromDate: string, toDate: string, clubId: string): Promise<number>;
 }
 
 /**
@@ -318,6 +327,78 @@ export class DatabaseStorage implements IStorage {
       .delete(logAttachments)
       .where(and(eq(logAttachments.id, id), eq(logAttachments.clubId, clubId)));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // ==================
+  // PREP CHECKLIST OPERATIONS
+  // ==================
+
+  async createPrepChecklistItem(item: InsertPrepChecklistItem): Promise<PrepChecklistItem> {
+    const [created] = await db
+      .insert(prepChecklistItems)
+      .values(item)
+      .returning();
+    return created;
+  }
+
+  async getPrepChecklistItemsByDate(targetDate: string, clubId: string): Promise<PrepChecklistItem[]> {
+    return await db
+      .select()
+      .from(prepChecklistItems)
+      .where(and(
+        eq(prepChecklistItems.targetDate, targetDate),
+        eq(prepChecklistItems.clubId, clubId)
+      ))
+      .orderBy(desc(prepChecklistItems.createdAt));
+  }
+
+  async getPrepChecklistItem(id: number, clubId: string): Promise<PrepChecklistItem | undefined> {
+    const [item] = await db
+      .select()
+      .from(prepChecklistItems)
+      .where(and(eq(prepChecklistItems.id, id), eq(prepChecklistItems.clubId, clubId)));
+    return item || undefined;
+  }
+
+  async updatePrepChecklistItem(id: number, updates: Partial<PrepChecklistItem>, clubId: string): Promise<PrepChecklistItem | undefined> {
+    const [updated] = await db
+      .update(prepChecklistItems)
+      .set(updates)
+      .where(and(eq(prepChecklistItems.id, id), eq(prepChecklistItems.clubId, clubId)))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deletePrepChecklistItem(id: number, clubId: string): Promise<boolean> {
+    const result = await db
+      .delete(prepChecklistItems)
+      .where(and(eq(prepChecklistItems.id, id), eq(prepChecklistItems.clubId, clubId)));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async rolloverPrepChecklistItems(fromDate: string, toDate: string, clubId: string): Promise<number> {
+    // Find all pending items for fromDate
+    const pendingItems = await db
+      .select()
+      .from(prepChecklistItems)
+      .where(and(
+        eq(prepChecklistItems.targetDate, fromDate),
+        eq(prepChecklistItems.clubId, clubId),
+        eq(prepChecklistItems.status, "pending")
+      ));
+
+    // Roll each item forward to toDate
+    for (const item of pendingItems) {
+      await db
+        .update(prepChecklistItems)
+        .set({
+          targetDate: toDate,
+          rolledOverCount: (item.rolledOverCount || 0) + 1,
+        })
+        .where(eq(prepChecklistItems.id, item.id));
+    }
+
+    return pendingItems.length;
   }
 }
 
