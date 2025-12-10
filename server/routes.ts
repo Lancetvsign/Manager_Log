@@ -799,6 +799,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
+   * PATCH /api/notifications/lists/:id
+   * Update an existing notification list
+   */
+  app.patch("/api/notifications/lists/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    const { name, description, isDefault, clubId } = req.body as {
+      name?: string;
+      description?: string;
+      isDefault?: boolean;
+      clubId: string;
+    };
+
+    if (!clubId) {
+      return res.status(400).json({ error: "clubId required" });
+    }
+
+    // If setting as default, clear existing defaults for this club
+    if (isDefault) {
+      await db
+        .update(notificationLists)
+        .set({ isDefault: false })
+        .where(eq(notificationLists.clubId, clubId));
+    }
+
+    const [updated] = await db
+      .update(notificationLists)
+      .set({
+        ...(name ? { name } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(isDefault !== undefined ? { isDefault } : {}),
+      })
+      .where(
+        and(
+          eq(notificationLists.id, id),
+          eq(notificationLists.clubId, clubId)
+        )
+      )
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: "List not found" });
+    }
+
+    res.json(updated);
+  });
+
+  /**
    * GET /api/logs/:logId/notifications
    * Get notification history for a manager log
    * Returns: Array of recent notifications for this log
