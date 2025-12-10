@@ -25,6 +25,7 @@ import { storage } from "./storage";
 import { insertManagerLogSchema, insertMaintenanceItemSchema } from "@shared/schema";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
 import { sendLogNotificationEmail, isEmailConfigured } from "./email";
+import { getMockNotificationLists } from "./notificationLists";
 import { z } from "zod";
 
 // Default clubId for backwards compatibility when not provided
@@ -668,59 +669,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/notifications/status", (_req, res) => {
     res.json({ configured: isEmailConfigured() });
   });
-
-  // Shared mock notification lists for development
-  // In production, Social Club Pro would provide this data
-  interface NotificationRecipient {
-    id: number;
-    name: string;
-    email: string;
-  }
-  interface NotificationList {
-    id: number;
-    clubId: string;
-    name: string;
-    description: string;
-    isDefault: boolean;
-    recipients: NotificationRecipient[];
-  }
-  
-  function getMockNotificationLists(clubId: string): NotificationList[] {
-    return [
-      {
-        id: 1,
-        clubId,
-        name: "Core Team",
-        description: "Key staff and managers",
-        isDefault: true,
-        recipients: [
-          { id: 1, name: "Manager", email: "manager@example.com" },
-          { id: 2, name: "Assistant Manager", email: "assistant@example.com" }
-        ]
-      },
-      {
-        id: 2,
-        clubId,
-        name: "Kitchen Staff",
-        description: "Kitchen and food service team",
-        isDefault: false,
-        recipients: [
-          { id: 3, name: "Head Chef", email: "chef@example.com" },
-          { id: 4, name: "Line Cook", email: "cook@example.com" }
-        ]
-      },
-      {
-        id: 3,
-        clubId,
-        name: "Ownership",
-        description: "Club owners and stakeholders",
-        isDefault: false,
-        recipients: [
-          { id: 5, name: "Owner", email: "owner@example.com" }
-        ]
-      }
-    ];
-  }
 
   /**
    * GET /api/notifications/lists
