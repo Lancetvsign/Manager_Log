@@ -3,8 +3,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Trash2, Plus, Mail, Users } from "lucide-react";
 import { useManagerLog } from "@/contexts/ManagerLogContext";
+
+const ROLE_OPTIONS = [
+  { value: "none", label: "None" },
+  { value: "core_team", label: "Core Team" },
+  { value: "maintenance", label: "Maintenance" },
+  { value: "ownership", label: "Ownership" },
+  { value: "kitchen_staff", label: "Kitchen Staff" },
+  { value: "custom", label: "Custom" },
+];
 
 interface NotificationList {
   id: number;
@@ -12,6 +28,7 @@ interface NotificationList {
   name: string;
   description?: string | null;
   isDefault: boolean;
+  roleKey?: string | null;
   recipientCount: number;
 }
 
@@ -77,6 +94,15 @@ export default function NotificationSettingsPage() {
     await loadLists();
   }
 
+  async function handleRoleChange(listId: number, roleKey: string | null) {
+    await fetch(`${apiBaseUrl}/api/notifications/lists/${listId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clubId, roleKey }),
+    });
+    await loadLists();
+  }
+
   async function handleAddRecipient() {
     if (!selectedListId || !newRecipientEmail.trim()) return;
     await fetch(`${apiBaseUrl}/api/notifications/lists/${selectedListId}/recipients`, {
@@ -123,34 +149,57 @@ export default function NotificationSettingsPage() {
               {lists.map((list) => (
                 <div
                   key={list.id}
-                  className={`px-3 py-3 cursor-pointer flex justify-between items-center transition-colors ${
+                  className={`px-3 py-3 cursor-pointer transition-colors ${
                     list.id === selectedListId ? "bg-muted" : "hover:bg-muted/50"
                   }`}
                   onClick={() => setSelectedListId(list.id)}
                   data-testid={`list-item-${list.id}`}
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium flex items-center gap-2">
-                      {list.name}
-                      {list.isDefault && (
-                        <Badge variant="secondary" className="text-xs">Default</Badge>
-                      )}
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium flex items-center gap-2 flex-wrap">
+                        {list.name}
+                        {list.isDefault && (
+                          <Badge variant="secondary" className="text-xs">Default</Badge>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {list.description || "No description"} · {list.recipientCount} recipients
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {list.description || "No description"} · {list.recipientCount} recipients
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteList(list.id);
+                      }}
+                      data-testid={`button-delete-list-${list.id}`}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteList(list.id);
-                    }}
-                    data-testid={`button-delete-list-${list.id}`}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-xs text-muted-foreground">Role:</span>
+                    <Select
+                      value={list.roleKey || "none"}
+                      onValueChange={(val) => handleRoleChange(list.id, val === "none" ? null : val)}
+                    >
+                      <SelectTrigger
+                        className="h-7 w-32 text-xs"
+                        data-testid={`select-role-${list.id}`}
+                      >
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               ))}
               {lists.length === 0 && (

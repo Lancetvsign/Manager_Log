@@ -749,6 +749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: notificationLists.name,
         description: notificationLists.description,
         isDefault: notificationLists.isDefault,
+        roleKey: notificationLists.roleKey,
         recipientCount: count(notificationRecipients.id),
       })
       .from(notificationLists)
@@ -767,11 +768,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * Create a new notification list for a club
    */
   app.post("/api/notifications/lists", async (req, res) => {
-    const { clubId, name, description, isDefault } = req.body as {
+    const { clubId, name, description, isDefault, roleKey } = req.body as {
       clubId?: string;
       name?: string;
       description?: string;
       isDefault?: boolean;
+      roleKey?: string;
     };
 
     if (!clubId || !name) {
@@ -793,6 +795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name,
         description: description ?? null,
         isDefault: !!isDefault,
+        roleKey: roleKey ?? null,
       })
       .returning();
 
@@ -805,11 +808,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.patch("/api/notifications/lists/:id", async (req, res) => {
     const id = Number(req.params.id);
-    const { name, description, isDefault, clubId } = req.body as {
+    const { name, description, isDefault, clubId, roleKey } = req.body as {
       name?: string;
       description?: string;
       isDefault?: boolean;
       clubId: string;
+      roleKey?: string | null;
     };
 
     if (!clubId) {
@@ -830,6 +834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...(name ? { name } : {}),
         ...(description !== undefined ? { description } : {}),
         ...(isDefault !== undefined ? { isDefault } : {}),
+        ...(roleKey !== undefined ? { roleKey } : {}),
       })
       .where(
         and(

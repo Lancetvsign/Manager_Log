@@ -150,6 +150,7 @@ export const notificationLogs = pgTable("notification_logs", {
  * - name: Display name for the list (e.g., "Core Team", "Maintenance Staff")
  * - description: Optional description of the list's purpose
  * - isDefault: Whether this list is auto-selected for new notifications
+ * - roleKey: Optional role assignment for automation targeting (core_team, maintenance, ownership, kitchen_staff, custom)
  */
 export const notificationLists = pgTable("notification_lists", {
   id: serial("id").primaryKey(),
@@ -157,6 +158,7 @@ export const notificationLists = pgTable("notification_lists", {
   name: varchar("name", { length: 120 }).notNull(),
   description: text("description"),
   isDefault: boolean("is_default").notNull().default(false),
+  roleKey: varchar("role_key", { length: 32 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
