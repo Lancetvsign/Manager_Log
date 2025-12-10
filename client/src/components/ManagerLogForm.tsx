@@ -701,35 +701,34 @@ Details:
       {/* Top stats row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Weather (Today vs Last Year) */}
-        <Card data-testid="card-weather">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Weather</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingWeather ? (
-              <div className="text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
-                Loading weather...
-              </div>
-            ) : (
-              <div className="text-sm space-y-1">
-                {weatherData.current && (
-                  <div data-testid="weather-current">
-                    Today: {weatherData.current.temperature}°F • {weatherData.current.condition} • {weatherData.current.humidity}% • {weatherData.current.windSpeed} mph
-                  </div>
-                )}
-                {weatherData.historical && (
-                  <div className="text-muted-foreground" data-testid="weather-historical">
-                    Last Year: {weatherData.historical.temperature}°F • {weatherData.historical.condition}
-                    {weatherData.historicalFallbackNote && (
-                      <span className="text-amber-600 dark:text-amber-400 ml-2">(fallback)</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div 
+          className="rounded-lg border bg-card p-3 text-sm flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+          data-testid="card-weather"
+        >
+          <div className="font-medium">Weather</div>
+          {isLoadingWeather ? (
+            <div className="text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
+              Loading...
+            </div>
+          ) : (
+            <div className="space-y-1 md:text-right text-muted-foreground">
+              {weatherData.current && (
+                <div data-testid="weather-current">
+                  Today: {weatherData.current.temperature}°F • {weatherData.current.condition} • {weatherData.current.humidity}% • {weatherData.current.windSpeed} mph
+                </div>
+              )}
+              {weatherData.historical && (
+                <div className="text-muted-foreground/70" data-testid="weather-historical">
+                  Last Year: {weatherData.historical.temperature}°F • {weatherData.historical.condition}
+                  {weatherData.historicalFallbackNote && (
+                    <span className="text-amber-600 dark:text-amber-400 ml-2">(fallback)</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Right side card - placeholder for now */}
         <Card data-testid="card-placeholder">
