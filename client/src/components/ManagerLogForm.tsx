@@ -804,7 +804,7 @@ Details:
             value={dailyNotes}
             onChange={(e) => setDailyNotes(e.target.value)}
             placeholder="Enter daily observations, incidents, staff notes, or any other important information..."
-            className="min-h-32"
+            className="min-h-24"
             data-testid="textarea-daily-notes"
           />
         </CardContent>
