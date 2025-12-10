@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Zap, Settings, ChevronDown, ChevronUp } from "lucide-react";
@@ -39,7 +44,7 @@ type AutomationPreset = {
   title: string;
   description: string;
   defaultAutoSend: boolean;
-  defaultListName: string;
+  suggestedListName: string | null;
   buildRule: (clubId: string, extra?: { threshold?: number; targetListIds?: number[] }) => Omit<EscalationRule, "id">;
 };
 
@@ -47,12 +52,12 @@ const AUTOMATION_PRESETS: AutomationPreset[] = [
   {
     key: "maintenance_alert",
     title: "Maintenance Alerts",
-    description: "When Maintenance issue is selected, notify Maintenance list.",
+    description: "When Maintenance issue is selected, notify selected list.",
     defaultAutoSend: true,
-    defaultListName: "Maintenance",
+    suggestedListName: "Maintenance",
     buildRule: (clubId, extra) => ({
       clubId,
-      name: "Maintenance issue → Maintenance team",
+      name: "Maintenance issue → Selected list",
       triggerType: "reason",
       triggerReason: "maintenance",
       autoSend: true,
@@ -64,12 +69,12 @@ const AUTOMATION_PRESETS: AutomationPreset[] = [
   {
     key: "behavior_alert",
     title: "Behavior Incident Alerts",
-    description: "When Employee behavior is selected, notify Core Team + Ownership.",
+    description: "When Employee behavior is selected, notify selected list.",
     defaultAutoSend: true,
-    defaultListName: "Core Team",
+    suggestedListName: "Core Team",
     buildRule: (clubId, extra) => ({
       clubId,
-      name: "Behavior incident → Core + Ownership",
+      name: "Behavior incident → Selected list",
       triggerType: "reason",
       triggerReason: "behavior",
       autoSend: true,
@@ -81,9 +86,9 @@ const AUTOMATION_PRESETS: AutomationPreset[] = [
   {
     key: "sales_drop_warning",
     title: "Sales Drop Warning",
-    description: "Alert GM when today's total sales drop more than X% vs last week.",
+    description: "Alert when today's total sales drop more than X% vs last week.",
     defaultAutoSend: false,
-    defaultListName: "Core Team",
+    suggestedListName: "Core Team",
     buildRule: (clubId, extra) => ({
       clubId,
       name: `Sales drop warning (> ${extra?.threshold ?? 15}% vs last week)`,
@@ -99,12 +104,12 @@ const AUTOMATION_PRESETS: AutomationPreset[] = [
   {
     key: "gaming_outage",
     title: "Gaming Outage Alert",
-    description: "When a gaming outage is logged, notify the gaming technician list.",
+    description: "When a gaming outage is logged, notify selected list.",
     defaultAutoSend: true,
-    defaultListName: "Core Team",
+    suggestedListName: null,
     buildRule: (clubId, extra) => ({
       clubId,
-      name: "Gaming outage → Technician",
+      name: "Gaming outage → Selected list",
       triggerType: "flag",
       flagKey: "gaming_outage",
       autoSend: true,
@@ -129,6 +134,12 @@ export default function EscalationRulesModal({
   const { toast } = useToast();
   const [salesDropThreshold, setSalesDropThreshold] = useState(15);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [selectedLists, setSelectedLists] = useState<Record<AutomationPresetKey, number | null>>({
+    maintenance_alert: null,
+    behavior_alert: null,
+    sales_drop_warning: null,
+    gaming_outage: null,
+  });
 
   const { data: rules = [], isLoading: loadingRules } = useQuery<EscalationRule[]>({
     queryKey: ["/api/escalation-rules", clubId],
@@ -148,7 +159,6 @@ export default function EscalationRulesModal({
     },
   });
 
-  // Hydrate threshold from existing rule
   useEffect(() => {
     const salesRule = rules.find((r) => r.presetKey === "sales_drop_warning");
     if (salesRule?.metricThreshold != null) {
@@ -157,24 +167,59 @@ export default function EscalationRulesModal({
         setSalesDropThreshold(threshold);
       }
     }
-  }, [rules]);
+
+    const newSelectedLists: Record<AutomationPresetKey, number | null> = {
+      maintenance_alert: null,
+      behavior_alert: null,
+      sales_drop_warning: null,
+      gaming_outage: null,
+    };
+    for (const preset of AUTOMATION_PRESETS) {
+      const rule = rules.find((r) => r.presetKey === preset.key);
+      if (rule?.targetListIds && rule.targetListIds.length > 0) {
+        newSelectedLists[preset.key] = rule.targetListIds[0];
+      } else if (preset.suggestedListName) {
+        const suggested = lists.find((l) => l.name === preset.suggestedListName);
+        if (suggested) {
+          newSelectedLists[preset.key] = suggested.id;
+        }
+      }
+      if (newSelectedLists[preset.key] === null && lists.length > 0) {
+        newSelectedLists[preset.key] = lists[0].id;
+      }
+    }
+    setSelectedLists(newSelectedLists);
+  }, [rules, lists]);
 
   function getPresetRule(presetKey: AutomationPresetKey) {
     return rules.find((r) => r.presetKey === presetKey);
   }
 
-  function getDefaultTargetListIds(preset: AutomationPreset): number[] {
-    const targetList = lists.find((l) => l.name === preset.defaultListName);
-    return targetList ? [targetList.id] : lists.length > 0 ? [lists[0].id] : [];
-  }
+  const updateListMutation = useMutation({
+    mutationFn: async ({ preset, listId }: { preset: AutomationPreset; listId: number }) => {
+      const existing = getPresetRule(preset.key);
+      if (existing) {
+        return apiRequest("PATCH", `/api/escalation-rules/${existing.id}`, {
+          targetListIds: [listId],
+        });
+      }
+      return null;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/escalation-rules", clubId] });
+      onRulesChanged?.();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update list.", variant: "destructive" });
+    },
+  });
 
   const enablePresetMutation = useMutation({
-    mutationFn: async ({ preset }: { preset: AutomationPreset }) => {
+    mutationFn: async ({ preset, listId }: { preset: AutomationPreset; listId: number }) => {
       const existing = getPresetRule(preset.key);
-      const targetListIds = getDefaultTargetListIds(preset);
       const body = preset.buildRule(clubId, {
         threshold: preset.key === "sales_drop_warning" ? salesDropThreshold : undefined,
-        targetListIds,
+        targetListIds: [listId],
       });
 
       if (existing) {
@@ -223,6 +268,27 @@ export default function EscalationRulesModal({
 
   const customRules = rules.filter((r) => !r.presetKey);
 
+  function handleListChange(preset: AutomationPreset, listId: number) {
+    setSelectedLists((prev) => ({ ...prev, [preset.key]: listId }));
+    const rule = getPresetRule(preset.key);
+    if (rule?.enabled) {
+      updateListMutation.mutate({ preset, listId });
+    }
+  }
+
+  function handleToggle(preset: AutomationPreset, enabled: boolean) {
+    const listId = selectedLists[preset.key];
+    if (enabled) {
+      if (!listId) {
+        toast({ title: "Select a list", description: "Please select a notification list first.", variant: "destructive" });
+        return;
+      }
+      enablePresetMutation.mutate({ preset, listId });
+    } else {
+      disablePresetMutation.mutate({ preset });
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-background rounded-xl shadow-xl max-w-xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
@@ -243,7 +309,7 @@ export default function EscalationRulesModal({
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <p className="text-sm text-muted-foreground">
-            Turn on automations that help your team respond faster. You can still add custom rules below.
+            Turn on automations that help your team respond faster. Select which list to notify for each automation.
           </p>
 
           {loadingRules ? (
@@ -253,74 +319,92 @@ export default function EscalationRulesModal({
               {AUTOMATION_PRESETS.map((preset) => {
                 const rule = getPresetRule(preset.key);
                 const active = !!rule?.enabled;
+                const currentListId = selectedLists[preset.key];
 
                 return (
                   <div
                     key={preset.key}
-                    className="flex justify-between items-start p-3 gap-3"
+                    className="p-3 space-y-2"
                     data-testid={`preset-${preset.key}`}
                   >
-                    <div className="flex-1">
-                      <div className="font-medium text-sm flex items-center gap-2">
-                        {preset.title}
-                        {rule && (
-                          <Badge variant="outline" className="text-xs">
-                            {rule.autoSend ? "Auto-send" : "Manual"}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {preset.description}
-                      </div>
-
-                      {preset.key === "sales_drop_warning" && (
-                        <div className="flex items-center gap-2 mt-2 text-xs">
-                          <span>Warn if sales drop more than</span>
-                          <Input
-                            type="number"
-                            min={5}
-                            max={100}
-                            step={1}
-                            value={salesDropThreshold}
-                            onChange={(e) => setSalesDropThreshold(Number(e.target.value || 0))}
-                            className="h-7 w-16 text-xs"
-                            data-testid="input-sales-threshold"
-                          />
-                          <span>% vs last week</span>
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="flex-1">
+                        <div className="font-medium text-sm flex items-center gap-2">
+                          {preset.title}
                           {rule && (
-                            <button
-                              type="button"
-                              className="text-xs text-emerald-600 hover:underline ml-1"
-                              onClick={() => enablePresetMutation.mutate({ preset })}
-                            >
-                              Save
-                            </button>
+                            <Badge variant="outline" className="text-xs">
+                              {rule.autoSend ? "Auto-send" : "Manual"}
+                            </Badge>
                           )}
                         </div>
-                      )}
-
-                      {rule && active && rule.targetLists && rule.targetLists.length > 0 && (
-                        <div className="text-xs text-emerald-600 mt-1">
-                          → {rule.targetLists.join(", ")}
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {preset.description}
                         </div>
-                      )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={active}
+                          disabled={lists.length === 0}
+                          onCheckedChange={(checked) => handleToggle(preset, checked)}
+                          data-testid={`switch-preset-${preset.key}`}
+                        />
+                        <span className="text-xs text-muted-foreground w-6">
+                          {active ? "On" : "Off"}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={active}
-                        disabled={lists.length === 0}
-                        onCheckedChange={(checked) =>
-                          checked
-                            ? enablePresetMutation.mutate({ preset })
-                            : disablePresetMutation.mutate({ preset })
-                        }
-                        data-testid={`switch-preset-${preset.key}`}
-                      />
-                      <span className="text-xs text-muted-foreground w-6">
-                        {active ? "On" : "Off"}
-                      </span>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">Notify:</span>
+                      <Select
+                        value={currentListId?.toString() || ""}
+                        onValueChange={(val) => handleListChange(preset, Number(val))}
+                      >
+                        <SelectTrigger
+                          className="h-7 w-40 text-xs"
+                          data-testid={`select-list-${preset.key}`}
+                        >
+                          <SelectValue placeholder="Select a list..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {lists.map((list) => (
+                            <SelectItem key={list.id} value={list.id.toString()}>
+                              {list.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
+
+                    {preset.key === "sales_drop_warning" && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">Warn if sales drop more than</span>
+                        <Input
+                          type="number"
+                          min={5}
+                          max={100}
+                          step={1}
+                          value={salesDropThreshold}
+                          onChange={(e) => setSalesDropThreshold(Number(e.target.value || 0))}
+                          className="h-7 w-16 text-xs"
+                          data-testid="input-sales-threshold"
+                        />
+                        <span className="text-muted-foreground">% vs last week</span>
+                        {rule && (
+                          <button
+                            type="button"
+                            className="text-xs text-emerald-600 hover:underline ml-1"
+                            onClick={() => {
+                              const listId = selectedLists[preset.key];
+                              if (listId) enablePresetMutation.mutate({ preset, listId });
+                            }}
+                          >
+                            Save
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

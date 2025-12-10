@@ -1,0 +1,244 @@
+2️⃣ Smart Automations modal – Gaming Outage uses a custom list
+2.1. Types and state
+
+At the top of your SmartAutomationsModal (or EscalationRulesModal) file, add a NotificationList type and some state for the gaming list selection:
+
+type NotificationList = {
+  id: number;
+  name: string;
+  roleKey: string | null;
+};
+
+const [notificationLists, setNotificationLists] = useState<NotificationList[]>([]);
+const [gamingListId, setGamingListId] = useState<number | null>(null);
+
+2.2. Load lists and hydrate gamingListId
+
+In useEffect, load both rules and lists and set gamingListId from the existing Gaming Outage rule if one already exists:
+
+useEffect(() => {
+  async function load() {
+    // load rules
+    setLoadingRules(true);
+    const rulesRes = await fetch(`/api/escalation-rules?clubId=${clubId}`);
+    const rulesData: EscalationRule[] = await rulesRes.json();
+    setRules(rulesData);
+
+    // load lists
+    const listsRes = await fetch(`/api/notification-lists?clubId=${clubId}`);
+    const listsData: NotificationList[] = await listsRes.json();
+    setNotificationLists(listsData);
+
+    // if a gaming outage rule already exists, hydrate the selected list
+    const gamingRule = rulesData.find(r => r.presetKey === "gaming_outage");
+    if (gamingRule && Array.isArray((gamingRule as any).targetListIds)) {
+      const firstId = (gamingRule as any).targetListIds[0];
+      if (firstId) setGamingListId(firstId);
+    }
+
+    setLoadingRules(false);
+  }
+
+  load();
+}, [clubId]);
+
+
+⚠ I used targetListIds as the property that stores list IDs on a rule – if your API uses a different name (e.g. listIds), just swap that in.
+
+2.3. Update the Gaming Outage preset definition
+
+In your AUTOMATION_PRESETS array, change the Gaming Outage preset from using a role to using targetListIds:
+
+{
+  key: "gaming_outage",
+  title: "Gaming Outage Alert",
+  description: "When a gaming outage is logged, notify a selected list.",
+  defaultAutoSend: true,
+  buildRule: (clubId, extra) => ({
+    clubId,
+    name: "Gaming outage → Custom list",
+    triggerType: "flag",
+    flagKey: "gaming_outage",
+    autoSend: true,
+    enabled: true,
+    presetKey: "gaming_outage",
+    targetListIds: extra?.targetListIds ?? [], // 👈 important
+  }),
+},
+
+2.4. Update enablePreset / disablePreset to pass the selected list for Gaming Outage
+
+Modify your enablePreset function so Gaming Outage uses gamingListId:
+
+async function enablePreset(preset: AutomationPreset) {
+  const existing = getPresetRule(preset.key);
+
+  // Build extra options
+  const extra: any = {};
+
+  if (preset.key === "sales_drop_warning") {
+    extra.threshold = salesDropThreshold;
+  }
+
+  if (preset.key === "gaming_outage") {
+    if (!gamingListId) {
+      alert("Please select a list to notify for Gaming Outage Alert.");
+      return;
+    }
+    extra.targetListIds = [gamingListId];
+  }
+
+  const body = preset.buildRule(clubId, extra);
+
+  if (existing) {
+    await fetch(`/api/escalation-rules/${existing.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...body, enabled: true }),
+    });
+  } else {
+    await fetch("/api/escalation-rules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  await loadRules();
+}
+
+
+disablePreset can stay the same (just disable the rule).
+
+2.5. Change the Gaming Outage row UI to use a dropdown
+
+In the Smart Automations JSX where you map AUTOMATION_PRESETS, update the part that renders the Gaming Outage Alert row.
+
+You probably have something like:
+
+{AUTOMATION_PRESETS.map((preset) => {
+  const rule = getPresetRule(preset.key);
+  const active = !!rule?.enabled;
+
+  return (
+    <div key={preset.key} className="list-group-item ...">
+      <div>
+        <div className="fw-semibold">{preset.title}</div>
+        <div className="small text-muted">{preset.description}</div>
+        {/* Sales drop input block here */}
+      </div>
+
+      <div className="form-check form-switch ...">
+        <input ... />
+      </div>
+    </div>
+  );
+})}
+
+
+Extend that with a special block when preset.key === "gaming_outage":
+
+{AUTOMATION_PRESETS.map((preset) => {
+  const rule = getPresetRule(preset.key);
+  const active = !!rule?.enabled;
+
+  const isGaming = preset.key === "gaming_outage";
+
+  return (
+    <div
+      key={preset.key}
+      className="list-group-item d-flex justify-content-between align-items-start"
+    >
+      <div>
+        <div className="fw-semibold">{preset.title}</div>
+        <div className="small text-muted">{preset.description}</div>
+
+        {/* Sales drop extra controls */}
+        {preset.key === "sales_drop_warning" && (
+          <div className="d-flex align-items-center gap-2 mt-2 small">
+            <span>Warn me if sales drop more than</span>
+            <input
+              type="number"
+              min={5}
+              max={100}
+              step={1}
+              value={salesDropThreshold}
+              onChange={(e) =>
+                setSalesDropThreshold(Number(e.target.value || 0))
+              }
+              className="form-control form-control-sm"
+              style={{ width: 80 }}
+            />
+            <span>% vs last week</span>
+            <button
+              type="button"
+              className="btn btn-link btn-sm p-0 ms-1"
+              onClick={() => rule && enablePreset(preset)}
+            >
+              Save
+            </button>
+          </div>
+        )}
+
+        {/* Gaming Outage list selector */}
+        {isGaming && (
+          <div className="mt-2 small">
+            <span className="me-2">Notify list:</span>
+            <select
+              className="form-select form-select-sm d-inline-block"
+              style={{ width: "auto", minWidth: 200 }}
+              value={gamingListId ?? ""}
+              onChange={(e) =>
+                setGamingListId(
+                  e.target.value ? Number(e.target.value) : null,
+                )
+              }
+            >
+              <option value="">Select a list…</option>
+              {notificationLists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+            {!gamingListId && (
+              <div className="text-warning mt-1">
+                ⚠ Select a list before turning this automation on.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="form-check form-switch ms-3">
+        <input
+          className="form-check-input"
+          type="checkbox"
+          id={`preset-${preset.key}`}
+          checked={active}
+          disabled={isGaming && !gamingListId} // <- can't enable without a list
+          onChange={(e) =>
+            e.target.checked ? enablePreset(preset) : disablePreset(preset)
+          }
+        />
+        <label
+          className="form-check-label small"
+          htmlFor={`preset-${preset.key}`}
+        >
+          {active ? "On" : "Off"}
+        </label>
+      </div>
+    </div>
+  );
+})}
+
+
+Now:
+
+The Gaming Outage Alert row shows
+
+“Notify list: [dropdown of all notification lists]”
+
+The toggle is disabled until a list is selected
+
+When enabled, the rule stores targetListIds: [chosenListId]
