@@ -846,6 +846,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
+   * DELETE /api/notifications/lists/:id
+   * Delete a notification list (cascades to recipients)
+   */
+  app.delete("/api/notifications/lists/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    await db
+      .delete(notificationLists)
+      .where(eq(notificationLists.id, id));
+    res.json({ success: true });
+  });
+
+  /**
    * GET /api/logs/:logId/notifications
    * Get notification history for a manager log
    * Returns: Array of recent notifications for this log
