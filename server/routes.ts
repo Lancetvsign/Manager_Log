@@ -22,7 +22,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertManagerLogSchema, insertMaintenanceItemSchema } from "@shared/schema";
+import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs } from "@shared/schema";
+import { db } from "./db";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
 import { sendLogNotificationEmail, isEmailConfigured } from "./email";
 import { getMockNotificationLists } from "./notificationLists";
@@ -756,6 +757,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const emailSubject = subject || `Urgent issue - ${reason}`;
 
       const smtpConfigured = isEmailConfigured();
+
+      // Record notification in database (audit trail)
+      await db.insert(notificationLogs).values({
+        logId,
+        clubId,
+        reason,
+        subject: emailSubject,
+        message: message || '',
+        listIds,
+        recipients,
+        simulated: !smtpConfigured,
+      });
 
       if (smtpConfigured) {
         // Real send

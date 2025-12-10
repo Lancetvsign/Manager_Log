@@ -11,7 +11,7 @@
  */
 
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, numeric, date, timestamp, serial, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, numeric, date, timestamp, serial, integer, boolean, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -107,6 +107,37 @@ export const maintenanceItems = pgTable("maintenance_items", {
 });
 
 /**
+ * NOTIFICATION_LOGS TABLE
+ * -----------------------
+ * Stores a history of notification emails sent for manager logs.
+ * Tracks both real sends and simulated sends (when SMTP not configured).
+ * 
+ * Fields:
+ * - id: Auto-incrementing primary key
+ * - logId: Foreign key linking to the parent ManagerLog
+ * - clubId: Club identifier for data isolation
+ * - reason: Type of notification (Maintenance, Behavior, Other)
+ * - subject: Email subject line
+ * - message: Custom message included in the email
+ * - listIds: JSON array of notification list IDs that were selected
+ * - recipients: JSON array of email addresses that received the notification
+ * - simulated: Whether the email was simulated (SMTP not configured) or actually sent
+ * - createdAt: When the notification was sent
+ */
+export const notificationLogs = pgTable("notification_logs", {
+  id: serial("id").primaryKey(),
+  logId: integer("log_id").references(() => managerLogs.id, { onDelete: "cascade" }).notNull(),
+  clubId: text("club_id").notNull(),
+  reason: text("reason").notNull(),
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  listIds: jsonb("list_ids").notNull().$type<number[]>(),
+  recipients: jsonb("recipients").notNull().$type<string[]>(),
+  simulated: boolean("simulated").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+/**
  * TABLE RELATIONSHIPS
  * -------------------
  * Defines the one-to-many relationship between ManagerLogs and MaintenanceItems.
@@ -115,11 +146,19 @@ export const maintenanceItems = pgTable("maintenance_items", {
  */
 export const managerLogsRelations = relations(managerLogs, ({ many }) => ({
   maintenanceItems: many(maintenanceItems),
+  notificationLogs: many(notificationLogs),
 }));
 
 export const maintenanceItemsRelations = relations(maintenanceItems, ({ one }) => ({
   managerLog: one(managerLogs, {
     fields: [maintenanceItems.managerLogId],
+    references: [managerLogs.id],
+  }),
+}));
+
+export const notificationLogsRelations = relations(notificationLogs, ({ one }) => ({
+  managerLog: one(managerLogs, {
+    fields: [notificationLogs.logId],
     references: [managerLogs.id],
   }),
 }));
@@ -163,6 +202,15 @@ export const insertMaintenanceItemSchema = createInsertSchema(maintenanceItems).
   status: z.enum(["open", "completed"]).default("open"),
 });
 
+// NotificationLog insert schema
+export const insertNotificationLogSchema = createInsertSchema(notificationLogs).omit({
+  id: true,        // Auto-generated
+  createdAt: true, // Auto-generated
+}).extend({
+  listIds: z.array(z.number()),
+  recipients: z.array(z.string().email()),
+});
+
 /**
  * TYPESCRIPT TYPE EXPORTS
  * -----------------------
@@ -176,6 +224,8 @@ export type InsertManagerLog = z.infer<typeof insertManagerLogSchema>;
 export type ManagerLog = typeof managerLogs.$inferSelect;
 export type InsertMaintenanceItem = z.infer<typeof insertMaintenanceItemSchema>;
 export type MaintenanceItem = typeof maintenanceItems.$inferSelect;
+export type InsertNotificationLog = z.infer<typeof insertNotificationLogSchema>;
+export type NotificationLog = typeof notificationLogs.$inferSelect;
 
 /**
  * Extended type for maintenance items with their related log data

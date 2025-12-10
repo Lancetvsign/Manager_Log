@@ -86,18 +86,43 @@ In production, notification lists are managed by Social Club Pro. For developmen
 - Recipients have `id`, `name`, `email`
 
 ### UI Behavior
-- When SMTP is configured, an "Email Notification" card appears in the form
-- Toggle switch to enable/disable sending notifications on save
-- Notification lists displayed as selectable cards with recipient counts
-- Reason selector (FYI, Urgent, Action Required, Follow Up, Good News)
-- Optional custom message field
-- Professional HTML email template includes custom message, sales data, weather, and notes
+- "Notify Core Team" card appears when editing an existing log entry
+- Radio buttons for reason (Maintenance, Behavior, Other)
+- Multi-select listbox for notification lists with Ctrl/Cmd support for multiple selection
+- Auto-populated subject and message based on log data
+- Dedicated "Send Urgent Email" button (red/destructive style)
+- Works in simulation mode when SMTP not configured - logs to console and shows "(simulated)" feedback
+- Professional HTML email template includes reason, date, manager, sales, custom message, and log link
+
+### Database Schema
+The `notification_logs` table stores an audit trail of all notifications:
+- `id`: Auto-incrementing primary key
+- `log_id`: Foreign key to manager_logs
+- `club_id`: Club identifier for data isolation
+- `reason`: Notification type (Maintenance, Behavior, Other)
+- `subject`: Email subject line
+- `message`: Custom message content
+- `list_ids`: JSON array of notification list IDs
+- `recipients`: JSON array of email addresses
+- `simulated`: Boolean indicating if email was simulated or actually sent
+- `created_at`: Timestamp when notification was sent
 
 ## Recent Changes
+
+### December 10, 2025 - Notification Audit Trail
+- Added `notification_logs` table to database for audit trail
+- All notifications (real and simulated) are now recorded in the database
+- Updated notification endpoint to save to database before sending
+
+### December 10, 2025 - Notification UI Improvements
+- Removed SMTP check for showing notification section - now always visible on existing logs
+- Added simulation mode when SMTP not configured
+- UI feedback shows "(simulated - SMTP not configured)" when simulating
+- Fixed notification lists query to always fetch (not gated by SMTP status)
 
 ### December 9, 2025 - Notification List Integration
 - Integrated with Social Club Pro's notification list architecture
 - API endpoints for fetching notification lists and sending with list IDs
-- UI updated to show notification lists with checkboxes instead of manual email entry
+- UI updated to match Bootstrap pattern with radio buttons and multi-select
 - Added reason selector and optional custom message fields
 - Email template includes custom message section at top
