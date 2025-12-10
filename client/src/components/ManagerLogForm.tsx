@@ -752,7 +752,7 @@ Details:
                 data-testid="input-manager-name"
               />
             </div>
-            <p className="text-xs text-muted-foreground">Choose your role and type your name. Each manager can fill this out separately.</p>
+            <p className="text-xs text-muted-foreground">name</p>
           </div>
 
           {/* Weather - inline under the date row */}
