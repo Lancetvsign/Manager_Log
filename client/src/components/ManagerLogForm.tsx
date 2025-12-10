@@ -56,10 +56,12 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   
   // Email notification state
   const [sendNotification, setSendNotification] = useState(false);
-  const [selectedListIds, setSelectedListIds] = useState<number[]>([]);
-  const [notificationReason, setNotificationReason] = useState("FYI");
-  const [notificationMessage, setNotificationMessage] = useState("");
-  const [isSendingNotification, setIsSendingNotification] = useState(false);
+  const [notifyReason, setNotifyReason] = useState<"Maintenance" | "Behavior" | "Other">("Maintenance");
+  const [notifyListIds, setNotifyListIds] = useState<number[]>([]);
+  const [notifySubject, setNotifySubject] = useState("");
+  const [notifyMessage, setNotifyMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [sendResult, setSendResult] = useState<string | null>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -126,26 +128,58 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
 
   // Notification list selection toggle
   const handleToggleList = (listId: number) => {
-    setSelectedListIds(prev => 
+    setNotifyListIds(prev => 
       prev.includes(listId) 
         ? prev.filter(id => id !== listId)
         : [...prev, listId]
     );
   };
 
+  // Initialize default notification lists when data loads
+  useEffect(() => {
+    if (notificationLists && notificationLists.length > 0 && notifyListIds.length === 0) {
+      // Select default lists automatically
+      const defaultListIds = notificationLists
+        .filter(list => list.isDefault)
+        .map(list => list.id);
+      if (defaultListIds.length > 0) {
+        setNotifyListIds(defaultListIds);
+      }
+    }
+  }, [notificationLists]);
+
+  // Update default subject and message when form data changes
+  useEffect(() => {
+    if (sendNotification) {
+      const formattedDate = format(date, 'MMMM d, yyyy');
+      setNotifySubject(`[Club] ${formattedDate} - Urgent ${notifyReason.toLowerCase()}`);
+      setNotifyMessage(`Date: ${formattedDate}
+Manager: ${managerName || 'Not specified'}
+
+Summary:
+- Sales notes: ${salesNotes || 'N/A'}
+- Daily notes: ${dailyNotes || 'N/A'}
+
+Details:
+[Add any extra details here...]`);
+    }
+  }, [sendNotification, date, managerName, salesNotes, dailyNotes, notifyReason]);
+
   // Send notification after log is saved
   const sendNotificationEmail = async (logId: number) => {
-    if (!sendNotification || selectedListIds.length === 0) return;
+    if (!sendNotification || notifyListIds.length === 0) return;
     
-    setIsSendingNotification(true);
+    setIsSending(true);
+    setSendResult(null);
     try {
       const response = await fetch(`${apiBaseUrl}/api/logs/${logId}/notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          reason: notificationReason,
-          listIds: selectedListIds,
-          message: notificationMessage || undefined,
+          reason: notifyReason,
+          listIds: notifyListIds,
+          subject: notifySubject,
+          message: notifyMessage,
           clubId,
         }),
       });
@@ -153,15 +187,15 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       const result = await response.json();
       
       if (result.success) {
+        setSendResult(`Sent to ${result.sentTo} recipient(s)`);
         toast({
           title: "Notification Sent",
           description: `Sent to ${result.sentTo} recipient(s)`,
         });
         // Reset notification state after sending
         setSendNotification(false);
-        setSelectedListIds([]);
-        setNotificationMessage("");
       } else {
+        setSendResult(`Error: ${result.error}`);
         toast({
           title: "Notification Failed",
           description: result.error || "Failed to send notification.",
@@ -169,13 +203,14 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         });
       }
     } catch (error) {
+      setSendResult("Error: Failed to send notification");
       toast({
         title: "Notification Error",
         description: "Failed to send notification email.",
         variant: "destructive"
       });
     } finally {
-      setIsSendingNotification(false);
+      setIsSending(false);
     }
   };
 
@@ -313,7 +348,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       setExistingLogId(data.id);
       
       // Send notification if enabled
-      if (sendNotification && selectedListIds.length > 0) {
+      if (sendNotification && notifyListIds.length > 0) {
         await sendNotificationEmail(data.id);
       }
       
@@ -855,18 +890,31 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
                 {/* Reason Selector */}
                 <div className="space-y-2">
                   <Label htmlFor="notification-reason">Reason</Label>
-                  <Select value={notificationReason} onValueChange={setNotificationReason}>
+                  <Select 
+                    value={notifyReason} 
+                    onValueChange={(value) => setNotifyReason(value as "Maintenance" | "Behavior" | "Other")}
+                  >
                     <SelectTrigger data-testid="select-notification-reason">
                       <SelectValue placeholder="Select reason" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="FYI">FYI</SelectItem>
-                      <SelectItem value="Urgent">Urgent</SelectItem>
-                      <SelectItem value="Action Required">Action Required</SelectItem>
-                      <SelectItem value="Follow Up">Follow Up</SelectItem>
-                      <SelectItem value="Good News">Good News</SelectItem>
+                      <SelectItem value="Maintenance">Maintenance</SelectItem>
+                      <SelectItem value="Behavior">Behavior</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Subject Line */}
+                <div className="space-y-2">
+                  <Label htmlFor="notification-subject">Subject</Label>
+                  <Input
+                    id="notification-subject"
+                    value={notifySubject}
+                    onChange={(e) => setNotifySubject(e.target.value)}
+                    placeholder="Email subject line"
+                    data-testid="input-notification-subject"
+                  />
                 </div>
 
                 {/* Notification Lists */}
@@ -878,7 +926,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
                         <div
                           key={list.id}
                           className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                            selectedListIds.includes(list.id)
+                            notifyListIds.includes(list.id)
                               ? 'border-primary bg-primary/5'
                               : 'border-border hover:border-primary/50'
                           }`}
@@ -888,11 +936,11 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-3">
                               <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                                selectedListIds.includes(list.id)
+                                notifyListIds.includes(list.id)
                                   ? 'bg-primary border-primary'
                                   : 'border-muted-foreground'
                               }`}>
-                                {selectedListIds.includes(list.id) && (
+                                {notifyListIds.includes(list.id) && (
                                   <CheckCircle className="h-3 w-3 text-primary-foreground" />
                                 )}
                               </div>
@@ -920,22 +968,28 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
                   )}
                 </div>
 
-                {/* Optional Message */}
+                {/* Message */}
                 <div className="space-y-2">
-                  <Label htmlFor="notification-message">Message (optional)</Label>
+                  <Label htmlFor="notification-message">Message</Label>
                   <Textarea
                     id="notification-message"
-                    value={notificationMessage}
-                    onChange={(e) => setNotificationMessage(e.target.value)}
-                    placeholder="Add an optional message to include with the notification..."
-                    className="min-h-[80px]"
+                    value={notifyMessage}
+                    onChange={(e) => setNotifyMessage(e.target.value)}
+                    placeholder="Add details to include with the notification..."
+                    className="min-h-[120px]"
                     data-testid="textarea-notification-message"
                   />
                 </div>
 
-                {selectedListIds.length === 0 && (
+                {notifyListIds.length === 0 && (
                   <p className="text-sm text-amber-600">
                     Please select at least one recipient list to send notifications.
+                  </p>
+                )}
+
+                {sendResult && (
+                  <p className={`text-sm ${sendResult.startsWith('Error') ? 'text-destructive' : 'text-green-600'}`}>
+                    {sendResult}
                   </p>
                 )}
               </div>
@@ -958,13 +1012,13 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         <Button 
           type="submit" 
           size="lg" 
-          disabled={isLoading || isSendingNotification}
+          disabled={isLoading || isSending}
           data-testid="button-submit"
         >
-          {saveLogMutation.isPending || isSendingNotification ? (
+          {saveLogMutation.isPending || isSending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {isSendingNotification ? "Sending Notification..." : "Saving..."}
+              {isSending ? "Sending Notification..." : "Saving..."}
             </>
           ) : (
             <>
