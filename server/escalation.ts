@@ -94,6 +94,9 @@ export async function applyEscalationRules(log: ManagerLogForEscalation) {
       `Daily notes: ${log.dailyNotes || "N/A"}`,
     ].join("\n");
 
+    // Determine if email will actually be sent
+    const willSendEmail = rule.autoSend && smtpConfigured;
+
     await db.insert(notificationLogs).values({
       logId: log.id,
       clubId: log.clubId,
@@ -102,11 +105,11 @@ export async function applyEscalationRules(log: ManagerLogForEscalation) {
       message,
       listIds,
       recipients: recipientEmails,
-      simulated: !smtpConfigured,
+      simulated: !willSendEmail, // true if email not actually sent
       autoTriggered: true,
     });
 
-    if (rule.autoSend && smtpConfigured) {
+    if (willSendEmail) {
       const logUrl = `${process.env.APP_BASE_URL ?? ""}/logs/${log.id}`;
       const htmlBody = `
         <p><strong>Reason:</strong> ${reasonText}</p>
