@@ -9,8 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, X } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail } from "lucide-react";
 import WeatherCard from "./WeatherCard";
 import SalesInput from "./SalesInput";
 import { useToast } from "@/hooks/use-toast";
@@ -55,7 +54,6 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const [newMaintenanceNotes, setNewMaintenanceNotes] = useState("");
   
   // Email notification state
-  const [sendNotification, setSendNotification] = useState(false);
   const [notifyReason, setNotifyReason] = useState<"Maintenance" | "Behavior" | "Other">("Maintenance");
   const [notifyListIds, setNotifyListIds] = useState<number[]>([]);
   const [notifySubject, setNotifySubject] = useState("");
@@ -148,10 +146,9 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
 
   // Update default subject and message when form data changes
   useEffect(() => {
-    if (sendNotification) {
-      const formattedDate = format(date, 'MMMM d, yyyy');
-      setNotifySubject(`[Club] ${formattedDate} - Urgent ${notifyReason.toLowerCase()}`);
-      setNotifyMessage(`Date: ${formattedDate}
+    const formattedDate = format(date, 'MMMM d, yyyy');
+    setNotifySubject(`[Club] ${formattedDate} - Urgent ${notifyReason.toLowerCase()}`);
+    setNotifyMessage(`Date: ${formattedDate}
 Manager: ${managerName || 'Not specified'}
 
 Summary:
@@ -160,12 +157,11 @@ Summary:
 
 Details:
 [Add any extra details here...]`);
-    }
-  }, [sendNotification, date, managerName, salesNotes, dailyNotes, notifyReason]);
+  }, [date, managerName, salesNotes, dailyNotes, notifyReason]);
 
-  // Send notification after log is saved
+  // Send notification email
   const sendNotificationEmail = async (logId: number) => {
-    if (!sendNotification || notifyListIds.length === 0) return;
+    if (notifyListIds.length === 0) return;
     
     setIsSending(true);
     setSendResult(null);
@@ -190,8 +186,6 @@ Details:
           title: "Notification Sent",
           description: `Sent to ${result.sentTo} recipient(s)`,
         });
-        // Reset notification state after sending
-        setSendNotification(false);
       } else {
         setSendResult(`Error: ${result.error}`);
         toast({
@@ -344,11 +338,6 @@ Details:
       queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', clubId] });
       queryClient.invalidateQueries({ queryKey: ['/api/manager-logs/by-date', dateString, clubId] });
       setExistingLogId(data.id);
-      
-      // Send notification if enabled
-      if (sendNotification && notifyListIds.length > 0) {
-        await sendNotificationEmail(data.id);
-      }
       
       onSubmit(data);
     },
@@ -859,140 +848,151 @@ Details:
         </CardContent>
       </Card>
 
-      {/* Email Notification Section */}
-      {isEmailConfigured && (
+      {/* Notify Core Team Section - Only show when log exists */}
+      {isEmailConfigured && existingLogId && (
         <Card>
           <CardHeader className="py-4">
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <Mail className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Email Notification</CardTitle>
+                <CardTitle className="text-lg">Notify Core Team</CardTitle>
               </div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="send-notification" className="text-sm text-muted-foreground">
-                  Send notification when saved
-                </Label>
-                <Switch
-                  id="send-notification"
-                  checked={sendNotification}
-                  onCheckedChange={setSendNotification}
-                  data-testid="switch-send-notification"
-                />
-              </div>
+              <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+                For urgent maintenance or behavior issues
+              </Badge>
             </div>
           </CardHeader>
           
-          {sendNotification && (
-            <CardContent className="pt-0">
-              <div className="space-y-4">
-                {/* Reason Selector */}
-                <div className="space-y-2">
-                  <Label htmlFor="notification-reason">Reason</Label>
-                  <Select 
-                    value={notifyReason} 
-                    onValueChange={(value) => setNotifyReason(value as "Maintenance" | "Behavior" | "Other")}
-                  >
-                    <SelectTrigger data-testid="select-notification-reason">
-                      <SelectValue placeholder="Select reason" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Maintenance">Maintenance</SelectItem>
-                      <SelectItem value="Behavior">Behavior</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+          <CardContent className="pt-0">
+            <div className="space-y-4">
+              {/* Reason - Radio buttons */}
+              <div className="space-y-2">
+                <Label>Reason</Label>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="notifyReason"
+                      value="Maintenance"
+                      checked={notifyReason === "Maintenance"}
+                      onChange={() => setNotifyReason("Maintenance")}
+                      className="w-4 h-4 text-primary"
+                      data-testid="radio-reason-maintenance"
+                    />
+                    <span className="text-sm">Maintenance issue</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="notifyReason"
+                      value="Behavior"
+                      checked={notifyReason === "Behavior"}
+                      onChange={() => setNotifyReason("Behavior")}
+                      className="w-4 h-4 text-primary"
+                      data-testid="radio-reason-behavior"
+                    />
+                    <span className="text-sm">Employee behavior</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="notifyReason"
+                      value="Other"
+                      checked={notifyReason === "Other"}
+                      onChange={() => setNotifyReason("Other")}
+                      className="w-4 h-4 text-primary"
+                      data-testid="radio-reason-other"
+                    />
+                    <span className="text-sm">Other urgent item</span>
+                  </label>
                 </div>
+              </div>
 
-                {/* Subject Line */}
-                <div className="space-y-2">
-                  <Label htmlFor="notification-subject">Subject</Label>
-                  <Input
-                    id="notification-subject"
-                    value={notifySubject}
-                    onChange={(e) => setNotifySubject(e.target.value)}
-                    placeholder="Email subject line"
-                    data-testid="input-notification-subject"
-                  />
-                </div>
+              {/* Send to - Multi-select */}
+              <div className="space-y-2">
+                <Label htmlFor="notify-lists">Send to</Label>
+                <select
+                  id="notify-lists"
+                  multiple
+                  value={notifyListIds.map(String)}
+                  onChange={(e) => {
+                    const values = Array.from(e.target.selectedOptions).map((o) =>
+                      Number(o.value)
+                    );
+                    setNotifyListIds(values);
+                  }}
+                  className="w-full min-h-[80px] p-2 border rounded-md bg-background"
+                  data-testid="select-notify-lists"
+                >
+                  {notificationLists?.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name} ({list.recipients.length} recipients)
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Hold Ctrl (Cmd on Mac) to select multiple groups.
+                </p>
+              </div>
 
-                {/* Notification Lists */}
-                <div className="space-y-2">
-                  <Label>Recipients</Label>
-                  {notificationLists && notificationLists.length > 0 ? (
-                    <div className="space-y-2">
-                      {notificationLists.map((list) => (
-                        <div
-                          key={list.id}
-                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                            notifyListIds.includes(list.id)
-                              ? 'border-primary bg-primary/5'
-                              : 'border-border hover:border-primary/50'
-                          }`}
-                          onClick={() => handleToggleList(list.id)}
-                          data-testid={`list-${list.id}`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                                notifyListIds.includes(list.id)
-                                  ? 'bg-primary border-primary'
-                                  : 'border-muted-foreground'
-                              }`}>
-                                {notifyListIds.includes(list.id) && (
-                                  <CheckCircle className="h-3 w-3 text-primary-foreground" />
-                                )}
-                              </div>
-                              <div>
-                                <div className="font-medium flex items-center gap-2">
-                                  {list.name}
-                                  {list.isDefault && (
-                                    <Badge variant="secondary" className="text-xs">Default</Badge>
-                                  )}
-                                </div>
-                                <p className="text-xs text-muted-foreground">{list.description}</p>
-                              </div>
-                            </div>
-                            <Badge variant="outline" className="text-xs">
-                              {list.recipients.length} recipient{list.recipients.length !== 1 ? 's' : ''}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+              {/* Subject */}
+              <div className="space-y-2">
+                <Label htmlFor="notification-subject">Email subject</Label>
+                <Input
+                  id="notification-subject"
+                  value={notifySubject}
+                  onChange={(e) => setNotifySubject(e.target.value)}
+                  placeholder="Email subject line"
+                  data-testid="input-notification-subject"
+                />
+              </div>
+
+              {/* Message */}
+              <div className="space-y-2">
+                <Label htmlFor="notification-message">Message</Label>
+                <Textarea
+                  id="notification-message"
+                  value={notifyMessage}
+                  onChange={(e) => setNotifyMessage(e.target.value)}
+                  placeholder="Add details to include with the notification..."
+                  className="min-h-[100px]"
+                  data-testid="textarea-notification-message"
+                />
+                <p className="text-xs text-muted-foreground">
+                  A link to this log entry will be included automatically.
+                </p>
+              </div>
+
+              {/* Send button + feedback */}
+              <div className="flex items-center gap-4">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={isSending || notifyListIds.length === 0}
+                  onClick={() => sendNotificationEmail(existingLogId)}
+                  data-testid="button-send-notification"
+                >
+                  {isSending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No notification lists available.
-                    </p>
+                    <>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Send Urgent Email
+                    </>
                   )}
-                </div>
-
-                {/* Message */}
-                <div className="space-y-2">
-                  <Label htmlFor="notification-message">Message</Label>
-                  <Textarea
-                    id="notification-message"
-                    value={notifyMessage}
-                    onChange={(e) => setNotifyMessage(e.target.value)}
-                    placeholder="Add details to include with the notification..."
-                    className="min-h-[120px]"
-                    data-testid="textarea-notification-message"
-                  />
-                </div>
-
-                {notifyListIds.length === 0 && (
-                  <p className="text-sm text-amber-600">
-                    Please select at least one recipient list to send notifications.
-                  </p>
-                )}
+                </Button>
 
                 {sendResult && (
-                  <p className={`text-sm ${sendResult.startsWith('Error') ? 'text-destructive' : 'text-green-600'}`}>
+                  <p className={`text-sm ${sendResult.includes('Error') ? 'text-destructive' : 'text-muted-foreground'}`}>
                     {sendResult}
                   </p>
                 )}
               </div>
-            </CardContent>
-          )}
+            </div>
+          </CardContent>
         </Card>
       )}
 
@@ -1010,13 +1010,13 @@ Details:
         <Button 
           type="submit" 
           size="lg" 
-          disabled={isLoading || isSending}
+          disabled={isLoading}
           data-testid="button-submit"
         >
-          {saveLogMutation.isPending || isSending ? (
+          {saveLogMutation.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {isSending ? "Sending Notification..." : "Saving..."}
+              Saving...
             </>
           ) : (
             <>
