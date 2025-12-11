@@ -24,9 +24,9 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
   const { data: items = [], isLoading } = useQuery<RunningMaintenanceItem[]>({
     queryKey: ["/api/running-maintenance", clubId, showCompleted ? "all" : "open"],
     queryFn: async () => {
-      const statusParam = showCompleted ? "" : "&status=open";
+      const additionalParams = showCompleted ? {} : { status: "open" };
       const response = await fetch(
-        buildApiUrl(apiBaseUrl, `/api/running-maintenance?clubId=${clubId}${statusParam}`)
+        buildApiUrl("/api/running-maintenance", clubId, apiBaseUrl, additionalParams)
       );
       if (!response.ok) throw new Error("Failed to fetch maintenance items");
       return response.json();
@@ -37,12 +37,12 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
     mutationFn: async (data: { title: string; description?: string }) => {
       return apiRequest(
         "POST",
-        buildApiUrl(apiBaseUrl, `/api/running-maintenance?clubId=${clubId}`),
+        buildApiUrl("/api/running-maintenance", clubId, apiBaseUrl),
         data
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance", clubId] });
       setTitle("");
       setDescription("");
       setIsAdding(false);
@@ -53,12 +53,12 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
     mutationFn: async (id: number) => {
       return apiRequest(
         "PATCH",
-        buildApiUrl(apiBaseUrl, `/api/running-maintenance/${id}?clubId=${clubId}`),
+        buildApiUrl(`/api/running-maintenance/${id}`, clubId, apiBaseUrl),
         { status: "completed" }
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance", clubId] });
     },
   });
 
@@ -66,12 +66,12 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
     mutationFn: async (id: number) => {
       return apiRequest(
         "PATCH",
-        buildApiUrl(apiBaseUrl, `/api/running-maintenance/${id}?clubId=${clubId}`),
+        buildApiUrl(`/api/running-maintenance/${id}`, clubId, apiBaseUrl),
         { status: "open" }
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance", clubId] });
     },
   });
 
