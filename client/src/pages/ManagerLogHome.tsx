@@ -19,9 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ManagerLogForm from "@/components/ManagerLogForm";
 import ManagerLogList from "@/components/ManagerLogList";
 import InsightsPage from "@/components/InsightsPage";
-import RunningMaintenanceList from "@/components/RunningMaintenanceList";
 import ThemeToggle from "@/components/ThemeToggle";
-import { History, Plus, BarChart3, Wrench } from "lucide-react";
+import { History, Plus, BarChart3 } from "lucide-react";
 import logoImageDark from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
 import logoImageLight from "@assets/Restaurant_Manager's_Log_Daily_operations_tracking_with_weathe_1764696079981.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -144,17 +143,12 @@ export default function Home() {
             setSelectedLogId(null);
           }
         }} className="space-y-6">
-          {/* Tab Navigation - 4 tabs: Today's Log, Maintenance, Insights, History */}
-          <TabsList className="grid w-full grid-cols-4" data-testid="tabs-navigation">
+          {/* Tab Navigation - 3 tabs: Today's Log, Insights, History */}
+          <TabsList className="grid w-full grid-cols-3" data-testid="tabs-navigation">
             <TabsTrigger value="new-entry" className="flex items-center space-x-2" data-testid="tab-new-entry">
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">Today's Log</span>
               <span className="sm:hidden">Today</span>
-            </TabsTrigger>
-            <TabsTrigger value="maintenance" className="flex items-center space-x-2" data-testid="tab-maintenance">
-              <Wrench className="h-4 w-4" />
-              <span className="hidden sm:inline">Maintenance</span>
-              <span className="sm:hidden">Maint.</span>
             </TabsTrigger>
             <TabsTrigger value="insights" className="flex items-center space-x-2" data-testid="tab-insights">
               <BarChart3 className="h-4 w-4" />
@@ -179,11 +173,6 @@ export default function Home() {
               initialSelectedLogId={selectedLogId}
               onLogSelected={() => setSelectedLogId(null)}
             />
-          </TabsContent>
-
-          {/* Maintenance Tab - Running maintenance list */}
-          <TabsContent value="maintenance" className="space-y-6">
-            <RunningMaintenanceList showCompleted={true} />
           </TabsContent>
 
           {/* Insights Tab - Analytics and metrics dashboard */}
