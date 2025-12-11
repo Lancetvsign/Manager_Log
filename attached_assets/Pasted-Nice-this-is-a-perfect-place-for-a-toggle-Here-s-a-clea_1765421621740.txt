@@ -1,0 +1,121 @@
+Nice, this is a perfect place for a toggle.
+
+Here’s a clean way to handle “Compare to last year” as a toggle inside the Daily Sales card.
+
+1. UX / Layout
+
+Inside the Daily Sales card:
+
+Add a small toggle in the card header:
+
+Daily Sales [ ] Compare to last year
+
+When the toggle is OFF
+
+Only show:
+
+Food Sales / Bar Sales / Gaming Sales fields
+
+Total Sales: $XXX.XX
+
+When the toggle is ON
+
+Show:
+
+Last Year Total: $YYY.YY
+
+Difference: +$ZZZ.ZZ (+X.XX%)
+(positive = up, negative = down)
+
+So visually at the bottom of the card you’d have:
+
+Total Sales:      $150.00
+
+Last Year Total:  $120.00
+Difference:       +$30.00  (+25.0%)
+
+2. Data / Logic
+
+Assumptions (you can adjust names to match your code):
+
+You already know today’s date and last year’s equivalent date (same relative day) from the weather logic.
+
+You have a function like getSalesForDate(date) or an API endpoint that returns last year’s total.
+
+State you’ll need:
+
+const [compareToLastYear, setCompareToLastYear] = useState(false);
+const [todayTotal, setTodayTotal] = useState(0);
+const [lastYearTotal, setLastYearTotal] = useState<number | null>(null);
+
+
+Compute totals and diff:
+
+const totalSales = foodSales + barSales + gamingSales;
+
+const diff = lastYearTotal !== null ? totalSales - lastYearTotal : null;
+const diffPct =
+  lastYearTotal && lastYearTotal !== 0
+    ? (diff! / lastYearTotal) * 100
+    : null;
+
+
+When the user turns on the toggle the first time, you can fetch last year’s total using the same “lastYearDate” you already use for weather:
+
+const handleToggleCompare = async (checked: boolean) => {
+  setCompareToLastYear(checked);
+
+  if (checked && lastYearTotal === null) {
+    const result = await fetch(`/api/sales?date=${lastYearDateString}`);
+    const data = await result.json();
+    setLastYearTotal(data.totalSales ?? 0);
+  }
+};
+
+3. Example JSX (React-style)
+
+Here’s a simple React snippet you can adapt into your Daily Sales card:
+
+<Card>
+  <div className="card-header-row">
+    <h3>Daily Sales</h3>
+
+    <label className="toggle-label">
+      <span>Compare to last year</span>
+      <input
+        type="checkbox"
+        checked={compareToLastYear}
+        onChange={(e) => handleToggleCompare(e.target.checked)}
+      />
+    </label>
+  </div>
+
+  {/* Sales inputs */}
+  <div className="sales-grid">
+    {/* Food / Bar / Gaming fields here */}
+  </div>
+
+  {/* Today total */}
+  <div className="sales-total-row">
+    <span>Total Sales:</span>
+    <span>${totalSales.toFixed(2)}</span>
+  </div>
+
+  {/* Last year comparison – only when toggle is ON */}
+  {compareToLastYear && lastYearTotal !== null && (
+    <>
+      <div className="sales-last-year-row">
+        <span>Last year total:</span>
+        <span>${lastYearTotal.toFixed(2)}</span>
+      </div>
+
+      <div className="sales-diff-row">
+        <span>Difference:</span>
+        <span>
+          {diff! >= 0 ? "+" : "-"}${Math.abs(diff!).toFixed(2)}
+          {diffPct !== null && ` (${diffPct.toFixed(1)}%)`}
+        </span>
+      </div>
+    </>
+  )}
+</Card>

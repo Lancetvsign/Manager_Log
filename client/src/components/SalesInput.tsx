@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface SalesData {
@@ -50,14 +52,44 @@ const getTrendIcon = (trend: string) => {
 };
 
 export default function SalesInput({ title, salesData, onSalesChange, showComparison = true, disabled = false }: SalesInputProps) {
+  const [compareToLastYear, setCompareToLastYear] = useState(false);
+
   const foodChange = calculateChange(salesData.current.food, salesData.lastYear.food);
   const barChange = calculateChange(salesData.current.bar, salesData.lastYear.bar);
   const gamingChange = calculateChange(salesData.current.gaming, salesData.lastYear.gaming);
 
+  const currentTotal = 
+    (parseFloat(salesData.current.food) || 0) +
+    (parseFloat(salesData.current.bar) || 0) +
+    (parseFloat(salesData.current.gaming) || 0);
+
+  const lastYearTotal = 
+    (parseFloat(salesData.lastYear.food) || 0) +
+    (parseFloat(salesData.lastYear.bar) || 0) +
+    (parseFloat(salesData.lastYear.gaming) || 0);
+
+  const difference = currentTotal - lastYearTotal;
+  const diffPercentage = lastYearTotal !== 0 ? (difference / lastYearTotal) * 100 : 0;
+
+  const hasLastYearData = lastYearTotal > 0;
+
   return (
     <Card data-testid="card-sales">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-lg">{title}</CardTitle>
+        {showComparison && hasLastYearData && (
+          <div className="flex items-center gap-2">
+            <Label htmlFor="compare-toggle" className="text-sm text-muted-foreground cursor-pointer">
+              Compare to last year
+            </Label>
+            <Switch
+              id="compare-toggle"
+              checked={compareToLastYear}
+              onCheckedChange={setCompareToLastYear}
+              data-testid="switch-compare-last-year"
+            />
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -75,7 +107,7 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
               disabled={disabled}
               data-testid="input-food-sales"
             />
-            {showComparison && salesData.lastYear.food && (
+            {compareToLastYear && salesData.lastYear.food && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Last year: ${salesData.lastYear.food}</span>
                 <Badge variant="outline" className="flex items-center space-x-1">
@@ -100,7 +132,7 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
               disabled={disabled}
               data-testid="input-bar-sales"
             />
-            {showComparison && salesData.lastYear.bar && (
+            {compareToLastYear && salesData.lastYear.bar && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Last year: ${salesData.lastYear.bar}</span>
                 <Badge variant="outline" className="flex items-center space-x-1">
@@ -125,7 +157,7 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
               disabled={disabled}
               data-testid="input-gaming-sales"
             />
-            {showComparison && salesData.lastYear.gaming && (
+            {compareToLastYear && salesData.lastYear.gaming && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Last year: ${salesData.lastYear.gaming}</span>
                 <Badge variant="outline" className="flex items-center space-x-1">
@@ -137,26 +169,35 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
           </div>
         </div>
 
-        {/* Total */}
-        <div className="border-t pt-4">
+        {/* Totals Section */}
+        <div className="border-t pt-4 space-y-2">
           <div className="flex justify-between items-center">
             <span className="font-medium">Total Sales:</span>
             <span className="text-xl font-bold" data-testid="text-total-sales">
-              ${(
-                (parseFloat(salesData.current.food) || 0) +
-                (parseFloat(salesData.current.bar) || 0) +
-                (parseFloat(salesData.current.gaming) || 0)
-              ).toFixed(2)}
+              ${currentTotal.toFixed(2)}
             </span>
           </div>
-          {showComparison && (
-            <div className="text-sm text-muted-foreground mt-1">
-              Last year total: ${(
-                (parseFloat(salesData.lastYear.food) || 0) +
-                (parseFloat(salesData.lastYear.bar) || 0) +
-                (parseFloat(salesData.lastYear.gaming) || 0)
-              ).toFixed(2)}
-            </div>
+
+          {/* Last year comparison - only when toggle is ON */}
+          {compareToLastYear && hasLastYearData && (
+            <>
+              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                <span>Last Year Total:</span>
+                <span data-testid="text-last-year-total">${lastYearTotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Difference:</span>
+                <span 
+                  className={`text-sm font-semibold flex items-center gap-1 ${
+                    difference >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}
+                  data-testid="text-sales-difference"
+                >
+                  {difference >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                  {difference >= 0 ? '+' : ''}${difference.toFixed(2)} ({diffPercentage >= 0 ? '+' : ''}{diffPercentage.toFixed(1)}%)
+                </span>
+              </div>
+            </>
           )}
         </div>
       </CardContent>
