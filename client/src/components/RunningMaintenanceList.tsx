@@ -24,7 +24,7 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
   const { data: items = [], isLoading } = useQuery<RunningMaintenanceItem[]>({
     queryKey: ["/api/running-maintenance", clubId, showCompleted ? "all" : "open"],
     queryFn: async () => {
-      const additionalParams: Record<string, string> = showCompleted ? {} : { status: "open" };
+      const additionalParams = showCompleted ? {} : { status: "open" };
       const response = await fetch(
         buildApiUrl("/api/running-maintenance", clubId, apiBaseUrl, additionalParams)
       );
