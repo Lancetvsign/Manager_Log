@@ -91,10 +91,10 @@ export async function seedDefaultEscalationRulesForClub(
     });
   }
 
-  // Employee behavior → Ownership + Core Team
+  // Operational Issue → Ownership + Core Team
   const behaviorRule = await createRuleIfNotExists(
     clubId,
-    "Employee behavior → Ownership + Core Team",
+    "Operational Issue → Ownership + Core Team",
     "reason",
     { triggerReason: "behavior", autoSend: true }
   );

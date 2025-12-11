@@ -1081,7 +1081,7 @@ Details:
 
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
-                For urgent maintenance or behavior issues
+                For urgent maintenance or operational issues
               </Badge>
 
               <button
@@ -1123,7 +1123,7 @@ Details:
                       className="w-4 h-4 text-primary"
                       data-testid="radio-reason-behavior"
                     />
-                    <span className="text-sm">Employee behavior</span>
+                    <span className="text-sm">Operational Issue</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input

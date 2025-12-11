@@ -68,13 +68,13 @@ const AUTOMATION_PRESETS: AutomationPreset[] = [
   },
   {
     key: "behavior_alert",
-    title: "Behavior Incident Alerts",
-    description: "When Employee behavior is selected, notify selected list.",
+    title: "Operational Issue Alerts",
+    description: "When Operational Issue is selected, notify selected list.",
     defaultAutoSend: true,
     suggestedListName: "Core Team",
     buildRule: (clubId, extra) => ({
       clubId,
-      name: "Behavior incident → Selected list",
+      name: "Operational Issue → Selected list",
       triggerType: "reason",
       triggerReason: "behavior",
       autoSend: true,
