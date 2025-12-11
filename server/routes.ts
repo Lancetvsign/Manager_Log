@@ -1421,6 +1421,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==================
+  // NOTE PHOTOS API
+  // ==================
+
+  // Upload a photo for operational or maintenance notes
+  app.post("/api/logs/:logId/note-photos", upload.single("file"), async (req, res) => {
+    try {
+      const logId = Number(req.params.logId);
+      const clubId = getClubId(req);
+      const noteType = req.body.noteType as string;
+
+      if (isNaN(logId)) {
+        return res.status(400).json({ error: "Invalid log ID" });
+      }
+
+      if (!noteType || !["operational", "maintenance"].includes(noteType)) {
+        return res.status(400).json({ error: "noteType must be 'operational' or 'maintenance'" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      // Verify the log exists and belongs to this club
+      const log = await storage.getManagerLog(logId, clubId);
+      if (!log) {
+        return res.status(404).json({ error: "Log not found" });
+      }
+
+      // Create the photo record
+      const photo = await storage.createNotePhoto({
+        clubId,
+        logId,
+        noteType: noteType as "operational" | "maintenance",
+        url: `/uploads/${req.file.filename}`,
+      });
+
+      res.status(201).json(photo);
+    } catch (error) {
+      console.error("Error uploading note photo:", error);
+      res.status(500).json({ error: "Failed to upload photo" });
+    }
+  });
+
+  // List photos for a log (optionally filter by noteType)
+  app.get("/api/logs/:logId/note-photos", async (req, res) => {
+    try {
+      const logId = Number(req.params.logId);
+      const clubId = getClubId(req);
+      const noteType = req.query.noteType as string | undefined;
+
+      if (isNaN(logId)) {
+        return res.status(400).json({ error: "Invalid log ID" });
+      }
+
+      if (noteType && !["operational", "maintenance"].includes(noteType)) {
+        return res.status(400).json({ error: "noteType must be 'operational' or 'maintenance'" });
+      }
+
+      const photos = await storage.getNotePhotosByLogId(
+        logId,
+        clubId,
+        noteType as "operational" | "maintenance" | undefined
+      );
+      res.json(photos);
+    } catch (error) {
+      console.error("Error fetching note photos:", error);
+      res.status(500).json({ error: "Failed to fetch photos" });
+    }
+  });
+
+  // Delete a note photo
+  app.delete("/api/note-photos/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const clubId = getClubId(req);
+
+      if (!id) {
+        return res.status(400).json({ error: "Invalid photo ID" });
+      }
+
+      const deleted = await storage.deleteNotePhoto(id, clubId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Photo not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting note photo:", error);
+      res.status(500).json({ error: "Failed to delete photo" });
+    }
+  });
+
+  // ==================
   // PREP CHECKLIST API
   // ==================
 

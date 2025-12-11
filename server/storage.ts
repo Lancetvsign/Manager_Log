@@ -23,7 +23,8 @@ import {
   type LogAttachment, type InsertLogAttachment,
   type PrepChecklistItem, type InsertPrepChecklistItem,
   type RunningMaintenanceItem, type InsertRunningMaintenanceItem,
-  users, managerLogs, maintenanceItems, logAttachments, prepChecklistItems, runningMaintenanceList 
+  type NotePhoto, type InsertNotePhoto, type NoteType,
+  users, managerLogs, maintenanceItems, logAttachments, prepChecklistItems, runningMaintenanceList, notePhotos 
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, lte, and, asc } from "drizzle-orm";
@@ -76,6 +77,11 @@ export interface IStorage {
   getRunningMaintenanceItems(clubId: string, status?: string): Promise<RunningMaintenanceItem[]>;
   updateRunningMaintenanceItem(id: number, clubId: string, updates: Partial<RunningMaintenanceItem>): Promise<RunningMaintenanceItem | undefined>;
   deleteRunningMaintenanceItem(id: number, clubId: string): Promise<boolean>;
+
+  // Note Photo operations
+  createNotePhoto(photo: InsertNotePhoto): Promise<NotePhoto>;
+  getNotePhotosByLogId(logId: number, clubId: string, noteType?: NoteType): Promise<NotePhoto[]>;
+  deleteNotePhoto(id: string, clubId: string): Promise<boolean>;
 }
 
 /**
@@ -456,6 +462,50 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(runningMaintenanceList.id, id),
         eq(runningMaintenanceList.clubId, clubId)
+      ));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // ==================
+  // NOTE PHOTO OPERATIONS
+  // ==================
+
+  async createNotePhoto(photo: InsertNotePhoto): Promise<NotePhoto> {
+    const [created] = await db
+      .insert(notePhotos)
+      .values(photo)
+      .returning();
+    return created;
+  }
+
+  async getNotePhotosByLogId(logId: number, clubId: string, noteType?: NoteType): Promise<NotePhoto[]> {
+    if (noteType) {
+      return db
+        .select()
+        .from(notePhotos)
+        .where(and(
+          eq(notePhotos.logId, logId),
+          eq(notePhotos.clubId, clubId),
+          eq(notePhotos.noteType, noteType)
+        ))
+        .orderBy(desc(notePhotos.uploadedAt));
+    }
+    return db
+      .select()
+      .from(notePhotos)
+      .where(and(
+        eq(notePhotos.logId, logId),
+        eq(notePhotos.clubId, clubId)
+      ))
+      .orderBy(desc(notePhotos.uploadedAt));
+  }
+
+  async deleteNotePhoto(id: string, clubId: string): Promise<boolean> {
+    const result = await db
+      .delete(notePhotos)
+      .where(and(
+        eq(notePhotos.id, id),
+        eq(notePhotos.clubId, clubId)
       ));
     return (result.rowCount ?? 0) > 0;
   }
