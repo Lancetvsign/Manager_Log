@@ -15,6 +15,7 @@ import SalesInput from "./SalesInput";
 import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
 import EscalationRulesModal from "./EscalationRulesModal";
 import { FileAttachments } from "./FileAttachments";
+import { NotePhotos } from "./NotePhotos";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ManagerLog, MaintenanceItem } from "@shared/schema";
@@ -859,7 +860,7 @@ Details:
         <CardHeader>
           <CardTitle className="text-lg">Operational Notes</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <Textarea
             value={salesNotes}
             onChange={(e) => setSalesNotes(e.target.value)}
@@ -868,6 +869,14 @@ Details:
             disabled={isPastLog}
             data-testid="textarea-sales-notes"
           />
+          <div className="border-t pt-4">
+            <h4 className="text-sm font-medium mb-3">Photos</h4>
+            <NotePhotos
+              logId={existingLogId}
+              noteType="operational"
+              disabled={isPastLog}
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -876,7 +885,7 @@ Details:
         <CardHeader>
           <CardTitle className="text-lg">Maintenance Notes</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <Textarea
             value={dailyNotes}
             onChange={(e) => setDailyNotes(e.target.value)}
@@ -885,6 +894,14 @@ Details:
             disabled={isPastLog}
             data-testid="textarea-daily-notes"
           />
+          <div className="border-t pt-4">
+            <h4 className="text-sm font-medium mb-3">Photos</h4>
+            <NotePhotos
+              logId={existingLogId}
+              noteType="maintenance"
+              disabled={isPastLog}
+            />
+          </div>
         </CardContent>
       </Card>
 
