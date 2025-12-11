@@ -144,17 +144,12 @@ export default function Home() {
             setSelectedLogId(null);
           }
         }} className="space-y-6">
-          {/* Tab Navigation - 4 tabs: Today's Log, History, Maintenance, Insights */}
+          {/* Tab Navigation - 4 tabs: Today's Log, Maintenance, Insights, History */}
           <TabsList className="grid w-full grid-cols-4" data-testid="tabs-navigation">
             <TabsTrigger value="new-entry" className="flex items-center space-x-2" data-testid="tab-new-entry">
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">Today's Log</span>
               <span className="sm:hidden">Today</span>
-            </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center space-x-2" data-testid="tab-history">
-              <History className="h-4 w-4" />
-              <span className="hidden sm:inline">Log History ({logs?.length || 0})</span>
-              <span className="sm:hidden">History</span>
             </TabsTrigger>
             <TabsTrigger value="maintenance" className="flex items-center space-x-2" data-testid="tab-maintenance">
               <Wrench className="h-4 w-4" />
@@ -164,6 +159,11 @@ export default function Home() {
             <TabsTrigger value="insights" className="flex items-center space-x-2" data-testid="tab-insights">
               <BarChart3 className="h-4 w-4" />
               <span>Insights</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center space-x-2" data-testid="tab-history">
+              <History className="h-4 w-4" />
+              <span className="hidden sm:inline">Log History ({logs?.length || 0})</span>
+              <span className="sm:hidden">History</span>
             </TabsTrigger>
           </TabsList>
 
