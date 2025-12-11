@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronRight } from "lucide-react";
+import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronRight, Camera, ExternalLink } from "lucide-react";
 import WeatherCard from "./WeatherCard";
 import SalesInput from "./SalesInput";
 import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
@@ -34,6 +34,133 @@ interface WeatherData {
 
 // Manager role type for the unified dropdown
 type ManagerRole = "am" | "pm" | "kitchen";
+
+// Type for running maintenance items (used in RunningMaintenanceRow component)
+interface RunningMaintenanceItemType {
+  id: number;
+  description: string;
+  status: "open" | "completed";
+  notes: string | null;
+  createdAt: string;
+  logDate: string;
+  photoUrl: string | null;
+  managerLogId: number;
+}
+
+// Component for displaying a single row in the Running Maintenance List
+function RunningMaintenanceRow({ 
+  item, 
+  onChanged,
+  apiBaseUrl 
+}: { 
+  item: RunningMaintenanceItemType; 
+  onChanged: () => void;
+  apiBaseUrl: string;
+}) {
+  const [uploading, setUploading] = useState(false);
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("photo", file);
+
+    setUploading(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/maintenance/${item.id}/photo`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        console.error(await res.text());
+      } else {
+        await onChanged();
+      }
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    const newStatus = item.status === "open" ? "completed" : "open";
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/maintenance-items/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        await onChanged();
+      }
+    } catch (err) {
+      console.error("Failed to toggle status:", err);
+    }
+  };
+
+  const addedLabel = new Date(item.logDate ?? item.createdAt).toLocaleDateString(
+    undefined,
+    { month: "short", day: "numeric", year: "numeric" }
+  );
+
+  return (
+    <div 
+      className="grid grid-cols-12 gap-2 p-3 items-center min-w-[600px]"
+      data-testid={`running-maintenance-item-${item.id}`}
+    >
+      <div className="col-span-2 text-xs text-muted-foreground">{addedLabel}</div>
+      <div className="col-span-3 text-sm">{item.description}</div>
+      <div className="col-span-1">
+        <Badge 
+          variant="secondary"
+          className="flex items-center gap-1 w-fit text-green-700 border-green-300 bg-green-50"
+        >
+          Open
+        </Badge>
+      </div>
+      <div className="col-span-3 text-sm text-muted-foreground">
+        {item.notes || "–"}
+      </div>
+      <div className="col-span-2">
+        {item.photoUrl ? (
+          <a
+            href={item.photoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700"
+          >
+            <ExternalLink className="h-3 w-3" />
+            View photo
+          </a>
+        ) : (
+          <label className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+            <Camera className="h-3 w-3" />
+            {uploading ? "Uploading..." : "Add photo"}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              className="hidden"
+              disabled={uploading}
+            />
+          </label>
+        )}
+      </div>
+      <div className="col-span-1 text-right">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleToggleStatus}
+          data-testid={`button-toggle-status-${item.id}`}
+        >
+          <CheckCircle className="h-4 w-4 text-green-600" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const { clubId, managerName: defaultManagerName, apiBaseUrl } = useManagerLog();
@@ -138,6 +265,30 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       return response.json();
     },
     enabled: !!existingLogId,
+  });
+
+  // Type for running maintenance items (all open items across all dates)
+  interface RunningMaintenanceItem {
+    id: number;
+    description: string;
+    status: "open" | "completed";
+    notes: string | null;
+    createdAt: string;
+    logDate: string;
+    photoUrl: string | null;
+    managerLogId: number;
+  }
+
+  // Fetch all open maintenance items for this club (oldest to newest)
+  const { data: runningItems, isLoading: isLoadingRunning, refetch: refetchRunning } = useQuery<RunningMaintenanceItem[]>({
+    queryKey: ['/api/maintenance/open', clubId],
+    queryFn: async () => {
+      const url = buildApiUrl('/api/maintenance/open', clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch running maintenance items');
+      return response.json();
+    },
+    enabled: !!clubId,
   });
 
   // Check if email notifications are configured
@@ -937,13 +1088,18 @@ Details:
         </CardContent>
       </Card>
 
-      {/* To-Do Items */}
+      {/* Running Maintenance List */}
       <Card data-testid="card-maintenance">
         <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Wrench className="h-5 w-5" />
-            To-Do Items (Today)
-          </CardTitle>
+          <div className="flex flex-col gap-1">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
+              Running Maintenance List
+            </CardTitle>
+            <span className="text-xs text-muted-foreground">
+              Showing all open items · oldest to newest
+            </span>
+          </div>
           {hasOpenItems && (
             <Button
               type="button"
@@ -963,66 +1119,38 @@ Details:
           )}
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Existing Maintenance Items List */}
+          {/* Running Maintenance Items List - All Open Items */}
             <div className="space-y-4">
-              {existingLogId && isLoadingMaintenance ? (
+              {isLoadingRunning ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  <span className="text-sm text-muted-foreground">Loading to-do items...</span>
+                  <span className="text-sm text-muted-foreground">Loading maintenance items...</span>
                 </div>
-              ) : maintenanceItems && maintenanceItems.length > 0 ? (
-                <div className="border rounded-lg divide-y">
-                  <div className="grid grid-cols-12 gap-2 p-3 bg-muted/50 text-sm font-medium">
-                    <div className="col-span-5">Description</div>
-                    <div className="col-span-2">Status</div>
-                    <div className="col-span-4">Notes</div>
-                    <div className="col-span-1">Action</div>
+              ) : runningItems && runningItems.length > 0 ? (
+                <div className="border rounded-lg divide-y overflow-x-auto">
+                  <div className="grid grid-cols-12 gap-2 p-3 bg-muted/50 text-sm font-medium min-w-[600px]">
+                    <div className="col-span-2">Added</div>
+                    <div className="col-span-3">Description</div>
+                    <div className="col-span-1">Status</div>
+                    <div className="col-span-3">Notes</div>
+                    <div className="col-span-2">Photo</div>
+                    <div className="col-span-1 text-right">Action</div>
                   </div>
-                  {maintenanceItems.map((item) => (
-                    <div 
-                      key={item.id} 
-                      className="grid grid-cols-12 gap-2 p-3 items-center"
-                      data-testid={`maintenance-item-${item.id}`}
-                    >
-                      <div className="col-span-5 text-sm">{item.description}</div>
-                      <div className="col-span-2">
-                        <Badge 
-                          variant={item.status === "completed" ? "default" : "secondary"}
-                          className="flex items-center gap-1 w-fit"
-                        >
-                          {item.status === "completed" ? (
-                            <CheckCircle className="h-3 w-3" />
-                          ) : (
-                            <AlertCircle className="h-3 w-3" />
-                          )}
-                          {item.status === "completed" ? "Completed" : "Open"}
-                        </Badge>
-                      </div>
-                      <div className="col-span-4 text-sm text-muted-foreground">
-                        {item.notes || "-"}
-                      </div>
-                      <div className="col-span-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleToggleMaintenanceStatus(item)}
-                          disabled={updateMaintenanceMutation.isPending || isPastLog}
-                          data-testid={`button-toggle-status-${item.id}`}
-                        >
-                          {item.status === "open" ? (
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <AlertCircle className="h-4 w-4 text-yellow-600" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
+                  {runningItems.map((item) => (
+                    <RunningMaintenanceRow
+                      key={item.id}
+                      item={item}
+                      onChanged={() => {
+                        refetchRunning();
+                        queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
+                      }}
+                      apiBaseUrl={apiBaseUrl}
+                    />
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-4 text-sm text-muted-foreground border rounded-lg bg-muted/20">
-                  No to-do items for this date. Add one below.
+                  No open maintenance items. Nice work!
                 </div>
               )}
             </div>
