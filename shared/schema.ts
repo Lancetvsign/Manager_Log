@@ -128,6 +128,41 @@ export const maintenanceItems = pgTable("maintenance_items", {
 });
 
 /**
+ * RUNNING_MAINTENANCE_LIST TABLE
+ * ------------------------------
+ * Standalone maintenance tracking not tied to specific log entries.
+ * Provides a global list of open maintenance items for the club.
+ * 
+ * Key Design Decisions:
+ * - clubId scopes data to each club (multi-tenant)
+ * - status: 'open' or 'completed'
+ * - dateAdded: auto-set on creation, used for oldest-first sorting
+ * - relatedLogDate: optional link to a specific log date (for reference)
+ * 
+ * Fields:
+ * - id: Auto-incrementing primary key
+ * - clubId: Club identifier for data isolation
+ * - title: Short description of the maintenance item
+ * - description: Optional longer description/details
+ * - status: 'open' or 'completed'
+ * - dateAdded: When the item was created
+ * - dateCompleted: When the item was marked complete
+ * - createdBy: Optional name of who created the item
+ * - relatedLogDate: Optional reference to a log date (YYYY-MM-DD)
+ */
+export const runningMaintenanceList = pgTable("running_maintenance_list", {
+  id: serial("id").primaryKey(),
+  clubId: text("club_id").notNull().default("default"),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("open"),
+  dateAdded: timestamp("date_added").defaultNow().notNull(),
+  dateCompleted: timestamp("date_completed"),
+  createdBy: text("created_by"),
+  relatedLogDate: date("related_log_date"),
+});
+
+/**
  * NOTIFICATION_LOGS TABLE
  * -----------------------
  * Stores a history of notification emails sent for manager logs.
@@ -407,6 +442,17 @@ export const insertMaintenanceItemSchema = createInsertSchema(maintenanceItems).
   status: z.enum(["open", "completed"]).default("open"),
 });
 
+// RunningMaintenanceList insert schema
+export const insertRunningMaintenanceItemSchema = createInsertSchema(runningMaintenanceList).omit({
+  id: true,            // Auto-generated
+  dateAdded: true,     // Auto-generated
+  dateCompleted: true, // Set when status changes to completed
+}).extend({
+  status: z.enum(["open", "completed"]).default("open"),
+  clubId: z.string().min(1, "Club ID is required"),
+  title: z.string().min(1, "Title is required"),
+});
+
 // NotificationLog insert schema
 export const insertNotificationLogSchema = createInsertSchema(notificationLogs).omit({
   id: true,        // Auto-generated
@@ -478,6 +524,8 @@ export type InsertManagerLog = z.infer<typeof insertManagerLogSchema>;
 export type ManagerLog = typeof managerLogs.$inferSelect;
 export type InsertMaintenanceItem = z.infer<typeof insertMaintenanceItemSchema>;
 export type MaintenanceItem = typeof maintenanceItems.$inferSelect;
+export type InsertRunningMaintenanceItem = z.infer<typeof insertRunningMaintenanceItemSchema>;
+export type RunningMaintenanceItem = typeof runningMaintenanceList.$inferSelect;
 export type InsertNotificationLog = z.infer<typeof insertNotificationLogSchema>;
 export type NotificationLog = typeof notificationLogs.$inferSelect;
 export type InsertNotificationList = z.infer<typeof insertNotificationListSchema>;

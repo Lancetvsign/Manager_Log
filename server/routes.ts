@@ -1551,6 +1551,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========================================
+  // RUNNING MAINTENANCE LIST ENDPOINTS
+  // ========================================
+
+  // GET /api/running-maintenance - Get all maintenance items (optionally filtered by status)
+  app.get("/api/running-maintenance", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const status = req.query.status as string | undefined;
+      
+      const items = await storage.getRunningMaintenanceItems(clubId, status);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching running maintenance items:", error);
+      res.status(500).json({ error: "Failed to fetch maintenance items" });
+    }
+  });
+
+  // POST /api/running-maintenance - Create a new maintenance item
+  app.post("/api/running-maintenance", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const { title, description, relatedLogDate, createdBy } = req.body;
+
+      if (!title || title.trim() === "") {
+        return res.status(400).json({ error: "Title is required" });
+      }
+
+      const item = await storage.createRunningMaintenanceItem({
+        clubId,
+        title: title.trim(),
+        description: description?.trim() || null,
+        relatedLogDate: relatedLogDate || null,
+        createdBy: createdBy || null,
+        status: "open",
+      });
+
+      res.status(201).json(item);
+    } catch (error) {
+      console.error("Error creating running maintenance item:", error);
+      res.status(500).json({ error: "Failed to create maintenance item" });
+    }
+  });
+
+  // PATCH /api/running-maintenance/:id - Update a maintenance item (e.g., mark complete)
+  app.patch("/api/running-maintenance/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const clubId = getClubId(req);
+      const { status, title, description } = req.body;
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid item ID" });
+      }
+
+      const updates: Record<string, any> = {};
+      
+      if (status !== undefined) {
+        if (status !== "open" && status !== "completed") {
+          return res.status(400).json({ error: "Status must be 'open' or 'completed'" });
+        }
+        updates.status = status;
+        // Set dateCompleted when marking as completed
+        if (status === "completed") {
+          updates.dateCompleted = new Date();
+        } else {
+          updates.dateCompleted = null;
+        }
+      }
+      
+      if (title !== undefined) updates.title = title.trim();
+      if (description !== undefined) updates.description = description?.trim() || null;
+
+      const updated = await storage.updateRunningMaintenanceItem(id, clubId, updates);
+      if (!updated) {
+        return res.status(404).json({ error: "Maintenance item not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating running maintenance item:", error);
+      res.status(500).json({ error: "Failed to update maintenance item" });
+    }
+  });
+
+  // DELETE /api/running-maintenance/:id - Delete a maintenance item
+  app.delete("/api/running-maintenance/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const clubId = getClubId(req);
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid item ID" });
+      }
+
+      const deleted = await storage.deleteRunningMaintenanceItem(id, clubId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Maintenance item not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting running maintenance item:", error);
+      res.status(500).json({ error: "Failed to delete maintenance item" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

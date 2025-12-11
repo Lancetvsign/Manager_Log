@@ -22,10 +22,11 @@ import {
   type MaintenanceItemWithLog,
   type LogAttachment, type InsertLogAttachment,
   type PrepChecklistItem, type InsertPrepChecklistItem,
-  users, managerLogs, maintenanceItems, logAttachments, prepChecklistItems 
+  type RunningMaintenanceItem, type InsertRunningMaintenanceItem,
+  users, managerLogs, maintenanceItems, logAttachments, prepChecklistItems, runningMaintenanceList 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, lte, and } from "drizzle-orm";
+import { eq, desc, gte, lte, and, asc } from "drizzle-orm";
 
 /**
  * Storage Interface
@@ -69,6 +70,12 @@ export interface IStorage {
   updatePrepChecklistItem(id: number, updates: Partial<PrepChecklistItem>, clubId: string): Promise<PrepChecklistItem | undefined>;
   deletePrepChecklistItem(id: number, clubId: string): Promise<boolean>;
   rolloverPrepChecklistItems(fromDate: string, toDate: string, clubId: string): Promise<number>;
+  
+  // Running Maintenance List operations
+  createRunningMaintenanceItem(item: InsertRunningMaintenanceItem): Promise<RunningMaintenanceItem>;
+  getRunningMaintenanceItems(clubId: string, status?: string): Promise<RunningMaintenanceItem[]>;
+  updateRunningMaintenanceItem(id: number, clubId: string, updates: Partial<RunningMaintenanceItem>): Promise<RunningMaintenanceItem | undefined>;
+  deleteRunningMaintenanceItem(id: number, clubId: string): Promise<boolean>;
 }
 
 /**
@@ -399,6 +406,58 @@ export class DatabaseStorage implements IStorage {
     }
 
     return pendingItems.length;
+  }
+
+  // ==================
+  // RUNNING MAINTENANCE LIST OPERATIONS
+  // ==================
+
+  async createRunningMaintenanceItem(item: InsertRunningMaintenanceItem): Promise<RunningMaintenanceItem> {
+    const [created] = await db
+      .insert(runningMaintenanceList)
+      .values(item)
+      .returning();
+    return created;
+  }
+
+  async getRunningMaintenanceItems(clubId: string, status?: string): Promise<RunningMaintenanceItem[]> {
+    if (status) {
+      return db
+        .select()
+        .from(runningMaintenanceList)
+        .where(and(
+          eq(runningMaintenanceList.clubId, clubId),
+          eq(runningMaintenanceList.status, status)
+        ))
+        .orderBy(asc(runningMaintenanceList.dateAdded));
+    }
+    return db
+      .select()
+      .from(runningMaintenanceList)
+      .where(eq(runningMaintenanceList.clubId, clubId))
+      .orderBy(asc(runningMaintenanceList.dateAdded));
+  }
+
+  async updateRunningMaintenanceItem(id: number, clubId: string, updates: Partial<RunningMaintenanceItem>): Promise<RunningMaintenanceItem | undefined> {
+    const [updated] = await db
+      .update(runningMaintenanceList)
+      .set(updates)
+      .where(and(
+        eq(runningMaintenanceList.id, id),
+        eq(runningMaintenanceList.clubId, clubId)
+      ))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteRunningMaintenanceItem(id: number, clubId: string): Promise<boolean> {
+    const result = await db
+      .delete(runningMaintenanceList)
+      .where(and(
+        eq(runningMaintenanceList.id, id),
+        eq(runningMaintenanceList.clubId, clubId)
+      ));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

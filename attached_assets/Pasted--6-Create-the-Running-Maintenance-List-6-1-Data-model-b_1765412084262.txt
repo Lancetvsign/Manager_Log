@@ -1,0 +1,88 @@
+(6) Create the Running Maintenance List
+6.1 Data model (backend)
+
+Add a new table/model for maintenance items. Conceptually:
+
+// Example TypeScript interface
+export type MaintenanceStatus = 'open' | 'completed';
+
+export interface MaintenanceItem {
+  id: string;
+  title: string;
+  description?: string;
+  status: MaintenanceStatus;       // 'open' or 'completed'
+  dateAdded: string;               // ISO date
+  dateCompleted?: string | null;
+  createdBy?: string | null;       // optional
+  relatedLogDate?: string | null;  // e.g. '2025-12-10' if created from a log
+}
+
+
+If you’re using Prisma or similar, this becomes a MaintenanceItem model; if it’s a custom DB layer, same fields.
+
+Key bits for your requirement:
+
+status → lets us show only open items
+
+dateAdded → lets us sort oldest → newest
+
+Optional relatedLogDate → helpful later for AI summary + filtering.
+
+6.2 API endpoints
+
+Create simple REST endpoints:
+
+GET /api/maintenance?status=open
+
+Returns all open items, sorted by dateAdded ASC.
+
+POST /api/maintenance
+
+Body: { title, description?, relatedLogDate? }
+
+Sets status: 'open', dateAdded: now.
+
+PATCH /api/maintenance/:id
+
+For marking complete: { status: 'completed' } (and set dateCompleted).
+
+Pseudo-code:
+
+// GET open items
+app.get('/api/maintenance', async (req, res) => {
+  const status = req.query.status ?? 'open';
+  const items = await db.maintenance.findMany({
+    where: { status },
+    orderBy: { dateAdded: 'asc' },
+  });
+  res.json(items);
+});
+
+// POST new item
+app.post('/api/maintenance', async (req, res) => {
+  const { title, description, relatedLogDate } = req.body;
+  const item = await db.maintenance.create({
+    data: {
+      title,
+      description,
+      status: 'open',
+      dateAdded: new Date().toISOString(),
+      relatedLogDate: relatedLogDate ?? null,
+    },
+  });
+  res.status(201).json(item);
+});
+
+// PATCH mark completed
+app.patch('/api/maintenance/:id', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body; // 'open' or 'completed'
+  const item = await db.maintenance.update({
+    where: { id },
+    data: {
+      status,
+      dateCompleted: status === 'completed' ? new Date().toISOString() : null,
+    },
+  });
+  res.json(item);
+});
