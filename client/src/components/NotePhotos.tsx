@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { buildApiUrl, useManagerLog } from "@/contexts/ManagerLogContext";
-import { Camera, X, Loader2, Image } from "lucide-react";
+import { Camera, X, Loader2 } from "lucide-react";
 import type { NotePhoto } from "@shared/schema";
 
 interface NotePhotosProps {
@@ -95,6 +95,8 @@ export function NotePhotos({ logId, noteType, disabled }: NotePhotosProps) {
     );
   }
 
+  const hasPhotos = photos.length > 0;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
@@ -122,6 +124,9 @@ export function NotePhotos({ logId, noteType, disabled }: NotePhotosProps) {
           )}
           {uploading ? "Uploading..." : "Add Photo"}
         </Button>
+        {!isLoading && !hasPhotos && (
+          <span className="text-xs text-muted-foreground">No photos attached</span>
+        )}
       </div>
 
       {isLoading ? (
@@ -129,7 +134,7 @@ export function NotePhotos({ logId, noteType, disabled }: NotePhotosProps) {
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading photos...
         </div>
-      ) : photos.length > 0 ? (
+      ) : hasPhotos && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {photos.map((photo) => (
             <div
@@ -157,11 +162,6 @@ export function NotePhotos({ logId, noteType, disabled }: NotePhotosProps) {
               )}
             </div>
           ))}
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Image className="h-4 w-4" />
-          No photos attached
         </div>
       )}
     </div>
