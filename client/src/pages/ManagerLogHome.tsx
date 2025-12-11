@@ -2,12 +2,11 @@
  * HOME PAGE - MAIN APPLICATION SHELL
  * ===================================
  * The primary page of the Restaurant Manager's Log application.
- * Contains tabbed navigation between four main sections:
+ * Contains tabbed navigation between three main sections:
  * 
- * 1. New Entry (Today's Log) - Form for creating/editing daily log entries
+ * 1. Today's Log - Form for creating/editing daily log entries
  * 2. Log History - View and filter past log entries
- * 3. To-Do List - Overview of all to-do items across all days
- * 4. Insights - Analytics and metrics dashboard with sales trends
+ * 3. Insights - Analytics and metrics dashboard with sales trends
  * 
  * Data Flow:
  * - Fetches log count for tab badge display
@@ -19,10 +18,9 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ManagerLogForm from "@/components/ManagerLogForm";
 import ManagerLogList from "@/components/ManagerLogList";
-import MaintenanceOverview from "@/components/MaintenanceOverview";
 import InsightsPage from "@/components/InsightsPage";
 import ThemeToggle from "@/components/ThemeToggle";
-import { History, Plus, Wrench, BarChart3 } from "lucide-react";
+import { History, Plus, BarChart3 } from "lucide-react";
 import logoImageDark from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
 import logoImageLight from "@assets/Restaurant_Manager's_Log_Daily_operations_tracking_with_weathe_1764696079981.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -145,8 +143,8 @@ export default function Home() {
             setSelectedLogId(null);
           }
         }} className="space-y-6">
-          {/* Tab Navigation - 4 tabs: Today's Log, History, To-Do List, Insights */}
-          <TabsList className="grid w-full grid-cols-4" data-testid="tabs-navigation">
+          {/* Tab Navigation - 3 tabs: Today's Log, History, Insights */}
+          <TabsList className="grid w-full grid-cols-3" data-testid="tabs-navigation">
             <TabsTrigger value="new-entry" className="flex items-center space-x-2" data-testid="tab-new-entry">
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">Today's Log</span>
@@ -156,11 +154,6 @@ export default function Home() {
               <History className="h-4 w-4" />
               <span className="hidden sm:inline">Log History ({logs?.length || 0})</span>
               <span className="sm:hidden">History</span>
-            </TabsTrigger>
-            <TabsTrigger value="maintenance" className="flex items-center space-x-2" data-testid="tab-maintenance">
-              <Wrench className="h-4 w-4" />
-              <span className="hidden sm:inline">To-Do List</span>
-              <span className="sm:hidden">To-Do</span>
             </TabsTrigger>
             <TabsTrigger value="insights" className="flex items-center space-x-2" data-testid="tab-insights">
               <BarChart3 className="h-4 w-4" />
@@ -180,11 +173,6 @@ export default function Home() {
               initialSelectedLogId={selectedLogId}
               onLogSelected={() => setSelectedLogId(null)}
             />
-          </TabsContent>
-
-          {/* To-Do List Tab - Overview of all to-do items */}
-          <TabsContent value="maintenance" className="space-y-6">
-            <MaintenanceOverview onViewLog={handleViewLogFromMaintenance} />
           </TabsContent>
 
           {/* Insights Tab - Analytics and metrics dashboard */}

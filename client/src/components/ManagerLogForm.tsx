@@ -871,7 +871,7 @@ Details:
         </CardContent>
       </Card>
 
-      {/* Maintenance Notes (was Daily Notes) */}
+      {/* Maintenance Notes */}
       <Card data-testid="card-notes">
         <CardHeader>
           <CardTitle className="text-lg">Maintenance Notes</CardTitle>

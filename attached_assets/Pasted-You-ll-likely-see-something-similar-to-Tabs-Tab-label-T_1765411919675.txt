@@ -1,0 +1,144 @@
+You’ll likely see something similar to:
+
+<Tabs>
+  <Tab label="Today's Log" value="today" />
+  <Tab label="Log History" value="history" />
+  <Tab label="To-Do List" value="todos" />
+  <Tab label="Insights" value="insights" />
+</Tabs>
+
+
+Delete the To-Do entry:
+
+<Tabs>
+  <Tab label="Today's Log" value="today" />
+  <Tab label="Log History" value="history" />
+  {/* Removed To-Do List tab */}
+  <Tab label="Insights" value="insights" />
+</Tabs>
+
+
+Or if you’re using a button group:
+
+// BEFORE
+<Button onClick={() => setView('todos')}>To-Do List</Button>
+
+// AFTER
+// (just remove that button entirely)
+
+2. Remove the To-Do route
+
+In your router (e.g. App.tsx, Router.tsx):
+
+// BEFORE
+<Route path="/todos" element={<TodoListPage />} />
+
+
+Remove it:
+
+// AFTER
+// (no /todos route anymore)
+
+
+If your tabs use conditional rendering instead of routes:
+
+// BEFORE
+{view === 'todos' && <TodoListPage />}
+
+// AFTER
+// (remove that branch)
+
+3. Stop rendering <TodoList /> components anywhere
+
+Search the project for:
+
+TodoList
+
+ToDoList
+
+todosPage
+
+"To-Do List"
+
+Anywhere you see something like:
+
+<TodoList items={todoItems} ... />
+
+
+remove that block.
+
+4. Leave the data + API for now (optional clean later)
+
+You can safely leave the DB table and API in place for the moment so you don’t lose history:
+
+Keep todoItems table
+
+Keep /api/todos endpoints
+
+Just make sure no UI calls them anymore.
+
+Later, when the new Maintenance List is done, you can either:
+
+migrate open todos → maintenance table, then drop todoItems, or
+
+export + archive, then drop.
+
+(5) Remove the old “Daily Notes” component
+
+From the screenshot, the main log page already shows:
+
+Sales Summary
+
+Operational Notes
+
+Maintenance Notes
+
+So it looks like the old “Daily Notes” card is gone, but let’s clean up any leftovers.
+
+1. Kill any standalone Daily Notes component
+
+Search for:
+
+DailyNotes
+
+DailyNotesPanel
+
+"Daily Notes"
+
+If you see a dedicated component:
+
+export function DailyNotes(...) { ... }
+
+
+and it has no imports anywhere after your label renames, just delete that file.
+
+If it is still imported somewhere, delete the usage like:
+
+// BEFORE
+<Section title="Daily Notes">
+  <DailyNotes ... />
+</Section>
+
+// AFTER
+// Removed; Maintenance Notes is the only notes section.
+
+2. Clean up stray labels in other views
+
+Search project-wide for the string:
+
+"Daily Notes"
+
+
+For each hit:
+
+If it’s a label on a field that maps to dailyNotes, rename it to “Maintenance Notes” (you already did that on the main page, but this catches history/summary views).
+
+If it’s a header/section that duplicates the Maintenance Notes you now have, remove that block entirely.
+
+Example fix:
+
+// BEFORE
+<p><strong>Daily Notes:</strong> {dailyNotes}</p>
+
+// AFTER
+<p><strong>Maintenance Notes:</strong> {dailyNotes}</p>
