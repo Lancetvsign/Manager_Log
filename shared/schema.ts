@@ -344,6 +344,29 @@ export const logAttachments = pgTable("log_attachments", {
 });
 
 /**
+ * NOTE_PHOTOS TABLE
+ * -----------------
+ * Stores photo attachments for operational notes and maintenance notes.
+ * Each photo is linked to a specific manager log and categorized by note type.
+ * 
+ * Fields:
+ * - id: Auto-generated UUID primary key
+ * - clubId: Club identifier for data isolation
+ * - logId: Foreign key to manager_logs table
+ * - noteType: Either 'operational' or 'maintenance'
+ * - url: URL where the image is stored
+ * - uploadedAt: Timestamp when photo was uploaded
+ */
+export const notePhotos = pgTable("note_photos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clubId: varchar("club_id", { length: 64 }).notNull(),
+  logId: integer("log_id").notNull().references(() => managerLogs.id, { onDelete: "cascade" }),
+  noteType: varchar("note_type", { length: 24 }).notNull(), // 'operational' or 'maintenance'
+  url: varchar("url", { length: 1024 }).notNull(),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * TABLE RELATIONSHIPS
  * -------------------
  * Defines the one-to-many relationship between ManagerLogs and MaintenanceItems.
@@ -354,11 +377,19 @@ export const managerLogsRelations = relations(managerLogs, ({ many }) => ({
   maintenanceItems: many(maintenanceItems),
   notificationLogs: many(notificationLogs),
   attachments: many(logAttachments),
+  notePhotos: many(notePhotos),
 }));
 
 export const logAttachmentsRelations = relations(logAttachments, ({ one }) => ({
   managerLog: one(managerLogs, {
     fields: [logAttachments.logId],
+    references: [managerLogs.id],
+  }),
+}));
+
+export const notePhotosRelations = relations(notePhotos, ({ one }) => ({
+  managerLog: one(managerLogs, {
+    fields: [notePhotos.logId],
     references: [managerLogs.id],
   }),
 }));
@@ -491,6 +522,14 @@ export const insertLogAttachmentSchema = createInsertSchema(logAttachments).omit
   createdAt: true, // Auto-generated
 });
 
+// NotePhoto insert schema
+export const insertNotePhotoSchema = createInsertSchema(notePhotos).omit({
+  id: true,          // Auto-generated UUID
+  uploadedAt: true,  // Auto-generated
+}).extend({
+  noteType: z.enum(["operational", "maintenance"]),
+});
+
 // PrepChecklistItem insert schema
 export const insertPrepChecklistItemSchema = createInsertSchema(prepChecklistItems).omit({
   id: true,           // Auto-generated
@@ -538,6 +577,9 @@ export type InsertEscalationRuleTarget = z.infer<typeof insertEscalationRuleTarg
 export type EscalationRuleTarget = typeof escalationRuleTargets.$inferSelect;
 export type InsertLogAttachment = z.infer<typeof insertLogAttachmentSchema>;
 export type LogAttachment = typeof logAttachments.$inferSelect;
+export type InsertNotePhoto = z.infer<typeof insertNotePhotoSchema>;
+export type NotePhoto = typeof notePhotos.$inferSelect;
+export type NoteType = "operational" | "maintenance";
 export type InsertPrepChecklistItem = z.infer<typeof insertPrepChecklistItemSchema>;
 export type PrepChecklistItem = typeof prepChecklistItems.$inferSelect;
 
