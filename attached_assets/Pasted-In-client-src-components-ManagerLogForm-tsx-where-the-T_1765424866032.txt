@@ -1,0 +1,290 @@
+In client/src/components/ManagerLogForm.tsx where the “To-Do Items (Today)” card is rendered, you probably have something like:
+
+<Card>
+  <CardHeader>
+    <CardTitle>To-Do Items (Today)</CardTitle>
+    {/* Roll to Next Day button etc. */}
+  </CardHeader>
+  ...
+</Card>
+
+
+Change it to:
+
+<Card>
+  <CardHeader className="d-flex justify-content-between align-items-center">
+    <CardTitle>Running Maintenance List</CardTitle>
+    <span className="text-muted small">
+      Showing all open items · oldest to newest
+    </span>
+  </CardHeader>
+  ...
+</Card>
+
+
+We’ll keep the “Add New Maintenance Item” section underneath so today’s manager can still add items.
+
+2️⃣ Backend: return all open items (oldest → newest) with date
+
+Assuming you have a maintenance_items (or todoItems) table with Drizzle and a manager_logs table:
+
+// @shared/schema.ts (example)
+export const maintenanceItems = pgTable("maintenance_items", {
+  id: serial("id").primaryKey(),
+  clubId: integer("club_id").notNull(),
+  logId: integer("log_id").notNull(),
+  description: text("description").notNull(),
+  status: text("status").notNull().default("open"), // 'open' | 'done'
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  photoUrl: text("photo_url"),  // we'll use this in step 4
+});
+
+New endpoint: /api/maintenance/open
+
+In server/routes.ts:
+
+import { maintenanceItems, managerLogs } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
+
+app.get("/api/maintenance/open", async (req, res) => {
+  const clubId = Number(req.query.clubId);
+  if (!clubId) {
+    return res.status(400).json({ error: "clubId is required" });
+  }
+
+  const items = await db
+    .select({
+      id: maintenanceItems.id,
+      description: maintenanceItems.description,
+      status: maintenanceItems.status,
+      notes: maintenanceItems.notes,
+      createdAt: maintenanceItems.createdAt,
+      logDate: managerLogs.date,
+      photoUrl: maintenanceItems.photoUrl,
+    })
+    .from(maintenanceItems)
+    .innerJoin(
+      managerLogs,
+      eq(maintenanceItems.logId, managerLogs.id)
+    )
+    .where(
+      and(
+        eq(maintenanceItems.clubId, clubId),
+        eq(maintenanceItems.status, "open")
+      )
+    )
+    .orderBy(maintenanceItems.createdAt.asc());
+
+  res.json(items);
+});
+
+
+Now this returns:
+
+all open items
+
+for the current club
+
+oldest → newest
+
+with createdAt and logDate.
+
+3️⃣ Frontend: show all open items in the card
+
+In your form component:
+
+type RunningMaintenanceItem = {
+  id: number;
+  description: string;
+  status: "open" | "done";
+  notes: string | null;
+  createdAt: string;
+  logDate: string; // YYYY-MM-DD
+  photoUrl: string | null;
+};
+
+const [runningItems, setRunningItems] = useState<RunningMaintenanceItem[]>([]);
+const [loadingRunning, setLoadingRunning] = useState(true);
+
+async function loadRunningMaintenanceItems() {
+  setLoadingRunning(true);
+  const res = await fetch(
+    `/api/maintenance/open?clubId=${clubId}`
+  );
+  const data = await res.json();
+  setRunningItems(data);
+  setLoadingRunning(false);
+}
+
+useEffect(() => {
+  if (clubId) {
+    loadRunningMaintenanceItems();
+  }
+}, [clubId]);
+
+Replace the old “Today” table with the running list
+
+Inside the Running Maintenance List card:
+
+<CardBody>
+  {loadingRunning ? (
+    <p className="text-muted small mb-3">Loading maintenance items…</p>
+  ) : runningItems.length === 0 ? (
+    <p className="text-muted small mb-3">
+      No open maintenance items. Nice work! 🎉
+    </p>
+  ) : (
+    <div className="table-responsive mb-3">
+      <table className="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th style={{ width: "18%" }}>Added</th>
+            <th>Description</th>
+            <th style={{ width: "12%" }}>Status</th>
+            <th style={{ width: "20%" }}>Notes</th>
+            <th style={{ width: "14%" }}>Photo</th>
+            <th style={{ width: "8%" }} className="text-end">
+              Action
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {runningItems.map((item) => (
+            <RunningMaintenanceRow
+              key={item.id}
+              item={item}
+              onChanged={loadRunningMaintenanceItems}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+
+  {/* keep your "Add New Maintenance Item" block here – it will
+      still post a new item tied to *this* log and appear in the list
+      as long as its status = open */}
+  <h6 className="mt-3 mb-2">Add New Maintenance Item</h6>
+  {/* ...existing inputs for description/status/notes/Add button... */}
+</CardBody>
+
+4️⃣ Per-item photo upload
+
+We’ll use the photoUrl column we added earlier.
+
+a) Backend route for uploading a photo
+
+If you’re using Replit’s Blob or any simple file handler, the idea is:
+
+import multer from "multer";
+const upload = multer({ dest: "/tmp/uploads" }); // or memoryStorage, etc.
+
+app.post(
+  "/api/maintenance/:id/photo",
+  upload.single("photo"),
+  async (req, res) => {
+    const id = Number(req.params.id);
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    // TODO: upload file to your storage (Replit Blob, S3, etc.)
+    // For now, pretend we get back a public URL:
+    const publicUrl = await uploadToStorage(file); // implement this
+
+    await db
+      .update(maintenanceItems)
+      .set({ photoUrl: publicUrl })
+      .where(eq(maintenanceItems.id, id));
+
+    res.json({ photoUrl: publicUrl });
+  }
+);
+
+
+You can later swap uploadToStorage for whatever storage provider you choose.
+
+b) Frontend row component with its own uploader
+type RowProps = {
+  item: RunningMaintenanceItem;
+  onChanged: () => void;
+};
+
+const RunningMaintenanceRow: React.FC<RowProps> = ({ item, onChanged }) => {
+  const [uploading, setUploading] = useState(false);
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("photo", file);
+
+    setUploading(true);
+    try {
+      const res = await fetch(`/api/maintenance/${item.id}/photo`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        console.error(await res.text());
+      } else {
+        await onChanged(); // reload list
+      }
+    } finally {
+      setUploading(false);
+      // allow re-selecting the same file
+      e.target.value = "";
+    }
+  }
+
+  const addedLabel = new Date(item.logDate ?? item.createdAt).toLocaleDateString(
+    undefined,
+    { month: "short", day: "numeric", year: "numeric" }
+  );
+
+  return (
+    <tr>
+      <td className="small text-muted">{addedLabel}</td>
+      <td>{item.description}</td>
+      <td>
+        <span className="badge bg-outline-success text-success">
+          Open
+        </span>
+      </td>
+      <td className="small text-muted">
+        {item.notes || <span className="text-muted">–</span>}
+      </td>
+      <td>
+        {item.photoUrl ? (
+          <a
+            href={item.photoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-outline-secondary btn-sm"
+          >
+            View photo
+          </a>
+        ) : (
+          <label className="btn btn-outline-secondary btn-sm mb-0">
+            {uploading ? "Uploading…" : "Add photo"}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              style={{ display: "none" }}
+              disabled={uploading}
+            />
+          </label>
+        )}
+      </td>
+      <td className="text-end">
+        {/* your existing “mark done” / close icon here */}
+        {/* e.g. a checkmark button that sets status = 'done' */}
+      </td>
+    </tr>
+  );
+};

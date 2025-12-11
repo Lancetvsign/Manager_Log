@@ -125,6 +125,8 @@ export const maintenanceItems = pgTable("maintenance_items", {
   // Rollover tracking fields
   carriedOverFromId: integer("carried_over_from_id"), // Original item ID if this was rolled over
   rolledOverToDate: date("rolled_over_to_date"), // Date this item was rolled to (prevents duplicate rollover)
+  // Photo attachment
+  photoUrl: text("photo_url"), // URL to photo of damage/issue
 });
 
 /**

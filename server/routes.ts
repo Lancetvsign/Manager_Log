@@ -591,6 +591,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * GET /api/maintenance/open
+   * Retrieves all open maintenance items for a club with their log dates.
+   * Returns items sorted oldest to newest.
+   * @query clubId - The club identifier (required)
+   */
+  app.get("/api/maintenance/open", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      if (!clubId) {
+        return res.status(400).json({ error: "clubId is required" });
+      }
+
+      const { maintenanceItems } = await import("@shared/schema");
+      const items = await db
+        .select({
+          id: maintenanceItems.id,
+          description: maintenanceItems.description,
+          status: maintenanceItems.status,
+          notes: maintenanceItems.notes,
+          createdAt: maintenanceItems.createdAt,
+          logDate: managerLogs.logDate,
+          photoUrl: maintenanceItems.photoUrl,
+          managerLogId: maintenanceItems.managerLogId,
+        })
+        .from(maintenanceItems)
+        .innerJoin(
+          managerLogs,
+          eq(maintenanceItems.managerLogId, managerLogs.id)
+        )
+        .where(
+          and(
+            eq(managerLogs.clubId, clubId),
+            eq(maintenanceItems.status, "open")
+          )
+        )
+        .orderBy(maintenanceItems.createdAt);
+
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching open maintenance items:", error);
+      res.status(500).json({ error: "Failed to fetch open maintenance items" });
+    }
+  });
+
+  /**
+   * POST /api/maintenance/:id/photo
+   * Uploads a photo for a specific maintenance item.
+   * @param id - The maintenance item ID
+   */
+  app.post("/api/maintenance/:id/photo", upload.single("photo"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid ID" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      // Generate public URL for the uploaded file
+      const publicUrl = `/uploads/${file.filename}`;
+
+      const { maintenanceItems } = await import("@shared/schema");
+      await db
+        .update(maintenanceItems)
+        .set({ photoUrl: publicUrl })
+        .where(eq(maintenanceItems.id, id));
+
+      res.json({ photoUrl: publicUrl });
+    } catch (error) {
+      console.error("Error uploading maintenance photo:", error);
+      res.status(500).json({ error: "Failed to upload photo" });
+    }
+  });
+
   // ==================
   // WEATHER API
   // ==================
