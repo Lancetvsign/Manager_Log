@@ -92,6 +92,11 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
 
   const dateString = format(date, 'yyyy-MM-dd');
   
+  // Calculate comparison date: 52 weeks (364 days) before selected date for year-over-year comparison
+  const comparisonDate = new Date(date);
+  comparisonDate.setDate(comparisonDate.getDate() - 364);
+  const comparisonDateString = format(comparisonDate, 'yyyy-MM-dd');
+  
   // Check if viewing a past log (read-only mode)
   const todayIso = new Date().toISOString().slice(0, 10);
   const isPastLog = dateString < todayIso;
@@ -108,6 +113,21 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       return response.json();
     },
     enabled: !!dateString,
+  });
+
+  // Fetch log from 52 weeks ago for year-over-year sales comparison
+  const { data: comparisonLog } = useQuery<ManagerLog>({
+    queryKey: ['/api/manager-logs/by-date', comparisonDateString, clubId, 'comparison'],
+    queryFn: async () => {
+      const url = buildApiUrl(`/api/manager-logs/by-date/${comparisonDateString}`, clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error('Failed to fetch comparison log');
+      }
+      return response.json();
+    },
+    enabled: !!comparisonDateString,
   });
 
   const { data: maintenanceItems, isLoading: isLoadingMaintenance } = useQuery<MaintenanceItem[]>({
@@ -300,21 +320,34 @@ Details:
           bar: existingLog.barSales || "",
           gaming: existingLog.gamingSales || ""
         },
-        lastYear: { food: "", bar: "", gaming: "" }
+        lastYear: {
+          food: comparisonLog?.foodSales || "",
+          bar: comparisonLog?.barSales || "",
+          gaming: comparisonLog?.gamingSales || ""
+        }
       });
     } else {
       setExistingLogId(null);
       resetForm();
+      // Even without a current log, populate last year data for comparison
+      setSalesData(prev => ({
+        ...prev,
+        lastYear: {
+          food: comparisonLog?.foodSales || "",
+          bar: comparisonLog?.barSales || "",
+          gaming: comparisonLog?.gamingSales || ""
+        }
+      }));
     }
-  }, [existingLog, dateString]);
+  }, [existingLog, comparisonLog, dateString]);
 
   useEffect(() => {
     /**
      * Fetches weather data with fallback strategy for historical weather.
      * 
      * FALLBACK LOGIC FOR HISTORICAL WEATHER:
-     * 1. First attempt: Try fetching weather from exactly 1 year ago (selectedDate - 1 year)
-     * 2. Second attempt: If first fails or returns "unavailable", try the previous day (selectedDate - 1 year - 1 day)
+     * 1. First attempt: Try fetching weather from 52 weeks (364 days) ago - same day of week
+     * 2. Second attempt: If first fails or returns "unavailable", try 365 days ago (1 day earlier)
      * 3. Final fallback: If both fail, use current weather with a note explaining the fallback
      * 
      * Note: The server returns fallback data with description containing "temporarily unavailable"
@@ -348,16 +381,16 @@ Details:
         // Fetch current weather
         const currentWeather = await fetchWeather(`${apiBaseUrl}/api/weather/current`);
 
-        // STEP 1: Try historical weather for exactly 1 year ago
+        // STEP 1: Try historical weather for 52 weeks ago (same day of week)
         let historicalWeather = await fetchWeather(`${apiBaseUrl}/api/weather/historical?date=${dateString}`);
         let fallbackNote: string | null = null;
 
-        // STEP 2: If first attempt returned server fallback, try the previous day (1 year ago - 1 day)
+        // STEP 2: If first attempt returned server fallback, try 365 days ago (1 day before 52 weeks)
         if (isServerFallback(historicalWeather)) {
           const selectedDate = new Date(dateString + 'T00:00:00');
+          // Use 52 weeks (364 days) - 1 day for fallback (same day of week, 1 day earlier)
           const fallbackDate = new Date(selectedDate);
-          fallbackDate.setFullYear(fallbackDate.getFullYear() - 1);
-          fallbackDate.setDate(fallbackDate.getDate() - 1);
+          fallbackDate.setDate(fallbackDate.getDate() - 365); // 364 - 1 = 365 days back
           const fallbackDateString = format(fallbackDate, 'yyyy-MM-dd');
           
           const previousDayWeather = await fetchWeather(`${apiBaseUrl}/api/weather/historical?date=${fallbackDateString}`);

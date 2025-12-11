@@ -632,11 +632,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const targetDate = new Date(date as string);
-      const oneYearAgo = new Date(targetDate);
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      // Use 52 weeks (364 days) before for year-over-year comparison (same day of week)
+      const comparisonDate = new Date(targetDate);
+      comparisonDate.setDate(comparisonDate.getDate() - 364);
       
       const weather = await getHistoricalWeather(
-        oneYearAgo.toISOString().split('T')[0],
+        comparisonDate.toISOString().split('T')[0],
         lat ? parseFloat(lat as string) : undefined,
         lon ? parseFloat(lon as string) : undefined
       );
@@ -657,11 +658,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const targetDate = new Date(date as string);
-      const oneYearAgo = new Date(targetDate);
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      // Use 52 weeks (364 days) before for year-over-year comparison (same day of week)
+      const comparisonDate = new Date(targetDate);
+      comparisonDate.setDate(comparisonDate.getDate() - 364);
       
       const weather = await getHistoricalWeather(
-        oneYearAgo.toISOString().split('T')[0],
+        comparisonDate.toISOString().split('T')[0],
         lat ? parseFloat(lat as string) : undefined,
         lon ? parseFloat(lon as string) : undefined
       );
