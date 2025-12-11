@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ManagerLogForm from "@/components/ManagerLogForm";
 import ManagerLogList from "@/components/ManagerLogList";
 import InsightsPage from "@/components/InsightsPage";
+import RunningMaintenanceList from "@/components/RunningMaintenanceList";
 import ThemeToggle from "@/components/ThemeToggle";
 import { History, Plus, BarChart3 } from "lucide-react";
 import logoImageDark from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
@@ -161,9 +162,10 @@ export default function Home() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Today's Log Tab - Daily log form */}
+          {/* Today's Log Tab - Daily log form + Maintenance list */}
           <TabsContent value="new-entry" className="space-y-6">
             <ManagerLogForm onSubmit={handleSubmitLog} />
+            <RunningMaintenanceList showCompleted={true} />
           </TabsContent>
 
           {/* History Tab - List of all log entries */}
