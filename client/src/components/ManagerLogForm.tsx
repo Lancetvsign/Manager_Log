@@ -1058,6 +1058,8 @@ Details:
               logId={existingLogId}
               noteType="operational"
               disabled={isPastLog}
+              currentDate={dateString}
+              onLogCreated={(id) => setExistingLogId(id)}
             />
           </div>
         </CardContent>
@@ -1083,6 +1085,8 @@ Details:
               logId={existingLogId}
               noteType="maintenance"
               disabled={isPastLog}
+              currentDate={dateString}
+              onLogCreated={(id) => setExistingLogId(id)}
             />
           </div>
         </CardContent>
