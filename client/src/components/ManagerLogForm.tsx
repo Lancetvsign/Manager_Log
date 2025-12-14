@@ -509,6 +509,7 @@ Details:
         description: "Maintenance item added successfully!"
       });
       queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/maintenance/open', clubId] });
       setNewMaintenanceDescription("");
       setNewMaintenanceStatus("open");
       setNewMaintenanceNotes("");
@@ -544,6 +545,7 @@ Details:
         description: "Maintenance item updated!"
       });
       queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/maintenance/open', clubId] });
     },
     onError: (error: any) => {
       console.error('Failed to update maintenance item:', error);

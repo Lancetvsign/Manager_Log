@@ -587,6 +587,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertMaintenanceItemSchema.parse(req.body);
       const item = await storage.createMaintenanceItem(validatedData);
+      
+      // Update the maintenance snapshot for the associated log
+      if (item.managerLogId) {
+        const [log] = await db.select().from(managerLogs).where(eq(managerLogs.id, item.managerLogId)).limit(1);
+        if (log) {
+          await captureMaintenanceSnapshot(log.id, log.clubId);
+        }
+      }
+      
       res.status(201).json(item);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -615,6 +624,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!item) {
         return res.status(404).json({ error: "Maintenance item not found" });
+      }
+      
+      // Update the maintenance snapshot for the associated log
+      if (item.managerLogId) {
+        const [log] = await db.select().from(managerLogs).where(eq(managerLogs.id, item.managerLogId)).limit(1);
+        if (log) {
+          await captureMaintenanceSnapshot(log.id, log.clubId);
+        }
       }
       
       res.json(item);
