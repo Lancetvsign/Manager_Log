@@ -346,6 +346,31 @@ export const logAttachments = pgTable("log_attachments", {
 });
 
 /**
+ * LOG_MAINTENANCE_SNAPSHOTS TABLE
+ * --------------------------------
+ * Captures a snapshot of maintenance items when a log is saved.
+ * This ensures Log History shows accurate data even if items are edited later.
+ * 
+ * Fields:
+ * - id: Auto-incrementing primary key
+ * - logId: Foreign key to manager_logs table
+ * - itemId: Foreign key to maintenance_items table
+ * - statusAtTime: The item's status when the snapshot was captured
+ * - notesAtTime: The item's notes when the snapshot was captured
+ * - capturedAt: When this snapshot was taken
+ * - carriedOverFromLogId: Optional reference to the log where item originated
+ */
+export const logMaintenanceSnapshots = pgTable("log_maintenance_snapshots", {
+  id: serial("id").primaryKey(),
+  logId: integer("log_id").notNull().references(() => managerLogs.id, { onDelete: "cascade" }),
+  itemId: integer("item_id").notNull().references(() => maintenanceItems.id, { onDelete: "cascade" }),
+  statusAtTime: text("status_at_time").notNull(),
+  notesAtTime: text("notes_at_time").default(""),
+  capturedAt: timestamp("captured_at").defaultNow().notNull(),
+  carriedOverFromLogId: integer("carried_over_from_log_id"),
+});
+
+/**
  * NOTE_PHOTOS TABLE
  * -----------------
  * Stores photo attachments for operational notes and maintenance notes.
@@ -433,6 +458,17 @@ export const escalationRuleTargetsRelations = relations(escalationRuleTargets, (
   list: one(notificationLists, {
     fields: [escalationRuleTargets.listId],
     references: [notificationLists.id],
+  }),
+}));
+
+export const logMaintenanceSnapshotsRelations = relations(logMaintenanceSnapshots, ({ one }) => ({
+  managerLog: one(managerLogs, {
+    fields: [logMaintenanceSnapshots.logId],
+    references: [managerLogs.id],
+  }),
+  maintenanceItem: one(maintenanceItems, {
+    fields: [logMaintenanceSnapshots.itemId],
+    references: [maintenanceItems.id],
   }),
 }));
 
@@ -582,6 +618,7 @@ export type LogAttachment = typeof logAttachments.$inferSelect;
 export type InsertNotePhoto = z.infer<typeof insertNotePhotoSchema>;
 export type NotePhoto = typeof notePhotos.$inferSelect;
 export type NoteType = "operational" | "maintenance";
+export type LogMaintenanceSnapshot = typeof logMaintenanceSnapshots.$inferSelect;
 export type InsertPrepChecklistItem = z.infer<typeof insertPrepChecklistItemSchema>;
 export type PrepChecklistItem = typeof prepChecklistItems.$inferSelect;
 

@@ -1,0 +1,97 @@
+1) Add a snapshot table
+
+In shared/schema.ts (Drizzle):
+
+import { pgTable, serial, integer, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { managerLogs, todoItems } from "./schema"; // whatever your actual exports are
+
+export const logMaintenanceSnapshots = pgTable("log_maintenance_snapshots", {
+  id: serial("id").primaryKey(),
+
+  logId: integer("log_id").notNull().references(() => managerLogs.id, { onDelete: "cascade" }),
+  itemId: integer("item_id").notNull().references(() => todoItems.id, { onDelete: "cascade" }),
+
+  // snapshot fields (so history stays accurate even if item changes later)
+  statusAtTime: text("status_at_time").notNull(),     // "open" | "completed"
+  notesAtTime: text("notes_at_time").default(""),
+  capturedAt: timestamp("captured_at").defaultNow().notNull(),
+
+  // optional: helps show “↪ from Dec 10”
+  carriedOverFromLogId: integer("carried_over_from_log_id"),
+});
+
+
+Why snapshot fields?
+So when someone edits notes later, you still know what was true on that day.
+
+2) When saving a daily log, write the snapshot rows
+
+In your log save route (where you upsert the log):
+
+import { and, eq, asc } from "drizzle-orm";
+import { todoItems, logMaintenanceSnapshots } from "@shared/schema";
+
+async function captureMaintenanceSnapshot(logId: number, clubId: string) {
+  // get all OPEN maintenance items for this club
+  const openItems = await db
+    .select()
+    .from(todoItems)
+    .where(and(
+      eq(todoItems.clubId, clubId),
+      eq(todoItems.status, "open")
+    ))
+    .orderBy(asc(todoItems.createdAt));
+
+  // delete any previous snapshot rows for this log (so re-saving updates snapshot cleanly)
+  await db.delete(logMaintenanceSnapshots).where(eq(logMaintenanceSnapshots.logId, logId));
+
+  // insert snapshot rows
+  if (openItems.length) {
+    await db.insert(logMaintenanceSnapshots).values(
+      openItems.map(i => ({
+        logId,
+        itemId: i.id,
+        statusAtTime: i.status,
+        notesAtTime: i.notes ?? "",
+        carriedOverFromLogId: i.carriedOverFromLogId ?? null, // only if you track this
+      }))
+    );
+  }
+}
+
+
+Then inside your “save log” handler:
+
+const savedLog = await saveOrUpdateLog(...);
+await captureMaintenanceSnapshot(savedLog.id, clubId);
+
+
+Now every log entry permanently records: “these maintenance items were open on this day.”
+
+3) In Log History → Log Entry Details, show the snapshot
+
+Add a query:
+
+const itemsForThisLog = await db
+  .select({
+    id: todoItems.id,
+    description: todoItems.description,
+    status: logMaintenanceSnapshots.statusAtTime,
+    notes: logMaintenanceSnapshots.notesAtTime,
+    createdAt: todoItems.createdAt,
+    capturedAt: logMaintenanceSnapshots.capturedAt,
+  })
+  .from(logMaintenanceSnapshots)
+  .innerJoin(todoItems, eq(logMaintenanceSnapshots.itemId, todoItems.id))
+  .where(eq(logMaintenanceSnapshots.logId, logId))
+  .orderBy(asc(todoItems.createdAt));
+
+
+Render that using the same table component you already use.
+
+What this gives you (exactly what you want)
+
+✅ Running Maintenance List still persists across days
+✅ Each daily log captures “the open list that day”
+✅ Log History is accurate and doesn’t change later
+✅ You can later add KPIs like “items carried over 3+ days”

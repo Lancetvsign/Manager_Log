@@ -1,0 +1,143 @@
+Yep — right now your Running Maintenance List is behaving like a different UI widget than the To-Do Items table you see in Log History → Log Entry Details.
+
+To make them match exactly, do this:
+
+1) Reuse the SAME table component in both places
+
+Find the component that renders the Log History “To-Do Items” table (it’s usually something like):
+
+TodoItemsTable
+
+MaintenanceItemsTable
+
+or a block inside LogEntryDetails.tsx
+
+Move it into its own component (if it isn’t already), and use that same component inside:
+
+Log Entry Details page ✅
+
+New Entry → Running Maintenance List ✅
+
+Example:
+
+// components/MaintenanceItemsTable.tsx
+export function MaintenanceItemsTable({ items, showAddedDate = false }: {
+  items: MaintenanceItem[];
+  showAddedDate?: boolean;
+}) {
+  return (
+    <div className="rounded-md border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40">
+          <tr>
+            <th className="p-3 text-left">Description</th>
+            {showAddedDate && <th className="p-3 text-left">Added</th>}
+            <th className="p-3 text-left">Status</th>
+            <th className="p-3 text-left">Notes</th>
+            <th className="p-3 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(i => (
+            <tr key={i.id} className="border-t">
+              <td className="p-3">{i.description}</td>
+              {showAddedDate && (
+                <td className="p-3 text-muted-foreground">
+                  {new Date(i.createdAt).toLocaleDateString()}
+                </td>
+              )}
+              <td className="p-3">{i.status}</td>
+              <td className="p-3">{i.notes || "-"}</td>
+              <td className="p-3 text-right">
+                {/* whatever actions you already have in history */}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
+Then in Log Entry Details, swap in:
+
+<MaintenanceItemsTable items={log.todoItems} />
+
+
+And in Running Maintenance List, use the same component:
+
+<MaintenanceItemsTable items={runningItems} showAddedDate />
+
+2) Make Running Maintenance List load the same data shape as History
+
+In Log History you’re likely doing “items for THIS log”.
+
+For Running Maintenance List, you want:
+
+✅ All open items (club-wide)
+✅ Oldest → newest
+✅ Include createdAt / “date added”
+
+So add/confirm an API like:
+
+GET /api/maintenance-items/open?clubId=...
+
+Server (Drizzle) example:
+
+// routes.ts
+app.get("/api/maintenance-items/open", async (req, res) => {
+  const clubId = String(req.query.clubId);
+
+  const items = await db
+    .select()
+    .from(todoItems)
+    .where(and(
+      eq(todoItems.clubId, clubId),
+      eq(todoItems.status, "open")
+    ))
+    .orderBy(asc(todoItems.createdAt));
+
+  res.json(items);
+});
+
+
+Client:
+
+const [runningItems, setRunningItems] = useState<MaintenanceItem[]>([]);
+
+useEffect(() => {
+  fetch(`/api/maintenance-items/open?clubId=${clubId}`)
+    .then(r => r.json())
+    .then(setRunningItems);
+}, [clubId]);
+
+
+Now both views render the same columns + styling because it’s the same component.
+
+3) If you want the “same actions” too
+
+If your History table has “mark complete / delete / edit notes”, reuse those exact handlers in the shared component and just pass callbacks.
+
+Quick side-fix (important): buttons jumping you to Log History / top of page
+
+That’s almost always because a button is behaving like a form submit.
+
+Make sure every “Add / Metric / Flag / Save rule / Add prep item” button inside a <form> is:
+
+<Button type="button" onClick={(e) => { e.preventDefault(); /* do action */ }}>
+  Add
+</Button>
+
+
+(or native <button type="button">)
+
+This prevents navigation + page jump.
+
+If you tell me the file names where:
+
+Log History To-Do table is rendered, and
+
+Running Maintenance List is rendered,
+
+…I’ll give you the exact “copy/paste” patch for your component names.
