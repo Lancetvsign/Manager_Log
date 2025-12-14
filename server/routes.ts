@@ -22,9 +22,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems } from "@shared/schema";
+import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems, runningMaintenanceList, runningMaintenanceSnapshots } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, count, asc } from "drizzle-orm";
+import { eq, desc, and, count, asc, gte, lte, sql } from "drizzle-orm";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
 import { sendLogNotificationEmail, isEmailConfigured } from "./email";
 import { getNotificationLists, seedDefaultNotificationLists } from "./notificationLists";
@@ -123,6 +123,55 @@ async function captureMaintenanceSnapshot(logId: number, clubId: string) {
     console.log(`Captured maintenance snapshot for log ${logId}: ${openItems.length} items`);
   } catch (error) {
     console.error("Error capturing maintenance snapshot:", error);
+  }
+}
+
+/**
+ * Captures a snapshot of all open running maintenance items for a log.
+ * Used to power Insights with historical data for trends and carryovers.
+ * @param clubId - The club ID to filter items by
+ * @param logId - The log ID to associate with the snapshot
+ */
+async function snapshotRunningMaintenanceForLog(clubId: string, logId: number) {
+  try {
+    // 1) Clear any existing snapshots for that log (idempotent)
+    await db.delete(runningMaintenanceSnapshots).where(
+      and(
+        eq(runningMaintenanceSnapshots.clubId, clubId),
+        eq(runningMaintenanceSnapshots.logId, logId)
+      )
+    );
+
+    // 2) Load all open running maintenance items (oldest → newest)
+    const openItems = await db
+      .select()
+      .from(runningMaintenanceList)
+      .where(
+        and(
+          eq(runningMaintenanceList.clubId, clubId),
+          eq(runningMaintenanceList.status, "open")
+        )
+      )
+      .orderBy(asc(runningMaintenanceList.dateAdded));
+
+    // 3) Insert snapshots
+    if (openItems.length > 0) {
+      await db.insert(runningMaintenanceSnapshots).values(
+        openItems.map((item) => ({
+          clubId,
+          logId,
+          runningItemId: item.id,
+          title: item.title,
+          description: item.description ?? null,
+          status: item.status,
+          daysOpen: Math.floor((Date.now() - new Date(item.dateAdded).getTime()) / 86400000),
+        }))
+      );
+    }
+
+    console.log(`Captured running maintenance snapshot for log ${logId}: ${openItems.length} items`);
+  } catch (error) {
+    console.error("Error capturing running maintenance snapshot:", error);
   }
 }
 
@@ -327,6 +376,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Capture maintenance snapshot for this log (stores current state of open items)
       await captureMaintenanceSnapshot(log.id, validatedData.clubId);
+      // Capture running maintenance snapshot for insights
+      await snapshotRunningMaintenanceForLog(validatedData.clubId, log.id);
       
       res.status(201).json(log);
     } catch (error) {
@@ -593,6 +644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const [log] = await db.select().from(managerLogs).where(eq(managerLogs.id, item.managerLogId)).limit(1);
         if (log) {
           await captureMaintenanceSnapshot(log.id, log.clubId);
+          await snapshotRunningMaintenanceForLog(log.clubId, log.id);
         }
       }
       
@@ -631,6 +683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const [log] = await db.select().from(managerLogs).where(eq(managerLogs.id, item.managerLogId)).limit(1);
         if (log) {
           await captureMaintenanceSnapshot(log.id, log.clubId);
+          await snapshotRunningMaintenanceForLog(log.clubId, log.id);
         }
       }
       
@@ -985,6 +1038,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching metrics:", error);
       res.status(500).json({ error: "Failed to fetch metrics" });
+    }
+  });
+
+  /**
+   * GET /api/insights/maintenance
+   * Returns detailed maintenance insights powered by:
+   * - Running Maintenance Items (live table) for "Open Now / Oldest Open"
+   * - Daily Maintenance Snapshots for trends + carryovers + "open over time"
+   * 
+   * Query Parameters:
+   * - clubId: Required - filters data to a specific club
+   * - start: Required - start of date range (ISO date)
+   * - end: Required - end of date range (ISO date)
+   */
+  app.get("/api/insights/maintenance", async (req, res) => {
+    try {
+      const clubId = String(req.query.clubId || "");
+      const start = String(req.query.start || "");
+      const end = String(req.query.end || "");
+
+      if (!clubId || !start || !end) {
+        return res.status(400).json({ error: "clubId, start, end are required" });
+      }
+
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+
+      // 1) OPEN NOW (live)
+      const openNowRow = await db
+        .select({ c: count() })
+        .from(runningMaintenanceList)
+        .where(
+          and(
+            eq(runningMaintenanceList.clubId, clubId),
+            eq(runningMaintenanceList.status, "open")
+          )
+        );
+      const openNow = Number(openNowRow?.[0]?.c ?? 0);
+
+      // 2) COMPLETED IN RANGE (live, based on dateCompleted)
+      const completedRow = await db
+        .select({ c: count() })
+        .from(runningMaintenanceList)
+        .where(
+          and(
+            eq(runningMaintenanceList.clubId, clubId),
+            sql`${runningMaintenanceList.dateCompleted} is not null`,
+            gte(runningMaintenanceList.dateCompleted, startDate),
+            lte(runningMaintenanceList.dateCompleted, endDate)
+          )
+        );
+      const completedInRange = Number(completedRow?.[0]?.c ?? 0);
+
+      // 3) AVG DAYS OPEN (for currently open items)
+      const avgDaysOpenRow = await db
+        .select({
+          avgDays: sql<number>`avg(extract(epoch from (now() - ${runningMaintenanceList.dateAdded})) / 86400)`,
+        })
+        .from(runningMaintenanceList)
+        .where(
+          and(
+            eq(runningMaintenanceList.clubId, clubId),
+            eq(runningMaintenanceList.status, "open")
+          )
+        );
+      const avgDaysOpen = Number(avgDaysOpenRow?.[0]?.avgDays ?? 0);
+
+      // 4) DAILY OPEN COUNTS (snapshots grouped by log date)
+      const dailyOpenCounts = await db
+        .select({
+          date: managerLogs.logDate,
+          count: count(),
+        })
+        .from(runningMaintenanceSnapshots)
+        .innerJoin(managerLogs, eq(managerLogs.id, runningMaintenanceSnapshots.logId))
+        .where(
+          and(
+            eq(runningMaintenanceSnapshots.clubId, clubId),
+            gte(managerLogs.logDate, start.split("T")[0]),
+            lte(managerLogs.logDate, end.split("T")[0])
+          )
+        )
+        .groupBy(managerLogs.logDate)
+        .orderBy(managerLogs.logDate);
+
+      // 5) DAILY COMPLETIONS (by dateCompleted date)
+      const dailyCompletions = await db
+        .select({
+          date: sql<string>`date(${runningMaintenanceList.dateCompleted})`,
+          count: count(),
+        })
+        .from(runningMaintenanceList)
+        .where(
+          and(
+            eq(runningMaintenanceList.clubId, clubId),
+            sql`${runningMaintenanceList.dateCompleted} is not null`,
+            gte(runningMaintenanceList.dateCompleted, startDate),
+            lte(runningMaintenanceList.dateCompleted, endDate)
+          )
+        )
+        .groupBy(sql`date(${runningMaintenanceList.dateCompleted})`)
+        .orderBy(sql`date(${runningMaintenanceList.dateCompleted})`);
+
+      // 6) TOP OLDEST OPEN
+      const oldestOpen = await db
+        .select({
+          id: runningMaintenanceList.id,
+          title: runningMaintenanceList.title,
+          dateAdded: runningMaintenanceList.dateAdded,
+        })
+        .from(runningMaintenanceList)
+        .where(
+          and(
+            eq(runningMaintenanceList.clubId, clubId),
+            eq(runningMaintenanceList.status, "open")
+          )
+        )
+        .orderBy(asc(runningMaintenanceList.dateAdded))
+        .limit(5);
+
+      const topOldestOpen = oldestOpen.map((item) => ({
+        id: item.id,
+        title: item.title,
+        daysOpen: Math.floor((Date.now() - new Date(item.dateAdded).getTime()) / 86400000),
+      }));
+
+      // 7) REPEATED CARRYOVERS (items that appear in snapshots multiple days in range)
+      const repeated = await db
+        .select({
+          runningItemId: runningMaintenanceSnapshots.runningItemId,
+          title: sql<string>`max(${runningMaintenanceSnapshots.title})`,
+          daysAppeared: count(),
+        })
+        .from(runningMaintenanceSnapshots)
+        .innerJoin(managerLogs, eq(managerLogs.id, runningMaintenanceSnapshots.logId))
+        .where(
+          and(
+            eq(runningMaintenanceSnapshots.clubId, clubId),
+            gte(managerLogs.logDate, start.split("T")[0]),
+            lte(managerLogs.logDate, end.split("T")[0])
+          )
+        )
+        .groupBy(runningMaintenanceSnapshots.runningItemId)
+        .having(sql`count(*) > 1`)
+        .orderBy(sql`count(*) desc`)
+        .limit(10);
+
+      return res.json({
+        openNow,
+        completedInRange,
+        avgDaysOpen: Number.isFinite(avgDaysOpen) ? avgDaysOpen : 0,
+        dailyOpenCounts: dailyOpenCounts.map(d => ({
+          date: d.date,
+          count: Number(d.count),
+        })),
+        dailyCompletions: dailyCompletions.map(d => ({
+          date: d.date,
+          count: Number(d.count),
+        })),
+        topOldestOpen,
+        repeatedCarryovers: repeated.map((r) => ({
+          id: r.runningItemId,
+          title: r.title,
+          daysAppeared: Number(r.daysAppeared),
+        })),
+      });
+    } catch (error) {
+      console.error("Error fetching maintenance insights:", error);
+      res.status(500).json({ error: "Failed to load maintenance insights" });
     }
   });
 

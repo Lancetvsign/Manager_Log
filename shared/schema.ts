@@ -371,6 +371,35 @@ export const logMaintenanceSnapshots = pgTable("log_maintenance_snapshots", {
 });
 
 /**
+ * RUNNING_MAINTENANCE_SNAPSHOTS TABLE
+ * ------------------------------------
+ * Captures a daily snapshot of running maintenance items when a log is saved.
+ * Powers the Insights page with historical trend data for open items over time.
+ * 
+ * Fields:
+ * - id: Auto-incrementing primary key
+ * - clubId: Club identifier for data isolation
+ * - logId: Foreign key to manager_logs table (the day's log)
+ * - runningItemId: Foreign key to running_maintenance_list table
+ * - title: Denormalized title at snapshot time
+ * - description: Denormalized description at snapshot time
+ * - status: open/completed at snapshot time
+ * - daysOpen: How many days this item has been open at snapshot time
+ * - createdAt: When this snapshot was taken
+ */
+export const runningMaintenanceSnapshots = pgTable("running_maintenance_snapshots", {
+  id: serial("id").primaryKey(),
+  clubId: varchar("club_id", { length: 64 }).notNull(),
+  logId: integer("log_id").notNull().references(() => managerLogs.id, { onDelete: "cascade" }),
+  runningItemId: integer("running_item_id").notNull().references(() => runningMaintenanceList.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: varchar("status", { length: 20 }).notNull(),
+  daysOpen: integer("days_open").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+/**
  * NOTE_PHOTOS TABLE
  * -----------------
  * Stores photo attachments for operational notes and maintenance notes.
@@ -469,6 +498,17 @@ export const logMaintenanceSnapshotsRelations = relations(logMaintenanceSnapshot
   maintenanceItem: one(maintenanceItems, {
     fields: [logMaintenanceSnapshots.itemId],
     references: [maintenanceItems.id],
+  }),
+}));
+
+export const runningMaintenanceSnapshotsRelations = relations(runningMaintenanceSnapshots, ({ one }) => ({
+  managerLog: one(managerLogs, {
+    fields: [runningMaintenanceSnapshots.logId],
+    references: [managerLogs.id],
+  }),
+  runningItem: one(runningMaintenanceList, {
+    fields: [runningMaintenanceSnapshots.runningItemId],
+    references: [runningMaintenanceList.id],
   }),
 }));
 
@@ -619,6 +659,7 @@ export type InsertNotePhoto = z.infer<typeof insertNotePhotoSchema>;
 export type NotePhoto = typeof notePhotos.$inferSelect;
 export type NoteType = "operational" | "maintenance";
 export type LogMaintenanceSnapshot = typeof logMaintenanceSnapshots.$inferSelect;
+export type RunningMaintenanceSnapshot = typeof runningMaintenanceSnapshots.$inferSelect;
 export type InsertPrepChecklistItem = z.infer<typeof insertPrepChecklistItemSchema>;
 export type PrepChecklistItem = typeof prepChecklistItems.$inferSelect;
 
