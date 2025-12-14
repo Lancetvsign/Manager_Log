@@ -22,9 +22,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients } from "@shared/schema";
+import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, count } from "drizzle-orm";
+import { eq, desc, and, count, asc } from "drizzle-orm";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
 import { sendLogNotificationEmail, isEmailConfigured } from "./email";
 import { getNotificationLists, seedDefaultNotificationLists } from "./notificationLists";
@@ -76,6 +76,54 @@ function isPastDate(dateStr: string): boolean {
   const [y, m, d] = dateStr.split("-").map(Number);
   const logDate = new Date(y, m - 1, d);
   return logDate < todayOnly;
+}
+
+/**
+ * Captures a snapshot of all open maintenance items for a log.
+ * This ensures Log History shows accurate data even if items are edited later.
+ * @param logId - The log ID to capture snapshot for
+ * @param clubId - The club ID to filter items by
+ */
+async function captureMaintenanceSnapshot(logId: number, clubId: string) {
+  try {
+    // Get all open maintenance items for this club
+    const openItems = await db
+      .select({
+        id: maintenanceItems.id,
+        status: maintenanceItems.status,
+        notes: maintenanceItems.notes,
+        carriedOverFromId: maintenanceItems.carriedOverFromId,
+      })
+      .from(maintenanceItems)
+      .innerJoin(managerLogs, eq(maintenanceItems.managerLogId, managerLogs.id))
+      .where(
+        and(
+          eq(managerLogs.clubId, clubId),
+          eq(maintenanceItems.status, "open")
+        )
+      )
+      .orderBy(asc(maintenanceItems.createdAt));
+
+    // Delete any previous snapshot rows for this log (so re-saving updates snapshot cleanly)
+    await db.delete(logMaintenanceSnapshots).where(eq(logMaintenanceSnapshots.logId, logId));
+
+    // Insert snapshot rows
+    if (openItems.length > 0) {
+      await db.insert(logMaintenanceSnapshots).values(
+        openItems.map(item => ({
+          logId,
+          itemId: item.id,
+          statusAtTime: item.status,
+          notesAtTime: item.notes ?? "",
+          carriedOverFromLogId: item.carriedOverFromId ?? null,
+        }))
+      );
+    }
+    
+    console.log(`Captured maintenance snapshot for log ${logId}: ${openItems.length} items`);
+  } catch (error) {
+    console.error("Error capturing maintenance snapshot:", error);
+  }
 }
 
 // ==================
@@ -276,6 +324,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const log = await storage.upsertManagerLog(validatedData);
+      
+      // Capture maintenance snapshot for this log (stores current state of open items)
+      await captureMaintenanceSnapshot(log.id, validatedData.clubId);
+      
       res.status(201).json(log);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -487,6 +539,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching maintenance items:", error);
       res.status(500).json({ error: "Failed to fetch maintenance items" });
+    }
+  });
+
+  /**
+   * GET /api/manager-logs/:logId/maintenance-snapshot
+   * Retrieves the maintenance snapshot for a specific log entry.
+   * This returns the state of open maintenance items as they were when the log was saved.
+   * Used for Log History view to show accurate historical data.
+   */
+  app.get("/api/manager-logs/:logId/maintenance-snapshot", async (req, res) => {
+    try {
+      const logId = parseInt(req.params.logId, 10);
+      if (isNaN(logId)) {
+        return res.status(400).json({ error: "Invalid log ID" });
+      }
+      
+      // Get snapshot items joined with maintenance item details
+      const snapshotItems = await db
+        .select({
+          id: logMaintenanceSnapshots.id,
+          itemId: logMaintenanceSnapshots.itemId,
+          status: logMaintenanceSnapshots.statusAtTime,
+          notes: logMaintenanceSnapshots.notesAtTime,
+          capturedAt: logMaintenanceSnapshots.capturedAt,
+          description: maintenanceItems.description,
+          createdAt: maintenanceItems.createdAt,
+          photoUrl: maintenanceItems.photoUrl,
+        })
+        .from(logMaintenanceSnapshots)
+        .innerJoin(maintenanceItems, eq(logMaintenanceSnapshots.itemId, maintenanceItems.id))
+        .where(eq(logMaintenanceSnapshots.logId, logId))
+        .orderBy(asc(maintenanceItems.createdAt));
+      
+      res.json(snapshotItems);
+    } catch (error) {
+      console.error("Error fetching maintenance snapshot:", error);
+      res.status(500).json({ error: "Failed to fetch maintenance snapshot" });
     }
   });
 

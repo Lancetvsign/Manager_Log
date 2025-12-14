@@ -30,12 +30,23 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format, subDays } from "date-fns";
 import { 
   Search, Eye, Calendar as CalendarIcon, DollarSign, Loader2, 
-  CloudSun, ArrowLeft, Wrench, CheckCircle, AlertCircle, 
-  Clock, Filter
+  CloudSun, ArrowLeft, Wrench, Clock, Filter
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import type { ManagerLog, MaintenanceItem } from "@shared/schema";
+import type { ManagerLog } from "@shared/schema";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
+import { MaintenanceItemsTable } from "./MaintenanceItemsTable";
+
+interface MaintenanceSnapshotItem {
+  id: number;
+  itemId: number;
+  status: string;
+  notes: string | null;
+  capturedAt: string;
+  description: string;
+  createdAt: string;
+  photoUrl: string | null;
+}
 
 type DateRangeFilter = "all" | "7days" | "30days" | "specific";
 
@@ -66,14 +77,14 @@ export default function ManagerLogList({
     },
   });
 
-  const { data: maintenanceItems, isLoading: isLoadingMaintenance } = useQuery<MaintenanceItem[]>({
-    queryKey: ['/api/manager-logs', selectedLog?.id, 'maintenance', clubId],
+  const { data: snapshotItems, isLoading: isLoadingSnapshot } = useQuery<MaintenanceSnapshotItem[]>({
+    queryKey: ['/api/manager-logs', selectedLog?.id, 'maintenance-snapshot', clubId],
     queryFn: async () => {
       if (!selectedLog?.id) return [];
-      const url = buildApiUrl(`/api/manager-logs/${selectedLog.id}/maintenance`, clubId, apiBaseUrl);
+      const url = buildApiUrl(`/api/manager-logs/${selectedLog.id}/maintenance-snapshot`, clubId, apiBaseUrl);
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error('Failed to fetch maintenance items');
+        throw new Error('Failed to fetch maintenance snapshot');
       }
       return response.json();
     },
@@ -300,58 +311,21 @@ export default function ManagerLogList({
           </CardContent>
         </Card>
 
-        {/* To-Do Items */}
+        {/* Running Maintenance List (snapshot of open items at log save time) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wrench className="h-5 w-5" />
-              To-Do Items
+              Running Maintenance List
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoadingMaintenance ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                <span className="text-sm text-muted-foreground">Loading to-do items...</span>
-              </div>
-            ) : maintenanceItems && maintenanceItems.length > 0 ? (
-              <div className="border rounded-lg divide-y">
-                <div className="grid grid-cols-12 gap-2 p-3 bg-muted/50 text-sm font-medium">
-                  <div className="col-span-5">Description</div>
-                  <div className="col-span-2">Status</div>
-                  <div className="col-span-5">Notes</div>
-                </div>
-                {maintenanceItems.map((item) => (
-                  <div 
-                    key={item.id} 
-                    className="grid grid-cols-12 gap-2 p-3 items-center"
-                    data-testid={`maintenance-item-${item.id}`}
-                  >
-                    <div className="col-span-5 text-sm">{item.description}</div>
-                    <div className="col-span-2">
-                      <Badge 
-                        variant={item.status === "completed" ? "default" : "secondary"}
-                        className="flex items-center gap-1 w-fit"
-                      >
-                        {item.status === "completed" ? (
-                          <CheckCircle className="h-3 w-3" />
-                        ) : (
-                          <AlertCircle className="h-3 w-3" />
-                        )}
-                        {item.status === "completed" ? "Completed" : "Open"}
-                      </Badge>
-                    </div>
-                    <div className="col-span-5 text-sm text-muted-foreground">
-                      {item.notes || "-"}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No to-do items recorded for this date.
-              </p>
-            )}
+            <MaintenanceItemsTable
+              items={snapshotItems || []}
+              isLoading={isLoadingSnapshot}
+              showDateAdded={true}
+              emptyMessage="No maintenance items were recorded for this date."
+            />
           </CardContent>
         </Card>
       </div>
