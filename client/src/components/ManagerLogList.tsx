@@ -36,7 +36,6 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import type { ManagerLog, MaintenanceItem } from "@shared/schema";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
-import { FileAttachments } from "./FileAttachments";
 
 type DateRangeFilter = "all" | "7days" | "30days" | "specific";
 
@@ -355,9 +354,6 @@ export default function ManagerLogList({
             )}
           </CardContent>
         </Card>
-
-        {/* File Attachments */}
-        <FileAttachments logId={selectedLog.id} clubId={clubId} />
       </div>
     );
   }
