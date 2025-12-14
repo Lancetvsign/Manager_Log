@@ -15,6 +15,7 @@ import SalesInput from "./SalesInput";
 import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
 import EscalationRulesModal from "./EscalationRulesModal";
 import { NotePhotos } from "./NotePhotos";
+import { MaintenanceItemsTable } from "./MaintenanceItemsTable";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ManagerLog, MaintenanceItem } from "@shared/schema";
@@ -34,133 +35,6 @@ interface WeatherData {
 
 // Manager role type for the unified dropdown
 type ManagerRole = "am" | "pm" | "kitchen";
-
-// Type for running maintenance items (used in RunningMaintenanceRow component)
-interface RunningMaintenanceItemType {
-  id: number;
-  description: string;
-  status: "open" | "completed";
-  notes: string | null;
-  createdAt: string;
-  logDate: string;
-  photoUrl: string | null;
-  managerLogId: number;
-}
-
-// Component for displaying a single row in the Running Maintenance List
-function RunningMaintenanceRow({ 
-  item, 
-  onChanged,
-  apiBaseUrl 
-}: { 
-  item: RunningMaintenanceItemType; 
-  onChanged: () => void;
-  apiBaseUrl: string;
-}) {
-  const [uploading, setUploading] = useState(false);
-
-  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append("photo", file);
-
-    setUploading(true);
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/maintenance/${item.id}/photo`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        console.error(await res.text());
-      } else {
-        await onChanged();
-      }
-    } finally {
-      setUploading(false);
-      e.target.value = "";
-    }
-  };
-
-  const handleToggleStatus = async () => {
-    const newStatus = item.status === "open" ? "completed" : "open";
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/maintenance-items/${item.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) {
-        await onChanged();
-      }
-    } catch (err) {
-      console.error("Failed to toggle status:", err);
-    }
-  };
-
-  const addedLabel = new Date(item.logDate ?? item.createdAt).toLocaleDateString(
-    undefined,
-    { month: "short", day: "numeric", year: "numeric" }
-  );
-
-  return (
-    <div 
-      className="grid grid-cols-12 gap-2 p-3 items-center min-w-[600px]"
-      data-testid={`running-maintenance-item-${item.id}`}
-    >
-      <div className="col-span-2 text-xs text-muted-foreground">{addedLabel}</div>
-      <div className="col-span-3 text-sm">{item.description}</div>
-      <div className="col-span-1">
-        <Badge 
-          variant="secondary"
-          className="flex items-center gap-1 w-fit text-green-700 border-green-300 bg-green-50"
-        >
-          Open
-        </Badge>
-      </div>
-      <div className="col-span-3 text-sm text-muted-foreground">
-        {item.notes || "–"}
-      </div>
-      <div className="col-span-2">
-        {item.photoUrl ? (
-          <a
-            href={item.photoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700"
-          >
-            <ExternalLink className="h-3 w-3" />
-            View photo
-          </a>
-        ) : (
-          <label className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
-            <Camera className="h-3 w-3" />
-            {uploading ? "Uploading..." : "Add photo"}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handlePhotoChange}
-              className="hidden"
-              disabled={uploading}
-            />
-          </label>
-        )}
-      </div>
-      <div className="col-span-1 text-right">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={handleToggleStatus}
-          data-testid={`button-toggle-status-${item.id}`}
-        >
-          <CheckCircle className="h-4 w-4 text-green-600" />
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const { clubId, managerName: defaultManagerName, apiBaseUrl } = useManagerLog();
@@ -1124,40 +998,38 @@ Details:
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Running Maintenance Items List - All Open Items */}
-            <div className="space-y-4">
-              {isLoadingRunning ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  <span className="text-sm text-muted-foreground">Loading maintenance items...</span>
-                </div>
-              ) : runningItems && runningItems.length > 0 ? (
-                <div className="border rounded-lg divide-y overflow-x-auto">
-                  <div className="grid grid-cols-12 gap-2 p-3 bg-muted/50 text-sm font-medium min-w-[600px]">
-                    <div className="col-span-2">Added</div>
-                    <div className="col-span-3">Description</div>
-                    <div className="col-span-1">Status</div>
-                    <div className="col-span-3">Notes</div>
-                    <div className="col-span-2">Photo</div>
-                    <div className="col-span-1 text-right">Action</div>
-                  </div>
-                  {runningItems.map((item) => (
-                    <RunningMaintenanceRow
-                      key={item.id}
-                      item={item}
-                      onChanged={() => {
-                        refetchRunning();
-                        queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
-                      }}
-                      apiBaseUrl={apiBaseUrl}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4 text-sm text-muted-foreground border rounded-lg bg-muted/20">
-                  No open maintenance items. Nice work!
-                </div>
-              )}
-            </div>
+          <MaintenanceItemsTable
+            items={runningItems || []}
+            isLoading={isLoadingRunning}
+            showDateAdded={true}
+            showPhoto={true}
+            showActions={true}
+            onToggleStatus={async (itemId, currentStatus) => {
+              const newStatus = currentStatus === "open" ? "completed" : "open";
+              const res = await fetch(`${apiBaseUrl}/api/maintenance-items/${itemId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: newStatus }),
+              });
+              if (res.ok) {
+                refetchRunning();
+                queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
+              }
+            }}
+            onUploadPhoto={async (itemId, file) => {
+              const formData = new FormData();
+              formData.append("photo", file);
+              const res = await fetch(`${apiBaseUrl}/api/maintenance/${itemId}/photo`, {
+                method: "POST",
+                body: formData,
+              });
+              if (res.ok) {
+                refetchRunning();
+                queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
+              }
+            }}
+            emptyMessage="No open maintenance items. Nice work!"
+          />
 
           {/* Add New Maintenance Item Form - only show for today/future */}
           {!isPastLog && (
