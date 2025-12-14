@@ -59,6 +59,9 @@ import {
   CalendarDays,
   CalendarRange,
   PieChart,
+  Wrench,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type {
@@ -83,6 +86,16 @@ import {
 } from "@/components/charts";
 
 type DateRangePreset = "7days" | "30days" | "thisMonth" | "custom";
+
+interface MaintenanceInsights {
+  openNow: number;
+  completedInRange: number;
+  avgDaysOpen: number;
+  dailyOpenCounts: { date: string; count: number }[];
+  dailyCompletions: { date: string; count: number }[];
+  topOldestOpen: { id: number; title: string; daysOpen: number }[];
+  repeatedCarryovers: { id: number; title: string; daysAppeared: number }[];
+}
 
 interface InsightsPageProps {
   onViewLog?: (logId: number, logDate: string) => void;
@@ -191,6 +204,19 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       return response.json();
     },
     enabled: !!comparisonDateRange,
+  });
+
+  const { data: maintenanceInsights } = useQuery<MaintenanceInsights>({
+    queryKey: ["/api/insights/maintenance", clubId, dateRange.startDate, dateRange.endDate],
+    queryFn: async () => {
+      const url = buildApiUrl("/api/insights/maintenance", clubId, apiBaseUrl, {
+        start: new Date(dateRange.startDate).toISOString(),
+        end: new Date(dateRange.endDate).toISOString(),
+      });
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch maintenance insights");
+      return response.json();
+    },
   });
 
   const comparisonChanges = useMemo((): ComparisonMetrics | null => {
@@ -668,6 +694,85 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               <ToDoStatusPieChart status={metrics.toDoStatus} />
               <SalesBreakdownChart salesByCategory={metrics.salesByCategory} />
             </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            id="maintenanceInsights"
+            title="Maintenance Insights"
+            icon={<Wrench className="h-5 w-5" />}
+            defaultExpanded={true}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <Card data-testid="card-maintenance-open">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+                  <CardTitle className="text-sm font-medium">Open Items</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{maintenanceInsights?.openNow ?? 0}</div>
+                  <p className="text-xs text-muted-foreground">currently open maintenance items</p>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-maintenance-completed">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+                  <CardTitle className="text-sm font-medium">Completed</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{maintenanceInsights?.completedInRange ?? 0}</div>
+                  <p className="text-xs text-muted-foreground">completed in selected period</p>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-maintenance-avg-days">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+                  <CardTitle className="text-sm font-medium">Avg Days Open</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {maintenanceInsights?.avgDaysOpen !== undefined
+                      ? maintenanceInsights.avgDaysOpen.toFixed(1)
+                      : "0"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">average days to complete</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {maintenanceInsights?.topOldestOpen && maintenanceInsights.topOldestOpen.length > 0 && (
+              <Card data-testid="card-oldest-open">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Oldest Open Items
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="border rounded-lg divide-y">
+                    <div className="grid grid-cols-12 gap-2 p-3 bg-muted/50 text-sm font-medium">
+                      <div className="col-span-8">Item</div>
+                      <div className="col-span-4 text-right">Days Open</div>
+                    </div>
+                    {maintenanceInsights.topOldestOpen.slice(0, 5).map((item, index) => (
+                      <div
+                        key={item.id}
+                        className="grid grid-cols-12 gap-2 p-3 items-center"
+                        data-testid={`row-oldest-open-${index}`}
+                      >
+                        <div className="col-span-8 truncate">{item.title}</div>
+                        <div className="col-span-4 text-right">
+                          <Badge variant={item.daysOpen > 30 ? "destructive" : item.daysOpen > 14 ? "secondary" : "outline"}>
+                            {item.daysOpen} days
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </CollapsibleSection>
 
           <CollapsibleSection
