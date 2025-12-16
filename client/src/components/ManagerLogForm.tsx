@@ -761,53 +761,54 @@ Details:
             </div>
           )}
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Date Picker */}
-          <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                  data-testid="button-date-picker"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(date, "PPP")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={handleDateChange}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+        <CardContent className="pt-2 space-y-3">
+          {/* ROW 1: Date, Day of Week, Manager Role, Manager Name */}
+          <div className="grid grid-cols-12 gap-3 items-end">
+            {/* Date Picker - 4 cols */}
+            <div className="col-span-12 md:col-span-4 space-y-1">
+              <Label className="text-xs text-muted-foreground">Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                    data-testid="button-date-picker"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(date, "PPP")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={handleDateChange}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
 
-          {/* Day of Week (auto-filled) */}
-          <div className="space-y-2">
-            <Label>Day of Week</Label>
-            <Input
-              value={getDayOfWeek(date)}
-              readOnly
-              className="bg-muted"
-              data-testid="input-day-of-week"
-            />
-          </div>
+            {/* Day of Week - 3 cols */}
+            <div className="col-span-12 md:col-span-3 space-y-1">
+              <Label className="text-xs text-muted-foreground">Day of Week</Label>
+              <Input
+                value={getDayOfWeek(date)}
+                readOnly
+                className="bg-muted"
+                data-testid="input-day-of-week"
+              />
+            </div>
 
-          {/* Manager - Role dropdown + name input */}
-          <div className="space-y-2">
-            <Label htmlFor="manager-name">Manager Type</Label>
-            <div className="flex gap-2">
+            {/* Manager Role - 2 cols */}
+            <div className="col-span-12 md:col-span-2 space-y-1">
+              <Label className="text-xs text-muted-foreground">Manager Role</Label>
               <Select
                 value={activeManagerRole}
                 onValueChange={(value) => setActiveManagerRole(value as ManagerRole)}
                 disabled={isPastLog}
               >
-                <SelectTrigger className="w-[160px]" data-testid="select-manager-role">
+                <SelectTrigger className="w-full" data-testid="select-manager-role">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -816,45 +817,70 @@ Details:
                   <SelectItem value="kitchen">Kitchen Manager</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Manager Name - 3 cols */}
+            <div className="col-span-12 md:col-span-3 space-y-1">
+              <Label className="text-xs text-muted-foreground">Manager Name</Label>
               <Input
                 id="manager-name"
                 value={getActiveManagerName()}
                 onChange={(e) => setActiveManagerName(e.target.value)}
                 placeholder="Type your name..."
-                className="flex-1"
                 disabled={isPastLog}
                 data-testid="input-manager-name"
               />
             </div>
           </div>
 
-          {/* Weather - inline under the date row */}
+          {/* ROW 2: Weather Strip */}
           <div 
-            className="md:col-span-3 rounded-lg border bg-card p-3 text-sm flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+            className="rounded-md border p-2 flex flex-wrap items-center justify-between gap-2"
+            style={{ opacity: 0.95 }}
             data-testid="card-weather"
           >
-            <div className="font-medium">Weather</div>
             {isLoadingWeather ? (
-              <div className="text-muted-foreground">
+              <div className="text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
-                Loading...
+                Loading weather...
               </div>
             ) : (
-              <div className="space-y-1 md:text-right">
-                {weatherData.current && (
-                  <div data-testid="weather-current">
-                    Today: {weatherData.current.temperature}°F • {weatherData.current.condition} • {weatherData.current.humidity}% • {weatherData.current.windSpeed} mph
-                  </div>
-                )}
-                {weatherData.historical && (
-                  <div className="text-muted-foreground" data-testid="weather-historical">
-                    Last Year: {weatherData.historical.temperature}°F • {weatherData.historical.condition}
-                    {weatherData.historicalFallbackNote && (
-                      <span className="text-amber-600 dark:text-amber-400 ml-2">(fallback)</span>
-                    )}
-                  </div>
-                )}
-              </div>
+              <>
+                {/* Today's Weather */}
+                <div className="text-sm" data-testid="weather-current">
+                  <span className="text-muted-foreground mr-2">Today:</span>
+                  {weatherData.current ? (
+                    <>
+                      <span className="font-semibold">{weatherData.current.temperature}°F</span>
+                      <span className="mx-2">•</span>
+                      {weatherData.current.condition}
+                      <span className="mx-2">•</span>
+                      {weatherData.current.humidity}%
+                      <span className="mx-2">•</span>
+                      {weatherData.current.windSpeed} mph
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">Unavailable</span>
+                  )}
+                </div>
+
+                {/* Last Year's Weather */}
+                <div className="text-sm text-muted-foreground" data-testid="weather-historical">
+                  <span className="mr-2">Last Year:</span>
+                  {weatherData.historical ? (
+                    <>
+                      <span className="font-semibold">{weatherData.historical.temperature}°F</span>
+                      <span className="mx-2">•</span>
+                      {weatherData.historical.condition}
+                      {weatherData.historicalFallbackNote && (
+                        <span className="ml-2 text-amber-600 dark:text-amber-400">(fallback)</span>
+                      )}
+                    </>
+                  ) : (
+                    <span>Unavailable</span>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </CardContent>

@@ -1,0 +1,87 @@
+<Card className="mb-3">
+  <CardHeader className="pb-2">
+    <div className="d-flex align-items-center justify-content-between">
+      <div className="fw-semibold">Daily Manager Log Entry</div>
+      {existingLogId && (
+        <span className="text-muted small">(Editing existing entry)</span>
+      )}
+    </div>
+  </CardHeader>
+
+  <CardBody className="pt-2">
+    {/* ROW 1 */}
+    <div className="row g-3 align-items-end">
+      <div className="col-12 col-md-4">
+        <label className="form-label small text-muted">Date</label>
+        <input
+          type="date"
+          className="form-control"
+          value={dateStr}
+          onChange={(e) => setDateStr(e.target.value)}
+        />
+      </div>
+
+      <div className="col-12 col-md-3">
+        <label className="form-label small text-muted">Day of Week</label>
+        <input
+          type="text"
+          className="form-control"
+          value={dayOfWeek}
+          readOnly
+        />
+      </div>
+
+      <div className="col-12 col-md-2">
+        <label className="form-label small text-muted">Manager Role</label>
+        <select
+          className="form-select"
+          value={managerType}
+          onChange={(e) => setManagerType(e.target.value as any)}
+        >
+          <option value="am">AM Manager</option>
+          <option value="pm">PM Manager</option>
+          <option value="kitchen">Kitchen Manager</option>
+        </select>
+      </div>
+
+      <div className="col-12 col-md-3">
+        <label className="form-label small text-muted">Manager Name</label>
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Type your name…"
+          value={managerName}
+          onChange={(e) => setManagerName(e.target.value)}
+        />
+      </div>
+    </div>
+
+    {/* ROW 2 - WEATHER STRIP */}
+    <div className="mt-3 p-2 rounded border" style={{ opacity: 0.95 }}>
+      <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div className="small">
+          <span className="text-muted me-2">Today:</span>
+          <span className="fw-semibold">{todayTemp}°F</span>
+          <span className="mx-2">•</span>{todayCondition}
+          <span className="mx-2">•</span>{todayHumidity}%
+          <span className="mx-2">•</span>{todayWind} mph
+        </div>
+
+        <div className="small text-muted">
+          <span className="me-2">Last Year:</span>
+          <span className="fw-semibold">{lastYearTemp}°F</span>
+          <span className="mx-2">•</span>{lastYearCondition}
+          {usingFallback && <span className="ms-2">(fallback)</span>}
+        </div>
+      </div>
+    </div>
+  </CardBody>
+</Card>
+Notes (so it hooks up cleanly)
+dateStr, dayOfWeek, managerType, managerName should be your existing state vars.
+
+Weather display vars:
+
+todayTemp, todayCondition, todayHumidity, todayWind
+
+lastYearTemp, lastYearCondition, usingFallback
