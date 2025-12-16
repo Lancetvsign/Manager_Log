@@ -119,7 +119,11 @@ function App() {
   return (
     <ManagerLogModule
       clubId="default"
-      clubName="Development Mode"
+      clubName="Eagle Lodge Social Club"
+      userId="dev-user-1"
+      managerName="John Smith"
+      membershipNumber="EL-1234"
+      userRole="manager"
       apiBaseUrl=""
     />
   );
