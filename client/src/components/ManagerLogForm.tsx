@@ -33,20 +33,14 @@ interface WeatherData {
   description: string;
 }
 
-// Manager role type for the unified dropdown
-type ManagerRole = "am" | "pm" | "kitchen";
-
 export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const { clubId, managerName: defaultManagerName, apiBaseUrl } = useManagerLog();
   const [date, setDate] = useState<Date>(new Date());
   
-  // Manager name fields - stored separately but edited via unified control
+  // Manager name fields - 3 separate inputs
   const [amManagerName, setAmManagerName] = useState("");
   const [pmManagerName, setPmManagerName] = useState("");
   const [kitchenManagerName, setKitchenManagerName] = useState("");
-  
-  // Which role is being edited right now
-  const [activeManagerRole, setActiveManagerRole] = useState<ManagerRole>("am");
   const [dailyNotes, setDailyNotes] = useState("");
   const [salesNotes, setSalesNotes] = useState("");
   const [dailyNumber, setDailyNumber] = useState("");
@@ -329,11 +323,6 @@ Details:
       setAmManagerName(existingLog.amManagerName || "");
       setPmManagerName(existingLog.pmManagerName || "");
       setKitchenManagerName(existingLog.kitchenManagerName || "");
-      // Set active role to the first one that has a name
-      if (existingLog.amManagerName) setActiveManagerRole("am");
-      else if (existingLog.pmManagerName) setActiveManagerRole("pm");
-      else if (existingLog.kitchenManagerName) setActiveManagerRole("kitchen");
-      else setActiveManagerRole("am");
       setDailyNotes(existingLog.dailyNotes || "");
       setSalesNotes(existingLog.salesNotes || "");
       setDailyNumber(existingLog.dailyNumber || "");
@@ -613,24 +602,6 @@ Details:
     return date.toLocaleDateString('en-US', { weekday: 'long' });
   };
 
-  // Helper to get the active manager name based on selected role
-  const getActiveManagerName = () => {
-    switch (activeManagerRole) {
-      case "am": return amManagerName;
-      case "pm": return pmManagerName;
-      case "kitchen": return kitchenManagerName;
-    }
-  };
-
-  // Helper to update the correct manager name based on selected role
-  const setActiveManagerName = (value: string) => {
-    switch (activeManagerRole) {
-      case "am": setAmManagerName(value); break;
-      case "pm": setPmManagerName(value); break;
-      case "kitchen": setKitchenManagerName(value); break;
-    }
-  };
-
   const formatWeatherString = (weather: WeatherData): string => {
     return `${weather.temperature}°F, ${weather.description}, Humidity: ${weather.humidity}%, Wind: ${weather.windSpeed} mph`;
   };
@@ -722,7 +693,6 @@ Details:
     setAmManagerName("");
     setPmManagerName("");
     setKitchenManagerName("");
-    setActiveManagerRole("am");
     setDailyNotes("");
     setSalesNotes("");
     setDailyNumber("");
@@ -761,127 +731,160 @@ Details:
             </div>
           )}
         </CardHeader>
-        <CardContent className="pt-2 space-y-3">
-          {/* ROW 1: Date, Day of Week, Manager Role, Manager Name */}
-          <div className="grid grid-cols-12 gap-3 items-end">
-            {/* Date Picker - 4 cols */}
-            <div className="col-span-12 md:col-span-4 space-y-1">
-              <Label className="text-xs text-muted-foreground">Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                    data-testid="button-date-picker"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(date, "PPP")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={handleDateChange}
-                    initialFocus
+        <CardContent className="pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            {/* LEFT COLUMN: Date/Day, Weather, Daily/Weekly Numbers */}
+            <div className="md:col-span-8 space-y-3">
+              {/* Row 1: Date + Day of Week */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                        data-testid="button-date-picker"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {format(date, "PPP")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={handleDateChange}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Day of Week</Label>
+                  <Input
+                    value={getDayOfWeek(date)}
+                    readOnly
+                    className="bg-muted"
+                    data-testid="input-day-of-week"
                   />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Day of Week - 3 cols */}
-            <div className="col-span-12 md:col-span-3 space-y-1">
-              <Label className="text-xs text-muted-foreground">Day of Week</Label>
-              <Input
-                value={getDayOfWeek(date)}
-                readOnly
-                className="bg-muted"
-                data-testid="input-day-of-week"
-              />
-            </div>
-
-            {/* Manager Role - 2 cols */}
-            <div className="col-span-12 md:col-span-2 space-y-1">
-              <Label className="text-xs text-muted-foreground">Manager Role</Label>
-              <Select
-                value={activeManagerRole}
-                onValueChange={(value) => setActiveManagerRole(value as ManagerRole)}
-                disabled={isPastLog}
-              >
-                <SelectTrigger className="w-full" data-testid="select-manager-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="am">AM Manager</SelectItem>
-                  <SelectItem value="pm">PM Manager</SelectItem>
-                  <SelectItem value="kitchen">Kitchen Manager</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Manager Name - 3 cols */}
-            <div className="col-span-12 md:col-span-3 space-y-1">
-              <Label className="text-xs text-muted-foreground">Manager Name</Label>
-              <Input
-                id="manager-name"
-                value={getActiveManagerName()}
-                onChange={(e) => setActiveManagerName(e.target.value)}
-                placeholder="Type your name..."
-                disabled={isPastLog}
-                data-testid="input-manager-name"
-              />
-            </div>
-          </div>
-
-          {/* ROW 2: Weather Strip */}
-          <div 
-            className="rounded-md border p-2 flex flex-wrap items-center justify-between gap-2"
-            style={{ opacity: 0.95 }}
-            data-testid="card-weather"
-          >
-            {isLoadingWeather ? (
-              <div className="text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
-                Loading weather...
+                </div>
               </div>
-            ) : (
-              <>
-                {/* Today's Weather */}
-                <div className="text-sm" data-testid="weather-current">
-                  <span className="text-muted-foreground mr-2">Today:</span>
-                  {weatherData.current ? (
-                    <>
-                      <span className="font-semibold">{weatherData.current.temperature}°F</span>
-                      <span className="mx-2">•</span>
-                      {weatherData.current.condition}
-                      <span className="mx-2">•</span>
-                      {weatherData.current.humidity}%
-                      <span className="mx-2">•</span>
-                      {weatherData.current.windSpeed} mph
-                    </>
-                  ) : (
-                    <span className="text-muted-foreground">Unavailable</span>
-                  )}
-                </div>
 
-                {/* Last Year's Weather */}
-                <div className="text-sm text-muted-foreground" data-testid="weather-historical">
-                  <span className="mr-2">Last Year:</span>
-                  {weatherData.historical ? (
-                    <>
-                      <span className="font-semibold">{weatherData.historical.temperature}°F</span>
-                      <span className="mx-2">•</span>
-                      {weatherData.historical.condition}
-                      {weatherData.historicalFallbackNote && (
-                        <span className="ml-2 text-amber-600 dark:text-amber-400">(fallback)</span>
+              {/* Row 2: Weather Strip */}
+              <div 
+                className="rounded-md border p-2 flex flex-wrap items-center justify-between gap-2"
+                data-testid="card-weather"
+              >
+                {isLoadingWeather ? (
+                  <div className="text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
+                    Loading weather...
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-sm" data-testid="weather-current">
+                      <span className="text-muted-foreground mr-2">Today:</span>
+                      {weatherData.current ? (
+                        <>
+                          <span className="font-semibold">{weatherData.current.temperature}°F</span>
+                          <span className="mx-2">•</span>
+                          {weatherData.current.condition}
+                          <span className="mx-2">•</span>
+                          {weatherData.current.humidity}%
+                          <span className="mx-2">•</span>
+                          {weatherData.current.windSpeed} mph
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">Unavailable</span>
                       )}
-                    </>
-                  ) : (
-                    <span>Unavailable</span>
-                  )}
+                    </div>
+                    <div className="text-sm text-muted-foreground" data-testid="weather-historical">
+                      <span className="mr-2">Last Year:</span>
+                      {weatherData.historical ? (
+                        <>
+                          <span className="font-semibold">{weatherData.historical.temperature}°F</span>
+                          <span className="mx-2">•</span>
+                          {weatherData.historical.condition}
+                          {weatherData.historicalFallbackNote && (
+                            <span className="ml-2 text-amber-600 dark:text-amber-400">(fallback)</span>
+                          )}
+                        </>
+                      ) : (
+                        <span>Unavailable</span>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Row 3: Daily Number + Weekly Number */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground" htmlFor="daily-number">Daily Number</Label>
+                  <Input
+                    id="daily-number"
+                    type="number"
+                    step="1"
+                    value={dailyNumber}
+                    onChange={(e) => setDailyNumber(e.target.value)}
+                    placeholder="Enter daily #"
+                    disabled={isPastLog}
+                    data-testid="input-daily-number"
+                  />
                 </div>
-              </>
-            )}
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground" htmlFor="weekly-number">Weekly Number</Label>
+                  <Input
+                    id="weekly-number"
+                    type="number"
+                    step="1"
+                    value={weeklyNumber}
+                    onChange={(e) => setWeeklyNumber(e.target.value)}
+                    placeholder="Enter weekly #"
+                    disabled={isPastLog}
+                    data-testid="input-weekly-number"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: Managers */}
+            <div className="md:col-span-4 space-y-2">
+              <Label className="text-xs text-muted-foreground font-medium">Managers</Label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground w-8">AM</span>
+                  <Input
+                    value={amManagerName}
+                    onChange={(e) => setAmManagerName(e.target.value)}
+                    placeholder="AM Manager name"
+                    disabled={isPastLog}
+                    data-testid="input-am-manager"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground w-8">PM</span>
+                  <Input
+                    value={pmManagerName}
+                    onChange={(e) => setPmManagerName(e.target.value)}
+                    placeholder="PM Manager name"
+                    disabled={isPastLog}
+                    data-testid="input-pm-manager"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground w-8">Kit</span>
+                  <Input
+                    value={kitchenManagerName}
+                    onChange={(e) => setKitchenManagerName(e.target.value)}
+                    placeholder="Kitchen Manager name"
+                    disabled={isPastLog}
+                    data-testid="input-kitchen-manager"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -895,50 +898,6 @@ Details:
         disabled={isPastLog}
       />
 
-      {/* Sales Summary */}
-      <Card data-testid="card-sales-summary">
-        <CardHeader>
-          <CardTitle className="text-lg">Sales Summary</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label>Total Sales</Label>
-            <Input
-              value={calculateTotalSales() ? `$${calculateTotalSales()}` : ""}
-              readOnly
-              className="bg-muted font-semibold"
-              placeholder="Auto-calculated"
-              data-testid="input-total-sales"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="daily-number">Daily Number</Label>
-            <Input
-              id="daily-number"
-              type="number"
-              step="1"
-              value={dailyNumber}
-              onChange={(e) => setDailyNumber(e.target.value)}
-              placeholder="Enter daily number"
-              disabled={isPastLog}
-              data-testid="input-daily-number"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="weekly-number">Weekly Number</Label>
-            <Input
-              id="weekly-number"
-              type="number"
-              step="1"
-              value={weeklyNumber}
-              onChange={(e) => setWeeklyNumber(e.target.value)}
-              placeholder="Enter weekly number"
-              disabled={isPastLog}
-              data-testid="input-weekly-number"
-            />
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Operational Notes (was Sales Notes) */}
       <Card data-testid="card-sales-notes">
