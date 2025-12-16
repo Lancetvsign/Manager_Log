@@ -1,0 +1,97 @@
+Yes — the awkwardness is coming from three stacked manager inputs fighting horizontal space. The fix is to compress them into a tight, single-row “Managers on Duty” strip with short labels and equal widths.
+
+Below is a drop-in layout change that keeps everything concise and visually balanced.
+
+✅ New DMLE Manager Layout (clean + compact)
+Design goals
+
+One Managers on Duty row
+
+Short labels: AM / PM / Kit
+
+Equal-width inputs
+
+No vertical stacking
+
+Tight spacing, log-header feel
+
+🔧 Replace your “Managers” section with this
+{/* MANAGERS ON DUTY */}
+<div className="mt-3">
+  <label className="form-label small text-muted mb-1">
+    Managers on Duty
+  </label>
+
+  <div className="row g-2">
+    <div className="col-4">
+      <div className="input-group input-group-sm">
+        <span className="input-group-text">AM</span>
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Name"
+          value={amManager}
+          onChange={(e) => setAmManager(e.target.value)}
+        />
+      </div>
+    </div>
+
+    <div className="col-4">
+      <div className="input-group input-group-sm">
+        <span className="input-group-text">PM</span>
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Name"
+          value={pmManager}
+          onChange={(e) => setPmManager(e.target.value)}
+        />
+      </div>
+    </div>
+
+    <div className="col-4">
+      <div className="input-group input-group-sm">
+        <span className="input-group-text">Kit</span>
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Name"
+          value={kitchenManager}
+          onChange={(e) => setKitchenManager(e.target.value)}
+        />
+      </div>
+    </div>
+  </div>
+</div>
+
+🎯 Why this fixes it
+
+Horizontal alignment = faster scanning
+
+Input-group labels save space (no extra text rows)
+
+input-group-sm keeps the DMLE compact
+
+Matches real restaurant usage (quick initials + name)
+
+Optional polish (recommended)
+
+If you want it even tighter, add this once globally:
+
+.input-group-text {
+  min-width: 42px;
+  justify-content: center;
+}
+
+
+This keeps AM / PM / Kit perfectly aligned.
+
+If you want next:
+
+Auto-fill manager names from previous day
+
+Click-to-copy yesterday’s managers
+
+Role-based lock (AM can only edit AM field)
+
+Just say the word.

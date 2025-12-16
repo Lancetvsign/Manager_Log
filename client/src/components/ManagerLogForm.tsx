@@ -849,37 +849,46 @@ Details:
               </div>
             </div>
 
-            {/* RIGHT COLUMN: Managers */}
+            {/* RIGHT COLUMN: Managers on Duty */}
             <div className="md:col-span-4 space-y-2">
-              <Label className="text-xs text-muted-foreground font-medium">Managers</Label>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-8">AM</span>
+              <Label className="text-xs text-muted-foreground font-medium">Managers on Duty</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="flex">
+                  <span className="inline-flex items-center px-2 text-xs font-medium text-muted-foreground bg-muted border border-r-0 rounded-l-md min-w-[36px] justify-center">
+                    AM
+                  </span>
                   <Input
                     value={amManagerName}
                     onChange={(e) => setAmManagerName(e.target.value)}
-                    placeholder="AM Manager name"
+                    placeholder="Name"
                     disabled={isPastLog}
+                    className="rounded-l-none h-9"
                     data-testid="input-am-manager"
                   />
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-8">PM</span>
+                <div className="flex">
+                  <span className="inline-flex items-center px-2 text-xs font-medium text-muted-foreground bg-muted border border-r-0 rounded-l-md min-w-[36px] justify-center">
+                    PM
+                  </span>
                   <Input
                     value={pmManagerName}
                     onChange={(e) => setPmManagerName(e.target.value)}
-                    placeholder="PM Manager name"
+                    placeholder="Name"
                     disabled={isPastLog}
+                    className="rounded-l-none h-9"
                     data-testid="input-pm-manager"
                   />
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-8">Kit</span>
+                <div className="flex">
+                  <span className="inline-flex items-center px-2 text-xs font-medium text-muted-foreground bg-muted border border-r-0 rounded-l-md min-w-[36px] justify-center">
+                    Kit
+                  </span>
                   <Input
                     value={kitchenManagerName}
                     onChange={(e) => setKitchenManagerName(e.target.value)}
-                    placeholder="Kitchen Manager name"
+                    placeholder="Name"
                     disabled={isPastLog}
+                    className="rounded-l-none h-9"
                     data-testid="input-kitchen-manager"
                   />
                 </div>
