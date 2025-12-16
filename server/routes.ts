@@ -33,6 +33,7 @@ import { escalationRules, escalationRuleTargets } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { verifyEmbedSignature, type EmbedParams } from "./auth";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -2156,6 +2157,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting running maintenance item:", error);
       res.status(500).json({ error: "Failed to delete maintenance item" });
+    }
+  });
+
+  // POST /api/auth/verify-embed - Verify SSO embed signature (no auth required)
+  // This endpoint verifies the signature from the embed URL and returns user data
+  app.post("/api/auth/verify-embed", async (req, res) => {
+    try {
+      const params = req.body as EmbedParams;
+      
+      // Validate required fields are present
+      const requiredFields = ['clubId', 'userId', 'userRole', 'clubName', 'firstName', 'lastName', 'membershipNumber', 'timestamp', 'signature'];
+      const missingFields = requiredFields.filter(f => !params[f as keyof EmbedParams]);
+      
+      if (missingFields.length > 0) {
+        return res.status(400).json({ 
+          error: "Missing required fields",
+          missing: missingFields
+        });
+      }
+
+      const secret = process.env.MANAGER_LOG_SECRET;
+      
+      // In development without secret, return params directly (bypass verification)
+      if (process.env.NODE_ENV === "development" && !secret) {
+        console.warn("[Auth] Development mode: Embed verification bypassed");
+        return res.json({
+          valid: true,
+          user: {
+            clubId: params.clubId,
+            userId: params.userId,
+            userRole: params.userRole,
+            clubName: params.clubName,
+            firstName: params.firstName,
+            lastName: params.lastName,
+            membershipNumber: params.membershipNumber,
+            fullName: `${params.firstName} ${params.lastName}`.trim()
+          }
+        });
+      }
+
+      if (!secret) {
+        return res.status(500).json({ error: "Server authentication not configured" });
+      }
+
+      const user = verifyEmbedSignature(params, secret);
+      
+      if (!user) {
+        return res.status(401).json({ error: "Invalid or expired signature" });
+      }
+
+      res.json({ valid: true, user });
+    } catch (error) {
+      console.error("Error verifying embed signature:", error);
+      res.status(500).json({ error: "Failed to verify embed signature" });
     }
   });
 

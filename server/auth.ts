@@ -158,3 +158,93 @@ export function generateSignature(
 
   return { timestamp, signature };
 }
+
+/**
+ * EMBED SSO SIGNATURE VERIFICATION
+ * =================================
+ * Verifies the signature on embed URL parameters from SCP.
+ * 
+ * The signature payload format (joined with newlines):
+ * EMBED
+ * {timestamp}
+ * {clubId}
+ * {userId}
+ * {userRole}
+ * {clubName}
+ * {firstName}
+ * {lastName}
+ * {membershipNumber}
+ */
+export interface EmbedParams {
+  clubId: string;
+  userId: string;
+  userRole: string;
+  clubName: string;
+  firstName: string;
+  lastName: string;
+  membershipNumber: string;
+  timestamp: string;
+  signature: string;
+}
+
+export interface VerifiedEmbedUser {
+  clubId: string;
+  userId: string;
+  userRole: string;
+  clubName: string;
+  firstName: string;
+  lastName: string;
+  membershipNumber: string;
+  fullName: string;
+}
+
+/**
+ * Verifies embed SSO signature and returns user data if valid
+ */
+export function verifyEmbedSignature(params: EmbedParams, secret: string): VerifiedEmbedUser | null {
+  const payload = [
+    "EMBED",
+    params.timestamp,
+    params.clubId,
+    params.userId,
+    params.userRole,
+    params.clubName,
+    params.firstName,
+    params.lastName,
+    params.membershipNumber
+  ].join("\n");
+
+  const expectedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(payload)
+    .digest("hex");
+
+  try {
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(params.signature, "hex"),
+      Buffer.from(expectedSignature, "hex")
+    );
+
+    if (!isValid) {
+      return null;
+    }
+
+    const requestAge = Date.now() - parseInt(params.timestamp, 10);
+    if (isNaN(requestAge) || requestAge > MAX_REQUEST_AGE_MS || requestAge < -MAX_REQUEST_AGE_MS) {
+      return null;
+    }
+
+    return {
+      clubId: params.clubId,
+      userId: params.userId,
+      userRole: params.userRole,
+      clubName: params.clubName,
+      firstName: params.firstName,
+      lastName: params.lastName,
+      membershipNumber: params.membershipNumber,
+      fullName: `${params.firstName} ${params.lastName}`.trim()
+    };
+  } catch {
+    return null;
+  }
+}

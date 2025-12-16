@@ -20,7 +20,7 @@ import ManagerLogForm from "@/components/ManagerLogForm";
 import ManagerLogList from "@/components/ManagerLogList";
 import InsightsPage from "@/components/InsightsPage";
 import ThemeToggle from "@/components/ThemeToggle";
-import { History, Plus, BarChart3 } from "lucide-react";
+import { History, Plus, BarChart3, User } from "lucide-react";
 import logoImageDark from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
 import logoImageLight from "@assets/Restaurant_Manager's_Log_Daily_operations_tracking_with_weathe_1764696079981.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -43,7 +43,7 @@ interface LogEntry {
 }
 
 export default function Home() {
-  const { clubId, apiBaseUrl } = useManagerLog();
+  const { clubId, clubName, managerName, membershipNumber, userRole, apiBaseUrl } = useManagerLog();
   
   // Track which tab is currently active
   const [activeTab, setActiveTab] = useState("new-entry");
@@ -129,7 +129,26 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-4">
+              {(managerName || clubName) && (
+                <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground border-r pr-4">
+                  <User className="h-4 w-4" />
+                  <div className="text-right">
+                    {managerName && (
+                      <p className="font-medium text-foreground" data-testid="text-user-name">
+                        {managerName}
+                      </p>
+                    )}
+                    {clubName && clubName !== "Development Mode" && (
+                      <p className="text-xs" data-testid="text-club-name">
+                        {clubName}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </header>

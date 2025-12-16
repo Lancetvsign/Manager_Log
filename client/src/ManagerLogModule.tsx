@@ -57,13 +57,19 @@ import type { ManagerLogModuleProps } from "@shared/types";
 export function ManagerLogModule({
   clubId,
   clubName,
+  userId,
   managerName,
+  membershipNumber,
+  userRole,
   apiBaseUrl = "",
 }: ManagerLogModuleProps) {
   const contextValue = {
     clubId,
     clubName,
+    userId,
     managerName,
+    membershipNumber,
+    userRole,
     apiBaseUrl,
   };
 

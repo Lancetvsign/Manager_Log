@@ -7,7 +7,12 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-app.use("/api", requireSignedRequest);
+app.use("/api", (req, res, next) => {
+  if (req.path === "/auth/verify-embed") {
+    return next();
+  }
+  return requireSignedRequest(req, res, next);
+});
 
 app.use((req, res, next) => {
   const start = Date.now();

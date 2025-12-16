@@ -59,6 +59,54 @@ function signRequest(method, fullPath, body, clubId, sharedSecret) {
 - The `MANAGER_LOG_SECRET` environment variable must match on both SCP and Manager Log
 - In development mode without a secret, signature verification is bypassed with a warning
 
+### SSO Embed Authentication
+When embedding the Manager Log in SCP, users are authenticated via signed URL parameters.
+
+**Embed URL Format:**
+```
+/embed?clubId=1&userId=5&userRole=manager&clubName=Eagle%20Lodge&firstName=John&lastName=Smith&membershipNumber=EL-1234&timestamp=1702756800000&signature=abc123...
+```
+
+**URL Parameters:**
+| Parameter | Description |
+|-----------|-------------|
+| `clubId` | Club identifier |
+| `userId` | User's ID in SCP |
+| `userRole` | User's role (e.g., "manager", "admin") |
+| `clubName` | Club display name (URL encoded) |
+| `firstName` | User's first name |
+| `lastName` | User's last name |
+| `membershipNumber` | User's membership number |
+| `timestamp` | Unix timestamp (milliseconds) |
+| `signature` | HMAC-SHA256 signature |
+
+**Embed Signature Generation (SCP Side):**
+```javascript
+const crypto = require('crypto');
+
+function signEmbedUrl(params, sharedSecret) {
+  const timestamp = Date.now().toString();
+  const payload = [
+    'EMBED',
+    timestamp,
+    params.clubId,
+    params.userId,
+    params.userRole,
+    params.clubName,
+    params.firstName,
+    params.lastName,
+    params.membershipNumber
+  ].join('\n');
+  
+  const signature = crypto
+    .createHmac('sha256', sharedSecret)
+    .update(payload)
+    .digest('hex');
+  
+  return { timestamp, signature };
+}
+```
+
 ### UI/UX Decisions
 The UI features a dark header with a teal background, leveraging `shadcn/ui` components for a polished look consistent with Social Club Pro's branding. The Insights page includes interactive charts (line, bar, area) with customizable options (granularity, comparison, chart types, export) and collapsible sections.
 

@@ -46,10 +46,26 @@ export interface ManagerLogModuleProps {
   clubName?: string;
 
   /**
+   * Optional: User's ID from SCP (for tracking who made entries).
+   */
+  userId?: string;
+
+  /**
    * Optional: Pre-filled manager name for new log entries.
    * Useful when the parent app knows who is logged in.
    */
   managerName?: string;
+
+  /**
+   * Optional: User's membership number from SCP.
+   * Example: "EL-1234"
+   */
+  membershipNumber?: string;
+
+  /**
+   * Optional: User's role in SCP (e.g., "manager", "admin", "staff").
+   */
+  userRole?: string;
 
   /**
    * Optional: Base URL for API calls.
@@ -113,6 +129,9 @@ export interface LogFilters {
 export interface ManagerLogContextValue {
   clubId: string;
   clubName?: string;
+  userId?: string;
   managerName?: string;
+  membershipNumber?: string;
+  userRole?: string;
   apiBaseUrl: string;
 }
