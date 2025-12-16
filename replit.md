@@ -17,6 +17,48 @@ An Express.js REST API developed with Node.js and TypeScript. It features modula
 ### Multi-Club Architecture
 Designed as an embeddable module, data isolation is managed via a `clubId` column in the database and filtered API endpoints. The `ManagerLogModule` React component provides `clubId` and `apiBaseUrl` via `ManagerLogContext` for proper scoping of all operations.
 
+### API Security (HMAC-SHA256 Signed Requests)
+All API requests must be signed using HMAC-SHA256 with a shared secret. This prevents unauthorized access and replay attacks.
+
+**Required Headers for all API calls:**
+| Header | Description |
+|--------|-------------|
+| `X-Timestamp` | Unix timestamp (milliseconds) when request was made |
+| `X-Signature` | HMAC-SHA256 signature of the request |
+| `X-Club-Id` | The club identifier |
+
+**Signature Generation (SCP Side):**
+```javascript
+const crypto = require('crypto');
+
+// IMPORTANT: fullPath must include path AND query string 
+// e.g., "/api/manager-logs?clubId=abc123&start=2025-01-01"
+// This prevents query parameter tampering attacks.
+function signRequest(method, fullPath, body, clubId, sharedSecret) {
+  const timestamp = Date.now().toString();
+  const payload = [
+    method.toUpperCase(),
+    fullPath,
+    timestamp,
+    clubId,
+    body ? JSON.stringify(body) : ''
+  ].join('\n');
+  
+  const signature = crypto
+    .createHmac('sha256', sharedSecret)
+    .update(payload)
+    .digest('hex');
+  
+  return { timestamp, signature };
+}
+```
+
+**Security Rules:**
+- Requests older than 5 minutes are rejected (replay attack prevention)
+- Invalid signatures return 401 Unauthorized
+- The `MANAGER_LOG_SECRET` environment variable must match on both SCP and Manager Log
+- In development mode without a secret, signature verification is bypassed with a warning
+
 ### UI/UX Decisions
 The UI features a dark header with a teal background, leveraging `shadcn/ui` components for a polished look consistent with Social Club Pro's branding. The Insights page includes interactive charts (line, bar, area) with customizable options (granularity, comparison, chart types, export) and collapsible sections.
 

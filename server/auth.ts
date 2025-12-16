@@ -24,10 +24,13 @@ const DEV_MODE_BYPASS = process.env.NODE_ENV === "development" && !process.env.M
 
 /**
  * Verifies the HMAC-SHA256 signature of an incoming request
+ * 
+ * IMPORTANT: The fullPath parameter should include both path AND query string
+ * to prevent query parameter tampering attacks.
  */
 function verifySignature(
   method: string,
-  path: string,
+  fullPath: string,
   timestamp: string,
   clubId: string,
   body: string,
@@ -36,7 +39,7 @@ function verifySignature(
 ): boolean {
   const payload = [
     method.toUpperCase(),
-    path,
+    fullPath,
     timestamp,
     clubId,
     body
@@ -47,10 +50,14 @@ function verifySignature(
     .update(payload)
     .digest("hex");
 
-  return crypto.timingSafeEqual(
-    Buffer.from(signature, "hex"),
-    Buffer.from(expectedSignature, "hex")
-  );
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(signature, "hex"),
+      Buffer.from(expectedSignature, "hex")
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -95,9 +102,11 @@ export function requireSignedRequest(req: Request, res: Response, next: NextFunc
     : "";
 
   try {
+    const fullPath = req.originalUrl;
+    
     const isValid = verifySignature(
       req.method,
-      req.path,
+      fullPath,
       timestamp,
       clubId,
       bodyString,
@@ -120,10 +129,13 @@ export function requireSignedRequest(req: Request, res: Response, next: NextFunc
 
 /**
  * Helper to generate a signature (useful for testing)
+ * 
+ * IMPORTANT: The fullPath parameter must include both path AND query string
+ * (e.g., "/api/logs?clubId=abc&start=2025-01-01") to prevent query tampering.
  */
 export function generateSignature(
   method: string,
-  path: string,
+  fullPath: string,
   body: any,
   clubId: string,
   secret: string
@@ -133,7 +145,7 @@ export function generateSignature(
   
   const payload = [
     method.toUpperCase(),
-    path,
+    fullPath,
     timestamp,
     clubId,
     bodyString
