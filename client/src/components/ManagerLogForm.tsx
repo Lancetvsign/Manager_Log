@@ -716,9 +716,9 @@ Details:
     <form onSubmit={handleSubmit} className="space-y-3">
       {/* Header Information */}
       <Card data-testid="card-log-header">
-        <CardContent className="p-6">
+        <CardContent className="p-4">
         {/* Title banner */}
-        <div className="flex items-baseline gap-2 flex-wrap mb-4">
+        <div className="flex items-baseline gap-2 flex-wrap mb-3">
           <h2 className="text-xl font-semibold">Daily Manager Log Entry</h2>
           {existingLogId && !isPastLog && (
             <span className="text-sm text-muted-foreground">(Editing)</span>
@@ -728,15 +728,15 @@ Details:
           )}
         </div>
         {isPastLog && (
-          <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-3 py-2 rounded-md text-sm mb-4">
+          <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-3 py-2 rounded-md text-sm mb-3">
             <strong>Read-only:</strong> This log is from {format(date, 'MMMM d, yyyy')} and cannot be edited.
           </div>
         )}
 
-        {/* 3-column row: Date | Weather | Stats */}
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+        {/* 3-column grid: Date | Weather | Drawing (narrower) - all equal height */}
+        <div className="grid grid-cols-1 gap-2 lg:grid-cols-[1fr_0.9fr_10rem] items-stretch">
           {/* Column 1: Date */}
-          <div className="flex flex-col gap-2 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-3">
+          <div className="flex flex-col gap-1.5 rounded-lg border border-border/[0.08] bg-background/10 px-3 py-2 h-full">
             <div className="flex items-center justify-between">
               <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Date</div>
               <Popover>
@@ -759,15 +759,15 @@ Details:
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="w-full rounded-xl border border-border/20 bg-card/50 px-4 py-3">
+            <div className="w-full rounded-xl border border-border/20 bg-card/50 px-3 py-2">
               <div className="flex items-center gap-3">
-                <CalendarIcon className="h-6 w-6 text-muted-foreground" />
+                <CalendarIcon className="h-5 w-5 text-muted-foreground" />
                 <div className="leading-tight">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     Selected
                   </div>
                   <div className="flex items-baseline gap-2 mt-0.5">
-                    <div className="text-3xl font-semibold text-foreground leading-none">
+                    <div className="text-2xl font-semibold text-foreground leading-none">
                       {format(date, 'd')}
                     </div>
                     <div className="text-xs text-muted-foreground" data-testid="text-long-date">{format(date, 'MMMM d, yyyy')}</div>
@@ -782,9 +782,9 @@ Details:
           </div>
 
           {/* Column 2: Weather */}
-          <div className="flex flex-col gap-2 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-3" data-testid="card-weather">
+          <div className="flex flex-col gap-1.5 rounded-lg border border-border/[0.08] bg-background/10 px-3 py-2 h-full" data-testid="card-weather">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weather</div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <WeatherWide
                 title="Today"
                 temp={weatherData.current?.temperature ?? "—"}
@@ -805,47 +805,43 @@ Details:
             </div>
           </div>
 
-          {/* Column 3: Drawing */}
-          <div className="flex flex-col gap-2 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-3">
+          {/* Column 3: Drawing - 10rem width */}
+          <div className="flex flex-col gap-1.5 rounded-lg border border-border/[0.08] bg-background/10 px-3 py-2 h-full">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Drawing</div>
-            <div className="space-y-2">
-              <div className="w-full rounded-xl border border-border/20 bg-card/50 px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="text-xl leading-none">#</div>
-                    <div className="leading-tight">
-                      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily</div>
-                      <Input
-                        type="number"
-                        step="1"
-                        value={dailyNumber}
-                        onChange={(e) => setDailyNumber(e.target.value)}
-                        placeholder="—"
-                        disabled={isPastLog}
-                        className="h-8 w-20 text-3xl font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
-                        data-testid="input-daily-number"
-                      />
-                    </div>
+            <div className="space-y-1.5">
+              <div className="w-full rounded-lg border border-border/20 bg-card/50 px-2 py-1.5">
+                <div className="flex items-center gap-1.5">
+                  <div className="text-base leading-none">#</div>
+                  <div className="leading-tight flex-1">
+                    <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Daily</div>
+                    <Input
+                      type="number"
+                      step="1"
+                      value={dailyNumber}
+                      onChange={(e) => setDailyNumber(e.target.value)}
+                      placeholder="—"
+                      disabled={isPastLog}
+                      className="h-5 w-full text-lg font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
+                      data-testid="input-daily-number"
+                    />
                   </div>
                 </div>
               </div>
-              <div className="w-full rounded-xl border border-border/20 bg-card/50 px-4 py-3 opacity-75">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="text-xl leading-none">#</div>
-                    <div className="leading-tight">
-                      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weekly</div>
-                      <Input
-                        type="number"
-                        step="1"
-                        value={weeklyNumber}
-                        onChange={(e) => setWeeklyNumber(e.target.value)}
-                        placeholder="—"
-                        disabled={isPastLog}
-                        className="h-8 w-20 text-3xl font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
-                        data-testid="input-weekly-number"
-                      />
-                    </div>
+              <div className="w-full rounded-lg border border-border/20 bg-card/50 px-2 py-1.5 opacity-75">
+                <div className="flex items-center gap-1.5">
+                  <div className="text-base leading-none">#</div>
+                  <div className="leading-tight flex-1">
+                    <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Weekly</div>
+                    <Input
+                      type="number"
+                      step="1"
+                      value={weeklyNumber}
+                      onChange={(e) => setWeeklyNumber(e.target.value)}
+                      placeholder="—"
+                      disabled={isPastLog}
+                      className="h-5 w-full text-lg font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
+                      data-testid="input-weekly-number"
+                    />
                   </div>
                 </div>
               </div>
@@ -854,39 +850,39 @@ Details:
         </div>
 
         {/* Managers grid - 3 column layout on large screens */}
-        <div className="mt-6">
+        <div className="mt-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Managers on Duty</div>
-          <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <div className="flex items-center gap-3 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-2.5">
-              <div className="w-20 text-xs font-semibold uppercase tracking-wide text-muted-foreground">AM</div>
+          <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-3">
+            <div className="flex items-center gap-2 rounded-lg border border-border/[0.08] bg-background/10 px-3 py-2">
+              <div className="w-16 text-xs font-semibold uppercase tracking-wide text-muted-foreground">AM</div>
               <Input
                 value={amManagerName}
                 onChange={(e) => setAmManagerName(e.target.value)}
                 placeholder="Name"
                 disabled={isPastLog}
-                className="h-9 bg-background/50"
+                className="h-8 bg-background/50"
                 data-testid="input-am-manager"
               />
             </div>
-            <div className="flex items-center gap-3 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-2.5">
-              <div className="w-20 text-xs font-semibold uppercase tracking-wide text-muted-foreground">PM</div>
+            <div className="flex items-center gap-2 rounded-lg border border-border/[0.08] bg-background/10 px-3 py-2">
+              <div className="w-16 text-xs font-semibold uppercase tracking-wide text-muted-foreground">PM</div>
               <Input
                 value={pmManagerName}
                 onChange={(e) => setPmManagerName(e.target.value)}
                 placeholder="Name"
                 disabled={isPastLog}
-                className="h-9 bg-background/50"
+                className="h-8 bg-background/50"
                 data-testid="input-pm-manager"
               />
             </div>
-            <div className="flex items-center gap-3 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-2.5">
-              <div className="w-20 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kitchen</div>
+            <div className="flex items-center gap-2 rounded-lg border border-border/[0.08] bg-background/10 px-3 py-2">
+              <div className="w-16 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kitchen</div>
               <Input
                 value={kitchenManagerName}
                 onChange={(e) => setKitchenManagerName(e.target.value)}
                 placeholder="Name"
                 disabled={isPastLog}
-                className="h-9 bg-background/50"
+                className="h-8 bg-background/50"
                 data-testid="input-kitchen-manager"
               />
             </div>
