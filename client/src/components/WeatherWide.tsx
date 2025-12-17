@@ -76,7 +76,7 @@ export default function WeatherWide({
               {title}
             </div>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <div className="text-xl font-semibold text-foreground leading-none">
+              <div className="text-xl font-semibold text-foreground leading-[1]">
                 {temp}°
               </div>
               <div className="text-[10px] text-muted-foreground">{condition}</div>

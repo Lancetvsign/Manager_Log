@@ -782,8 +782,8 @@ Details:
           <div className="h-[140px] rounded-xl border border-border bg-card p-4" data-testid="card-weather">
             <div className="flex h-full flex-col">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Weather</div>
-              <div className="mt-3 h-[96px] rounded-xl border border-border/10 bg-muted/30 p-3">
-                <div className="grid h-full grid-rows-2 gap-2">
+              <div className="mt-3 h-[88px] rounded-xl border border-white/10 bg-black/10 px-4">
+                <div className="grid h-full content-center gap-2">
                   <WeatherWide
                     title="Today"
                     temp={weatherData.current?.temperature ?? "—"}
@@ -810,8 +810,8 @@ Details:
           <div className="h-[140px] rounded-xl border border-border bg-card p-4">
             <div className="flex h-full flex-col">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Drawing</div>
-              <div className="mt-3 h-[96px] rounded-xl border border-border/10 bg-muted/30 p-3">
-                <div className="grid h-full grid-rows-2 gap-2">
+              <div className="mt-3 h-[88px] rounded-xl border border-white/10 bg-black/10 px-4">
+                <div className="grid h-full grid-rows-2 content-center gap-2 py-2">
                   <div className="rounded-lg border border-border/10 bg-muted/50 px-3 py-1.5">
                     <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily</div>
                     <Input
