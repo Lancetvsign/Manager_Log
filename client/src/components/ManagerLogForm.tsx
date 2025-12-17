@@ -895,8 +895,7 @@ Details:
             showDateAdded={true}
             showPhoto={true}
             showActions={true}
-            onToggleStatus={async (itemId, currentStatus) => {
-              const newStatus = currentStatus === "open" ? "completed" : "open";
+            onToggleStatus={async (itemId, newStatus) => {
               const res = await fetch(`${apiBaseUrl}/api/maintenance-items/${itemId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },

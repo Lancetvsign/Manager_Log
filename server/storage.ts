@@ -291,8 +291,15 @@ export class DatabaseStorage implements IStorage {
   async updateMaintenanceItem(id: number, updates: Partial<InsertMaintenanceItem>): Promise<MaintenanceItem | undefined> {
     const updateData: any = { ...updates };
     
+    // For daily-reset behavior: don't change status, only set/clear resolvedAt
     if (updates.status === "completed") {
+      // Mark as completed today by setting resolvedAt, but keep status as 'open'
       updateData.resolvedAt = new Date();
+      delete updateData.status; // Don't change status - keep it 'open'
+    } else if (updates.status === "open") {
+      // Undo: clear resolvedAt to make it active again
+      updateData.resolvedAt = null;
+      delete updateData.status; // Don't change status - it's already 'open'
     }
     
     const [updated] = await db

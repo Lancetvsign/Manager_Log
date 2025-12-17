@@ -753,8 +753,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   /**
    * GET /api/maintenance/open
-   * Retrieves all open maintenance items for a club with their log dates.
-   * Returns items sorted oldest to newest.
+   * Retrieves all maintenance items for a club with their log dates.
+   * Returns all items - frontend uses resolvedAt for daily completion state.
+   * Items completed today show greyed-out; tomorrow they reset to open.
    * @query clubId - The club identifier (required)
    */
   app.get("/api/maintenance/open", async (req, res) => {
@@ -782,12 +783,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           managerLogs,
           eq(maintenanceItems.managerLogId, managerLogs.id)
         )
-        .where(
-          and(
-            eq(managerLogs.clubId, clubId),
-            eq(maintenanceItems.status, "open")
-          )
-        )
+        .where(eq(managerLogs.clubId, clubId))
         .orderBy(maintenanceItems.createdAt);
 
       res.json(items);

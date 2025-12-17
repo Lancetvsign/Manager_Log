@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, AlertCircle, Camera, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { CheckCircle, AlertCircle, Camera, Loader2, Undo2 } from "lucide-react";
+import { useState, useMemo } from "react";
 
 interface MaintenanceItem {
   id: number;
@@ -27,6 +27,13 @@ interface MaintenanceItemsTableProps {
   apiBaseUrl?: string;
 }
 
+function isCompletedToday(resolvedAt: string | null | undefined): boolean {
+  if (!resolvedAt) return false;
+  const resolved = new Date(resolvedAt);
+  const today = new Date();
+  return resolved.toDateString() === today.toDateString();
+}
+
 export function MaintenanceItemsTable({
   items,
   isLoading = false,
@@ -40,12 +47,24 @@ export function MaintenanceItemsTable({
   const [uploadingId, setUploadingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => {
+      const aCompletedToday = isCompletedToday(a.resolvedAt);
+      const bCompletedToday = isCompletedToday(b.resolvedAt);
+      if (aCompletedToday && !bCompletedToday) return 1;
+      if (!aCompletedToday && bCompletedToday) return -1;
+      return 0;
+    });
+  }, [items]);
+
   const handleToggleStatus = async (item: MaintenanceItem) => {
     if (!onToggleStatus) return;
     const itemId = item.itemId ?? item.id;
     setTogglingId(itemId);
     try {
-      await onToggleStatus(itemId, item.status);
+      const completedToday = isCompletedToday(item.resolvedAt);
+      const newStatus = completedToday ? "open" : "completed";
+      await onToggleStatus(itemId, newStatus);
     } finally {
       setTogglingId(null);
     }
@@ -121,18 +140,21 @@ export function MaintenanceItemsTable({
         {showDateAdded && <div className="col-span-2">Date Added</div>}
         <div className={`col-span-${showDateAdded ? '3' : getColSpan()}`}>Description</div>
         <div className="col-span-2">Status</div>
-        <div className={`col-span-${showPhoto || showActions ? '3' : '5'}`}>Notes</div>
+        <div className={`col-span-${showPhoto || showActions ? '2' : '5'}`}>Notes</div>
         {showPhoto && <div className="col-span-2">Photo</div>}
-        {showActions && <div className="col-span-1 text-right">Actions</div>}
+        {showActions && <div className="col-span-2 text-right">Actions</div>}
       </div>
-      {items.map((item) => {
+      {sortedItems.map((item) => {
         const itemId = item.itemId ?? item.id;
-        const isOpen = item.status === "open";
+        const completedToday = isCompletedToday(item.resolvedAt);
+        const isOpen = !completedToday;
         
         return (
           <div
             key={item.id}
-            className="grid grid-cols-12 gap-2 p-3 items-center min-w-[600px]"
+            className={`grid grid-cols-12 gap-2 p-3 items-center min-w-[600px] ${
+              completedToday ? "bg-muted/30 opacity-60" : ""
+            }`}
             data-testid={`maintenance-item-${itemId}`}
           >
             {showDateAdded && (
@@ -140,7 +162,7 @@ export function MaintenanceItemsTable({
                 {formatDate(item.logDate ?? item.createdAt)}
               </div>
             )}
-            <div className={`col-span-${showDateAdded ? '3' : getColSpan()} text-sm`}>
+            <div className={`col-span-${showDateAdded ? '3' : getColSpan()} text-sm ${completedToday ? "line-through text-muted-foreground" : ""}`}>
               {item.description}
             </div>
             <div className="col-span-2">
@@ -160,14 +182,14 @@ export function MaintenanceItemsTable({
                   )}
                   {isOpen ? "Open" : "Completed"}
                 </Badge>
-                {!isOpen && item.resolvedAt && (
+                {completedToday && item.resolvedAt && (
                   <span className="text-[11px] text-muted-foreground">
                     {formatCompletedAt(item.resolvedAt)}
                   </span>
                 )}
               </div>
             </div>
-            <div className={`col-span-${showPhoto || showActions ? '3' : '5'} text-sm text-muted-foreground`}>
+            <div className={`col-span-${showPhoto || showActions ? '2' : '5'} text-sm text-muted-foreground`}>
               {item.notes || "-"}
             </div>
             {showPhoto && (
@@ -205,19 +227,28 @@ export function MaintenanceItemsTable({
               </div>
             )}
             {showActions && (
-              <div className="col-span-1 text-right">
+              <div className="col-span-2 text-right">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant={completedToday ? "outline" : "ghost"}
                   size="sm"
                   onClick={() => handleToggleStatus(item)}
                   disabled={togglingId === itemId}
+                  className={completedToday ? "text-amber-600 border-amber-300 hover:bg-amber-50" : ""}
                   data-testid={`button-toggle-status-${itemId}`}
                 >
                   {togglingId === itemId ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : completedToday ? (
+                    <>
+                      <Undo2 className="h-4 w-4 mr-1" />
+                      Undo
+                    </>
                   ) : (
-                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <>
+                      <CheckCircle className="h-4 w-4 text-green-600 mr-1" />
+                      Complete
+                    </>
                   )}
                 </Button>
               </div>
