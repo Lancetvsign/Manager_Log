@@ -732,82 +732,45 @@ Details:
           )}
         </CardHeader>
         <CardContent className="pt-2">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
-            {/* LEFT COLUMN: Date/Day, Daily/Weekly Numbers */}
-            <div className="md:col-span-8 space-y-2">
-              {/* Row 1: Date + Day of Week */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                        data-testid="button-date-picker"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {format(date, "PPP")}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={handleDateChange}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Day of Week</Label>
-                  <Input
-                    value={getDayOfWeek(date)}
-                    readOnly
-                    className="bg-muted"
-                    data-testid="input-day-of-week"
+          {/* Row 1: Date, Day of Week, Managers on Duty */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 mb-2">
+            <div className="md:col-span-3 space-y-1">
+              <Label className="text-xs text-muted-foreground">Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal h-9"
+                    data-testid="button-date-picker"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(date, "PPP")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={handleDateChange}
+                    initialFocus
                   />
-                </div>
-              </div>
-
-              {/* Row 2: Daily Number + Weekly Number */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground" htmlFor="daily-number">Daily Number</Label>
-                  <Input
-                    id="daily-number"
-                    type="number"
-                    step="1"
-                    value={dailyNumber}
-                    onChange={(e) => setDailyNumber(e.target.value)}
-                    placeholder="Enter daily #"
-                    disabled={isPastLog}
-                    data-testid="input-daily-number"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground" htmlFor="weekly-number">Weekly Number</Label>
-                  <Input
-                    id="weekly-number"
-                    type="number"
-                    step="1"
-                    value={weeklyNumber}
-                    onChange={(e) => setWeeklyNumber(e.target.value)}
-                    placeholder="Enter weekly #"
-                    disabled={isPastLog}
-                    data-testid="input-weekly-number"
-                  />
-                </div>
-              </div>
+                </PopoverContent>
+              </Popover>
             </div>
-
-            {/* RIGHT COLUMN: Managers on Duty */}
-            <div className="md:col-span-4 space-y-1">
+            <div className="md:col-span-2 space-y-1">
+              <Label className="text-xs text-muted-foreground">Day</Label>
+              <Input
+                value={getDayOfWeek(date)}
+                readOnly
+                className="bg-muted h-9"
+                data-testid="input-day-of-week"
+              />
+            </div>
+            <div className="md:col-span-7 space-y-1">
               <Label className="text-xs text-muted-foreground font-medium">Managers on Duty</Label>
               <div className="grid grid-cols-3 gap-1">
                 <div className="flex">
-                  <span className="inline-flex items-center px-2 text-xs font-medium text-muted-foreground bg-muted border border-r-0 rounded-l-md min-w-[36px] justify-center">
+                  <span className="inline-flex items-center px-2 text-xs font-medium text-muted-foreground bg-muted border border-r-0 rounded-l-md min-w-[32px] justify-center">
                     AM
                   </span>
                   <Input
@@ -820,7 +783,7 @@ Details:
                   />
                 </div>
                 <div className="flex">
-                  <span className="inline-flex items-center px-2 text-xs font-medium text-muted-foreground bg-muted border border-r-0 rounded-l-md min-w-[36px] justify-center">
+                  <span className="inline-flex items-center px-2 text-xs font-medium text-muted-foreground bg-muted border border-r-0 rounded-l-md min-w-[32px] justify-center">
                     PM
                   </span>
                   <Input
@@ -833,7 +796,7 @@ Details:
                   />
                 </div>
                 <div className="flex">
-                  <span className="inline-flex items-center px-2 text-xs font-medium text-muted-foreground bg-muted border border-r-0 rounded-l-md min-w-[36px] justify-center">
+                  <span className="inline-flex items-center px-2 text-xs font-medium text-muted-foreground bg-muted border border-r-0 rounded-l-md min-w-[32px] justify-center">
                     Kit
                   </span>
                   <Input
@@ -848,52 +811,79 @@ Details:
               </div>
             </div>
           </div>
+
+          {/* Row 2: Daily #, Weekly #, Weather */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+            <div className="md:col-span-2 space-y-1">
+              <Label className="text-xs text-muted-foreground" htmlFor="daily-number">Daily #</Label>
+              <Input
+                id="daily-number"
+                type="number"
+                step="1"
+                value={dailyNumber}
+                onChange={(e) => setDailyNumber(e.target.value)}
+                placeholder="#"
+                disabled={isPastLog}
+                className="h-9"
+                data-testid="input-daily-number"
+              />
+            </div>
+            <div className="md:col-span-2 space-y-1">
+              <Label className="text-xs text-muted-foreground" htmlFor="weekly-number">Weekly #</Label>
+              <Input
+                id="weekly-number"
+                type="number"
+                step="1"
+                value={weeklyNumber}
+                onChange={(e) => setWeeklyNumber(e.target.value)}
+                placeholder="#"
+                disabled={isPastLog}
+                className="h-9"
+                data-testid="input-weekly-number"
+              />
+            </div>
+            <div className="md:col-span-8 flex items-end">
+              <div className="flex flex-wrap items-center gap-3 px-2 py-1.5 rounded-md bg-muted/50 text-xs w-full" data-testid="card-weather">
+                {isLoadingWeather ? (
+                  <div className="text-muted-foreground flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading...
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-1" data-testid="weather-current">
+                      <Sun className="h-3.5 w-3.5 text-amber-500" />
+                      <span className="text-muted-foreground">Today:</span>
+                      {weatherData.current ? (
+                        <span>
+                          <span className="font-medium">{weatherData.current.temperature}°F</span>
+                          <span className="text-muted-foreground mx-1">•</span>
+                          <span>{weatherData.current.condition}</span>
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 text-muted-foreground" data-testid="weather-historical">
+                      <Cloud className="h-3.5 w-3.5" />
+                      <span>Last Yr:</span>
+                      {weatherData.historical ? (
+                        <span>
+                          <span className="font-medium text-foreground">{weatherData.historical.temperature}°F</span>
+                          <span className="mx-1">•</span>
+                          <span>{weatherData.historical.condition}</span>
+                        </span>
+                      ) : (
+                        <span>—</span>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
-
-      {/* Weather Section - Compact with icons */}
-      <div className="flex flex-wrap items-center gap-4 px-3 py-2 rounded-md bg-muted/50 text-sm" data-testid="card-weather">
-        {isLoadingWeather ? (
-          <div className="text-muted-foreground flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading weather...
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-2" data-testid="weather-current">
-              <Sun className="h-4 w-4 text-amber-500" />
-              <span className="text-muted-foreground">Today:</span>
-              {weatherData.current ? (
-                <span>
-                  <span className="font-medium">{weatherData.current.temperature}°F</span>
-                  <span className="text-muted-foreground mx-1">•</span>
-                  <span>{weatherData.current.condition}</span>
-                  <span className="text-muted-foreground mx-1">•</span>
-                  <span className="text-muted-foreground">{weatherData.current.windSpeed} mph</span>
-                </span>
-              ) : (
-                <span className="text-muted-foreground">—</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground" data-testid="weather-historical">
-              <Cloud className="h-4 w-4" />
-              <span>Last Year:</span>
-              {weatherData.historical ? (
-                <span>
-                  <span className="font-medium text-foreground">{weatherData.historical.temperature}°F</span>
-                  <span className="mx-1">•</span>
-                  <span>{weatherData.historical.condition}</span>
-                  {weatherData.historicalFallbackNote && (
-                    <span className="ml-1 text-amber-600 dark:text-amber-400 text-xs">(fallback)</span>
-                  )}
-                </span>
-              ) : (
-                <span>—</span>
-              )}
-            </div>
-          </>
-        )}
-      </div>
 
       {/* Sales Data */}
       <SalesInput
