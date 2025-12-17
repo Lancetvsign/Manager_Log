@@ -714,64 +714,86 @@ Details:
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      {/* Header Information - 2-Column Layout */}
+      {/* Header Information */}
       <div className="rounded-2xl border border-border/10 bg-card/30 p-6" data-testid="card-log-header">
-        {/* TOP: Title/Date (left) + Weather & Stats (right) */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
-          {/* LEFT: Title and Date */}
-          <div>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <h2 className="text-xl font-semibold">Daily Manager Log Entry</h2>
-              {existingLogId && !isPastLog && (
-                <span className="text-sm text-muted-foreground">(Editing)</span>
-              )}
-              {isPastLog && (
-                <Badge variant="secondary">View Only</Badge>
-              )}
-            </div>
-            {isPastLog && (
-              <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-3 py-2 rounded-md text-sm mt-2">
-                <strong>Read-only:</strong> This log is from {format(date, 'MMMM d, yyyy')} and cannot be edited.
-              </div>
-            )}
+        {/* Title banner */}
+        <div className="flex items-baseline gap-2 flex-wrap mb-4">
+          <h2 className="text-xl font-semibold">Daily Manager Log Entry</h2>
+          {existingLogId && !isPastLog && (
+            <span className="text-sm text-muted-foreground">(Editing)</span>
+          )}
+          {isPastLog && (
+            <Badge variant="secondary">View Only</Badge>
+          )}
+        </div>
+        {isPastLog && (
+          <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-3 py-2 rounded-md text-sm mb-4">
+            <strong>Read-only:</strong> This log is from {format(date, 'MMMM d, yyyy')} and cannot be edited.
+          </div>
+        )}
 
-            {/* Date + computed day */}
-            <div className="mt-5">
-              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Date</Label>
-              <div className="mt-2 flex flex-wrap items-center gap-4">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-[210px] justify-start text-left font-normal h-10 bg-background/50"
-                      data-testid="button-date-picker"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(date, "yyyy-MM-dd")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={handleDateChange}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <div className="leading-tight">
-                  <div className="text-base font-medium" data-testid="text-long-date">{format(date, 'MMMM d, yyyy')}</div>
-                  <div className="text-sm text-muted-foreground" data-testid="text-weekday">{getDayOfWeek(date)}</div>
-                </div>
-              </div>
+        {/* 3-column row: Date | Weather | Stats */}
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+          {/* Column 1: Date */}
+          <div className="flex flex-col gap-3 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date</div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-[160px] justify-start text-left font-normal h-9 bg-background/50"
+                    data-testid="button-date-picker"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(date, "yyyy-MM-dd")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={handleDateChange}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="leading-tight">
+              <div className="text-sm font-medium" data-testid="text-long-date">{format(date, 'MMMM d, yyyy')}</div>
+              <div className="text-xs text-muted-foreground" data-testid="text-weekday">{getDayOfWeek(date)}</div>
             </div>
           </div>
 
-          {/* RIGHT: Stats + Weather card */}
-          <div className="w-full max-w-[520px]">
-            {/* Stats row */}
-            <div className="flex gap-3 justify-end mb-4">
-              <div className="rounded-xl border border-border/10 bg-card/50 px-3 py-2">
+          {/* Column 2: Weather */}
+          <div className="flex flex-col gap-3 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-3" data-testid="card-weather">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Weather</div>
+            <div className="space-y-2">
+              <WeatherWide
+                title="Today"
+                temp={weatherData.current?.temperature ?? "—"}
+                condition={weatherData.current?.condition ?? "—"}
+                wind={weatherData.current?.windSpeed ?? "—"}
+                isLoading={isLoadingWeather}
+                compact
+              />
+              <WeatherWide
+                title="Last Year"
+                temp={weatherData.historical?.temperature ?? "—"}
+                condition={weatherData.historical?.condition ?? "—"}
+                wind={weatherData.historical?.windSpeed ?? "—"}
+                isLoading={isLoadingWeather}
+                muted
+                compact
+              />
+            </div>
+          </div>
+
+          {/* Column 3: Stats */}
+          <div className="flex flex-col gap-3 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Daily Stats</div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="rounded-md border border-border/[0.08] bg-background/20 px-3 py-2">
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily #</div>
                 <Input
                   type="number"
@@ -784,7 +806,7 @@ Details:
                   data-testid="input-daily-number"
                 />
               </div>
-              <div className="rounded-xl border border-border/10 bg-card/50 px-3 py-2">
+              <div className="rounded-md border border-border/[0.08] bg-background/20 px-3 py-2">
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weekly #</div>
                 <Input
                   type="number"
@@ -795,29 +817,6 @@ Details:
                   disabled={isPastLog}
                   className="h-7 w-16 text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
                   data-testid="input-weekly-number"
-                />
-              </div>
-            </div>
-
-            {/* Weather widgets */}
-            <div className="rounded-2xl border border-border/10 bg-card/50 p-4" data-testid="card-weather">
-              <div className="space-y-3">
-                <WeatherWide
-                  title="Today"
-                  temp={weatherData.current?.temperature ?? "—"}
-                  condition={weatherData.current?.condition ?? "—"}
-                  wind={weatherData.current?.windSpeed ?? "—"}
-                  isLoading={isLoadingWeather}
-                  compact
-                />
-                <WeatherWide
-                  title="Last Year"
-                  temp={weatherData.historical?.temperature ?? "—"}
-                  condition={weatherData.historical?.condition ?? "—"}
-                  wind={weatherData.historical?.windSpeed ?? "—"}
-                  isLoading={isLoadingWeather}
-                  muted
-                  compact
                 />
               </div>
             </div>
