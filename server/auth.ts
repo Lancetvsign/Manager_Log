@@ -20,7 +20,7 @@ import crypto from "crypto";
 
 const MAX_REQUEST_AGE_MS = 5 * 60 * 1000;
 
-const DEV_MODE_BYPASS = process.env.NODE_ENV === "development" && !process.env.MANAGER_LOG_SECRET;
+const IS_DEVELOPMENT = process.env.NODE_ENV === "development";
 
 /**
  * Verifies the HMAC-SHA256 signature of an incoming request
@@ -67,12 +67,18 @@ function verifySignature(
  * with a warning. In production, all requests must be properly signed.
  */
 export function requireSignedRequest(req: Request, res: Response, next: NextFunction) {
-  if (DEV_MODE_BYPASS) {
-    console.warn("[Auth] Development mode: Signature verification bypassed. Set MANAGER_LOG_SECRET to enable.");
-    return next();
-  }
-
   const secret = process.env.MANAGER_LOG_SECRET;
+  
+  // In development mode, bypass auth if no signature headers are provided
+  // This allows direct browser access while still validating signed SCP requests
+  if (IS_DEVELOPMENT) {
+    const hasSignatureHeaders = req.headers["x-signature"] && req.headers["x-timestamp"];
+    if (!hasSignatureHeaders) {
+      console.warn("[Auth] Development mode: No signature headers, bypassing auth.");
+      return next();
+    }
+  }
+  
   if (!secret) {
     console.error("[Auth] MANAGER_LOG_SECRET not configured");
     return res.status(500).json({ error: "Server authentication not configured" });
