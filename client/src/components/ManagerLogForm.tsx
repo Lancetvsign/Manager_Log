@@ -734,7 +734,7 @@ Details:
         )}
 
         {/* 3-column grid: Date | Weather | Drawing - fixed height panels */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_0.9fr_10rem]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_0.75fr_12rem]">
           {/* Column 1: Date */}
           <div className="h-[164px] rounded-xl border border-border bg-card p-4">
             <div className="flex h-full flex-col">
@@ -806,13 +806,13 @@ Details:
             </div>
           </div>
 
-          {/* Column 3: Drawing - 10rem width */}
+          {/* Column 3: Drawing - 12rem width */}
           <div className="h-[164px] rounded-xl border border-border bg-card p-4">
             <div className="flex h-full flex-col">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Drawing</div>
               <div className="mt-3 h-[107px] rounded-xl border border-white/10 bg-black/10 px-4">
                 <div className="grid h-full grid-rows-2 content-center gap-2.5 py-2">
-                  <div className="rounded-lg border border-border/10 bg-muted/50 px-3 py-2">
+                  <div className="flex items-center justify-between rounded-lg border border-border/10 bg-muted/50 px-3 py-2">
                     <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily</div>
                     <Input
                       type="number"
@@ -821,11 +821,11 @@ Details:
                       onChange={(e) => setDailyNumber(e.target.value)}
                       placeholder="—"
                       disabled={isPastLog}
-                      className="mt-0.5 w-full text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
+                      className="w-14 text-right text-base font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
                       data-testid="input-daily-number"
                     />
                   </div>
-                  <div className="rounded-lg border border-border/10 bg-muted/50 px-3 py-2 opacity-75">
+                  <div className="flex items-center justify-between rounded-lg border border-border/10 bg-muted/50 px-3 py-2 opacity-75">
                     <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weekly</div>
                     <Input
                       type="number"
@@ -834,7 +834,7 @@ Details:
                       onChange={(e) => setWeeklyNumber(e.target.value)}
                       placeholder="—"
                       disabled={isPastLog}
-                      className="mt-0.5 w-full text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
+                      className="w-14 text-right text-base font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
                       data-testid="input-weekly-number"
                     />
                   </div>
