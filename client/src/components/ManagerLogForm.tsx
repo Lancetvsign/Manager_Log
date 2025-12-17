@@ -716,8 +716,8 @@ Details:
     <form onSubmit={handleSubmit} className="space-y-3">
       {/* Header Information - Redesigned Layout */}
       <div className="rounded-2xl border border-border/[0.08] bg-card/30 p-6" data-testid="card-log-header">
-        {/* TOP: left content + right status (daily/weekly + weather) */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
+        {/* TOP: left content + right status card */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_520px]">
           {/* LEFT */}
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -767,55 +767,57 @@ Details:
             </div>
           </div>
 
-          {/* RIGHT */}
-          <div className="flex flex-col items-end gap-3">
-            {/* Daily/Weekly # badges + editable inputs */}
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl border border-border/[0.08] bg-background/15 px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Daily #</div>
-                <Input
-                  type="number"
-                  step="1"
-                  value={dailyNumber}
-                  onChange={(e) => setDailyNumber(e.target.value)}
-                  placeholder="—"
-                  disabled={isPastLog}
-                  className="h-7 w-16 text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
-                  data-testid="input-daily-number"
-                />
+          {/* RIGHT: Status card fills dead space */}
+          <div className="w-full">
+            <div className="h-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+              {/* Daily/Weekly # badges */}
+              <div className="flex items-start justify-end gap-3">
+                <div className="min-w-[92px] rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Daily #</div>
+                  <Input
+                    type="number"
+                    step="1"
+                    value={dailyNumber}
+                    onChange={(e) => setDailyNumber(e.target.value)}
+                    placeholder="—"
+                    disabled={isPastLog}
+                    className="h-7 w-16 text-sm font-semibold text-slate-900 dark:text-slate-100 bg-transparent border-0 p-0 focus-visible:ring-0"
+                    data-testid="input-daily-number"
+                  />
+                </div>
+                <div className="min-w-[92px] rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Weekly #</div>
+                  <Input
+                    type="number"
+                    step="1"
+                    value={weeklyNumber}
+                    onChange={(e) => setWeeklyNumber(e.target.value)}
+                    placeholder="—"
+                    disabled={isPastLog}
+                    className="h-7 w-16 text-sm font-semibold text-slate-900 dark:text-slate-100 bg-transparent border-0 p-0 focus-visible:ring-0"
+                    data-testid="input-weekly-number"
+                  />
+                </div>
               </div>
-              <div className="rounded-xl border border-border/[0.08] bg-background/15 px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Weekly #</div>
-                <Input
-                  type="number"
-                  step="1"
-                  value={weeklyNumber}
-                  onChange={(e) => setWeeklyNumber(e.target.value)}
-                  placeholder="—"
-                  disabled={isPastLog}
-                  className="h-7 w-16 text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
-                  data-testid="input-weekly-number"
-                />
-              </div>
-            </div>
 
-            {/* Weather widgets - stacked */}
-            <div className="w-full space-y-2" data-testid="card-weather">
-              <WeatherWide
-                title="Today"
-                temp={weatherData.current?.temperature ?? "—"}
-                condition={weatherData.current?.condition ?? "—"}
-                windSpeed={weatherData.current?.windSpeed ?? "—"}
-                isLoading={isLoadingWeather}
-              />
-              <WeatherWide
-                title="Last Year"
-                temp={weatherData.historical?.temperature ?? "—"}
-                condition={weatherData.historical?.condition ?? "—"}
-                windSpeed={weatherData.historical?.windSpeed ?? "—"}
-                isLoading={isLoadingWeather}
-                muted
-              />
+              {/* Weather widgets - stacked */}
+              <div className="mt-4 space-y-3" data-testid="card-weather">
+                <WeatherWide
+                  title="Today"
+                  temp={weatherData.current?.temperature ?? "—"}
+                  condition={weatherData.current?.condition ?? "—"}
+                  wind={weatherData.current?.windSpeed ?? "—"}
+                  isLoading={isLoadingWeather}
+                />
+                <WeatherWide
+                  title="Last Year"
+                  temp={weatherData.historical?.temperature ?? "—"}
+                  condition={weatherData.historical?.condition ?? "—"}
+                  wind={weatherData.historical?.windSpeed ?? "—"}
+                  isLoading={isLoadingWeather}
+                  muted
+                />
+              </div>
             </div>
           </div>
         </div>
