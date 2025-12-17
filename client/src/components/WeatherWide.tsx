@@ -4,8 +4,6 @@ interface WeatherWideProps {
   title?: string;
   temp?: string | number;
   condition?: string;
-  hi?: string | number;
-  lo?: string | number;
   windSpeed?: string | number;
   isLoading?: boolean;
   muted?: boolean;
@@ -13,21 +11,19 @@ interface WeatherWideProps {
 
 function getWeatherIcon(condition: string = "") {
   const lower = condition.toLowerCase();
-  if (lower.includes("rain") || lower.includes("shower")) return <CloudRain className="h-8 w-8" />;
-  if (lower.includes("snow") || lower.includes("sleet")) return <CloudSnow className="h-8 w-8" />;
-  if (lower.includes("thunder") || lower.includes("storm")) return <CloudLightning className="h-8 w-8" />;
-  if (lower.includes("cloud") || lower.includes("overcast")) return <Cloud className="h-8 w-8" />;
-  if (lower.includes("clear") || lower.includes("sunny")) return <Sun className="h-8 w-8 text-amber-400" />;
-  if (lower.includes("wind")) return <Wind className="h-8 w-8" />;
-  return <Cloud className="h-8 w-8" />;
+  if (lower.includes("rain") || lower.includes("shower")) return <CloudRain className="h-7 w-7" />;
+  if (lower.includes("snow") || lower.includes("sleet")) return <CloudSnow className="h-7 w-7" />;
+  if (lower.includes("thunder") || lower.includes("storm")) return <CloudLightning className="h-7 w-7" />;
+  if (lower.includes("cloud") || lower.includes("overcast")) return <Cloud className="h-7 w-7" />;
+  if (lower.includes("clear") || lower.includes("sunny")) return <Sun className="h-7 w-7 text-amber-400" />;
+  if (lower.includes("wind")) return <Wind className="h-7 w-7" />;
+  return <Cloud className="h-7 w-7" />;
 }
 
 export default function WeatherWide({
   title = "Today",
   temp = "—",
   condition = "—",
-  hi = "—",
-  lo = "—",
   windSpeed = "—",
   isLoading = false,
   muted = false,
@@ -63,14 +59,10 @@ export default function WeatherWide({
             </div>
 
             <div className="flex items-baseline gap-2">
-              <div className="text-3xl font-semibold leading-none">
-                {temp}°
+              <div className="text-2xl font-semibold leading-none">
+                {temp}°F
               </div>
               <div className="text-xs text-muted-foreground">{condition}</div>
-            </div>
-
-            <div className="mt-1 text-xs text-muted-foreground">
-              H:{hi}° L:{lo}°
             </div>
           </div>
         </div>

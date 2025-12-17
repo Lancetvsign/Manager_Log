@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronRight, Camera, ExternalLink, Sun, Cloud } from "lucide-react";
 import WeatherCard from "./WeatherCard";
+import WeatherWide from "./WeatherWide";
 import SalesInput from "./SalesInput";
 import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
 import EscalationRulesModal from "./EscalationRulesModal";
@@ -714,9 +715,10 @@ Details:
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       {/* Header Information - Redesigned Layout */}
-      <div className="rounded-xl border border-border/50 bg-card/50 p-5" data-testid="card-log-header">
-        {/* Top row: Title + Metadata/Weather */}
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="rounded-2xl border border-border/[0.08] bg-card/30 p-6" data-testid="card-log-header">
+        {/* TOP: left content + right status (daily/weekly + weather) */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
+          {/* LEFT */}
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2">
               Daily Manager Log Entry
@@ -733,7 +735,7 @@ Details:
               </div>
             )}
 
-            {/* Date section */}
+            {/* Date + computed day */}
             <div className="mt-4 flex flex-col gap-2">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">Date</Label>
               <div className="flex flex-wrap items-center gap-3">
@@ -763,11 +765,14 @@ Details:
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Daily/Weekly Numbers - Compact inline inputs */}
-            <div className="mt-4 flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground whitespace-nowrap">Daily #</Label>
+          {/* RIGHT */}
+          <div className="flex flex-col items-end gap-3">
+            {/* Daily/Weekly # badges + editable inputs */}
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl border border-border/[0.08] bg-background/15 px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Daily #</div>
                 <Input
                   type="number"
                   step="1"
@@ -775,12 +780,12 @@ Details:
                   onChange={(e) => setDailyNumber(e.target.value)}
                   placeholder="—"
                   disabled={isPastLog}
-                  className="h-8 w-20 text-sm bg-background/50"
+                  className="h-7 w-16 text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
                   data-testid="input-daily-number"
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground whitespace-nowrap">Weekly #</Label>
+              <div className="rounded-xl border border-border/[0.08] bg-background/15 px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Weekly #</div>
                 <Input
                   type="number"
                   step="1"
@@ -788,39 +793,29 @@ Details:
                   onChange={(e) => setWeeklyNumber(e.target.value)}
                   placeholder="—"
                   disabled={isPastLog}
-                  className="h-8 w-20 text-sm bg-background/50"
+                  className="h-7 w-16 text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
                   data-testid="input-weekly-number"
                 />
               </div>
             </div>
-          </div>
 
-          {/* Right side: Weather pills */}
-          <div className="flex flex-col items-end gap-2">
-            {/* Weather pills */}
-            <div className="flex flex-wrap items-center gap-2" data-testid="card-weather">
-              {isLoadingWeather ? (
-                <span className="rounded-full border border-border/50 bg-muted/30 px-3 py-1 text-xs text-muted-foreground flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Loading...
-                </span>
-              ) : (
-                <>
-                  <span className="rounded-full border border-border/50 bg-muted/30 px-3 py-1 text-xs flex items-center gap-1" data-testid="weather-current">
-                    <Sun className="h-3 w-3 text-amber-500" />
-                    Today: {weatherData.current ? `${weatherData.current.temperature}°F, ${weatherData.current.condition}` : '—'}
-                  </span>
-                  <span className="rounded-full border border-border/50 bg-muted/30 px-3 py-1 text-xs flex items-center gap-1 text-muted-foreground" data-testid="weather-historical">
-                    <Cloud className="h-3 w-3" />
-                    Last Year: {weatherData.historical ? (
-                      <>
-                        {weatherData.historical.temperature}°F, {weatherData.historical.condition}
-                        {weatherData.historicalFallbackNote && <span className="ml-1 text-amber-500">(~)</span>}
-                      </>
-                    ) : '—'}
-                  </span>
-                </>
-              )}
+            {/* Weather widgets - stacked */}
+            <div className="w-full space-y-2" data-testid="card-weather">
+              <WeatherWide
+                title="Today"
+                temp={weatherData.current?.temperature ?? "—"}
+                condition={weatherData.current?.condition ?? "—"}
+                windSpeed={weatherData.current?.windSpeed ?? "—"}
+                isLoading={isLoadingWeather}
+              />
+              <WeatherWide
+                title="Last Year"
+                temp={weatherData.historical?.temperature ?? "—"}
+                condition={weatherData.historical?.condition ?? "—"}
+                windSpeed={weatherData.historical?.windSpeed ?? "—"}
+                isLoading={isLoadingWeather}
+                muted
+              />
             </div>
           </div>
         </div>
