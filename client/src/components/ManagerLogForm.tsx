@@ -715,7 +715,7 @@ Details:
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       {/* Header Information */}
-      <div className="rounded-2xl border border-border/10 bg-card/30 p-6" data-testid="card-log-header">
+      <div className="rounded-2xl border border-border/[0.08] bg-background/10 p-6" data-testid="card-log-header">
         {/* Title banner */}
         <div className="flex items-baseline gap-2 flex-wrap mb-4">
           <h2 className="text-xl font-semibold">Daily Manager Log Entry</h2>
@@ -736,43 +736,48 @@ Details:
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           {/* Column 1: Date */}
           <div className="flex flex-col gap-2 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Date</div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="w-full rounded-xl border border-border/20 bg-card/50 px-4 py-3 text-left hover-elevate cursor-pointer"
-                  data-testid="button-date-picker"
-                >
-                  <div className="flex items-center gap-3">
-                    <CalendarIcon className="h-6 w-6 text-muted-foreground" />
-                    <div className="leading-tight">
-                      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        Selected
-                      </div>
-                      <div className="flex items-baseline gap-2 mt-0.5">
-                        <div className="text-3xl font-semibold text-foreground leading-none">
-                          {format(date, 'd')}
-                        </div>
-                        <div className="text-xs text-muted-foreground" data-testid="text-long-date">{format(date, 'MMMM yyyy')}</div>
-                      </div>
-                    </div>
-                    <div className="ml-auto text-right">
-                      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Day</div>
-                      <div className="text-xs font-medium text-foreground/80 mt-0.5" data-testid="text-weekday">{getDayOfWeek(date)}</div>
-                    </div>
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Date</div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-[10px] text-primary hover:underline cursor-pointer"
+                    data-testid="button-date-picker"
+                  >
+                    Change Date
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={handleDateChange}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="w-full rounded-xl border border-border/20 bg-card/50 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <CalendarIcon className="h-6 w-6 text-muted-foreground" />
+                <div className="leading-tight">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Selected
                   </div>
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={handleDateChange}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <div className="text-3xl font-semibold text-foreground leading-none">
+                      {format(date, 'd')}
+                    </div>
+                    <div className="text-xs text-muted-foreground" data-testid="text-long-date">{format(date, 'MMMM d, yyyy')}</div>
+                  </div>
+                </div>
+                <div className="ml-auto text-right">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Day</div>
+                  <div className="text-xs font-medium text-foreground/80 mt-0.5" data-testid="text-weekday">{getDayOfWeek(date)}</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Column 2: Weather */}
@@ -799,9 +804,9 @@ Details:
             </div>
           </div>
 
-          {/* Column 3: Stats */}
+          {/* Column 3: Drawing */}
           <div className="flex flex-col gap-2 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily Stats</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Drawing</div>
             <div className="space-y-2">
               <div className="w-full rounded-xl border border-border/20 bg-card/50 px-4 py-3">
                 <div className="flex items-center justify-between">
