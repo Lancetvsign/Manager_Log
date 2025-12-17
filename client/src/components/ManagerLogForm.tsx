@@ -715,7 +715,7 @@ Details:
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       {/* Header Information */}
-      <div className="rounded-2xl border border-border/[0.08] bg-background/10 p-6" data-testid="card-log-header">
+      <div className="shadcn-card rounded-xl border bg-card border-card-border text-card-foreground shadow-sm p-6" data-testid="card-log-header">
         {/* Title banner */}
         <div className="flex items-baseline gap-2 flex-wrap mb-4">
           <h2 className="text-xl font-semibold">Daily Manager Log Entry</h2>
