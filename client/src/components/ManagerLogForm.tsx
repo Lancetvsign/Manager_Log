@@ -736,7 +736,7 @@ Details:
         {/* 3-column grid: Date | Weather | Drawing - fixed height panels */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_0.9fr_10rem]">
           {/* Column 1: Date */}
-          <div className="h-[140px] rounded-xl border border-border bg-card p-4">
+          <div className="h-[154px] rounded-xl border border-border bg-card p-4">
             <div className="flex h-full flex-col">
               <div className="flex items-center justify-between">
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Date</div>
@@ -762,27 +762,27 @@ Details:
               </div>
 
               <div className="mt-3 flex items-center gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted/50">
+                <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-muted/50">
                   <CalendarIcon className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div className="leading-tight">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Selected</div>
-                  <div className="text-xl font-semibold text-foreground">{format(date, 'd')}</div>
-                  <div className="text-sm text-muted-foreground" data-testid="text-long-date">{format(date, 'MMMM d, yyyy')}</div>
+                  <div className="text-2xl font-semibold text-foreground">{format(date, 'd')}</div>
+                  <div className="text-base text-muted-foreground" data-testid="text-long-date">{format(date, 'MMMM d, yyyy')}</div>
                 </div>
                 <div className="ml-auto text-right">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Day</div>
-                  <div className="text-sm font-medium text-foreground/80" data-testid="text-weekday">{getDayOfWeek(date)}</div>
+                  <div className="text-base font-medium text-foreground/80" data-testid="text-weekday">{getDayOfWeek(date)}</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Column 2: Weather */}
-          <div className="h-[140px] rounded-xl border border-border bg-card p-4" data-testid="card-weather">
+          <div className="h-[154px] rounded-xl border border-border bg-card p-4" data-testid="card-weather">
             <div className="flex h-full flex-col">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Weather</div>
-              <div className="mt-3 h-[88px] rounded-xl border border-white/10 bg-black/10 px-4">
+              <div className="mt-3 h-[97px] rounded-xl border border-white/10 bg-black/10 px-4">
                 <div className="grid h-full content-center gap-2">
                   <WeatherWide
                     title="Today"
@@ -807,10 +807,10 @@ Details:
           </div>
 
           {/* Column 3: Drawing - 10rem width */}
-          <div className="h-[140px] rounded-xl border border-border bg-card p-4">
+          <div className="h-[154px] rounded-xl border border-border bg-card p-4">
             <div className="flex h-full flex-col">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Drawing</div>
-              <div className="mt-3 h-[88px] rounded-xl border border-white/10 bg-black/10 px-4">
+              <div className="mt-3 h-[97px] rounded-xl border border-white/10 bg-black/10 px-4">
                 <div className="grid h-full grid-rows-2 content-center gap-2 py-2">
                   <div className="rounded-lg border border-border/10 bg-muted/50 px-3 py-1.5">
                     <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily</div>
