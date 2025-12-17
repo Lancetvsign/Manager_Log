@@ -825,12 +825,12 @@ Details:
           </div>
         </div>
 
-        {/* Managers grid - 2 column layout */}
+        {/* Managers grid - 3 column layout on large screens */}
         <div className="mt-6">
-          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Managers on Duty</Label>
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/30 p-3">
-              <span className="w-16 text-xs font-semibold uppercase tracking-wide text-muted-foreground">AM</span>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Managers on Duty</div>
+          <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+            <div className="flex items-center gap-3 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-2.5">
+              <div className="w-20 text-xs font-semibold uppercase tracking-wide text-muted-foreground">AM</div>
               <Input
                 value={amManagerName}
                 onChange={(e) => setAmManagerName(e.target.value)}
@@ -840,8 +840,8 @@ Details:
                 data-testid="input-am-manager"
               />
             </div>
-            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/30 p-3">
-              <span className="w-16 text-xs font-semibold uppercase tracking-wide text-muted-foreground">PM</span>
+            <div className="flex items-center gap-3 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-2.5">
+              <div className="w-20 text-xs font-semibold uppercase tracking-wide text-muted-foreground">PM</div>
               <Input
                 value={pmManagerName}
                 onChange={(e) => setPmManagerName(e.target.value)}
@@ -851,8 +851,8 @@ Details:
                 data-testid="input-pm-manager"
               />
             </div>
-            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/30 p-3">
-              <span className="w-16 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kitchen</span>
+            <div className="flex items-center gap-3 rounded-lg border border-border/[0.08] bg-background/10 px-4 py-2.5">
+              <div className="w-20 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kitchen</div>
               <Input
                 value={kitchenManagerName}
                 onChange={(e) => setKitchenManagerName(e.target.value)}
