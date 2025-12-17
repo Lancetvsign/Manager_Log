@@ -733,116 +733,107 @@ Details:
           </div>
         )}
 
-        {/* 3-column grid: Date | Weather | Drawing (narrower) - all equal height */}
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-[1fr_0.9fr_10rem] items-stretch">
+        {/* 3-column grid: Date | Weather | Drawing - fixed height panels */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_0.9fr_10rem]">
           {/* Column 1: Date */}
-          <div className="flex flex-col gap-1.5 rounded-lg border border-border/[0.08] bg-background/10 px-3 py-2 h-full">
-            <div className="flex items-center justify-between">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Date</div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="text-[10px] text-primary hover:underline cursor-pointer"
-                    data-testid="button-date-picker"
-                  >
-                    Change Date
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={handleDateChange}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="w-full rounded-xl border border-border/20 bg-card/50 px-3 py-2">
-              <div className="flex items-center gap-3">
-                <CalendarIcon className="h-5 w-5 text-muted-foreground" />
+          <div className="h-[140px] rounded-xl border border-border bg-card p-4">
+            <div className="flex h-full flex-col">
+              <div className="flex items-center justify-between">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Date</div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-primary hover:text-primary/80"
+                      data-testid="button-date-picker"
+                    >
+                      Change Date
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={handleDateChange}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="mt-3 flex items-center gap-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted/50">
+                  <CalendarIcon className="h-5 w-5 text-muted-foreground" />
+                </div>
                 <div className="leading-tight">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Selected
-                  </div>
-                  <div className="flex items-baseline gap-2 mt-0.5">
-                    <div className="text-2xl font-semibold text-foreground leading-none">
-                      {format(date, 'd')}
-                    </div>
-                    <div className="text-xs text-muted-foreground" data-testid="text-long-date">{format(date, 'MMMM d, yyyy')}</div>
-                  </div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Selected</div>
+                  <div className="text-xl font-semibold text-foreground">{format(date, 'd')}</div>
+                  <div className="text-sm text-muted-foreground" data-testid="text-long-date">{format(date, 'MMMM d, yyyy')}</div>
                 </div>
                 <div className="ml-auto text-right">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Day</div>
-                  <div className="text-xs font-medium text-foreground/80 mt-0.5" data-testid="text-weekday">{getDayOfWeek(date)}</div>
+                  <div className="text-sm font-medium text-foreground/80" data-testid="text-weekday">{getDayOfWeek(date)}</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Column 2: Weather */}
-          <div className="flex flex-col gap-1.5 rounded-lg border border-border/[0.08] bg-background/10 px-3 py-2 h-full" data-testid="card-weather">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weather</div>
-            <div className="space-y-1.5">
-              <WeatherWide
-                title="Today"
-                temp={weatherData.current?.temperature ?? "—"}
-                condition={weatherData.current?.condition ?? "—"}
-                wind={weatherData.current?.windSpeed ?? "—"}
-                isLoading={isLoadingWeather}
-                compact
-              />
-              <WeatherWide
-                title="Last Year"
-                temp={weatherData.historical?.temperature ?? "—"}
-                condition={weatherData.historical?.condition ?? "—"}
-                wind={weatherData.historical?.windSpeed ?? "—"}
-                isLoading={isLoadingWeather}
-                muted
-                compact
-              />
+          <div className="h-[140px] rounded-xl border border-border bg-card p-4" data-testid="card-weather">
+            <div className="flex h-full flex-col">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Weather</div>
+              <div className="mt-3 grid gap-2">
+                <WeatherWide
+                  title="Today"
+                  temp={weatherData.current?.temperature ?? "—"}
+                  condition={weatherData.current?.condition ?? "—"}
+                  wind={weatherData.current?.windSpeed ?? "—"}
+                  isLoading={isLoadingWeather}
+                  compact
+                />
+                <WeatherWide
+                  title="Last Year"
+                  temp={weatherData.historical?.temperature ?? "—"}
+                  condition={weatherData.historical?.condition ?? "—"}
+                  wind={weatherData.historical?.windSpeed ?? "—"}
+                  isLoading={isLoadingWeather}
+                  muted
+                  compact
+                />
+              </div>
             </div>
           </div>
 
           {/* Column 3: Drawing - 10rem width */}
-          <div className="flex flex-col gap-1.5 rounded-lg border border-border/[0.08] bg-background/10 px-3 py-2 h-full">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Drawing</div>
-            <div className="space-y-1.5">
-              <div className="w-full rounded-lg border border-border/20 bg-card/50 px-2 py-1.5">
-                <div className="flex items-center gap-1.5">
-                  <div className="text-base leading-none">#</div>
-                  <div className="leading-tight flex-1">
-                    <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Daily</div>
-                    <Input
-                      type="number"
-                      step="1"
-                      value={dailyNumber}
-                      onChange={(e) => setDailyNumber(e.target.value)}
-                      placeholder="—"
-                      disabled={isPastLog}
-                      className="h-5 w-full text-lg font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
-                      data-testid="input-daily-number"
-                    />
-                  </div>
+          <div className="h-[140px] rounded-xl border border-border bg-card p-4">
+            <div className="flex h-full flex-col">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Drawing</div>
+              <div className="mt-3 grid gap-2">
+                <div className="rounded-lg border border-border bg-muted/50 px-3 py-2">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily</div>
+                  <Input
+                    type="number"
+                    step="1"
+                    value={dailyNumber}
+                    onChange={(e) => setDailyNumber(e.target.value)}
+                    placeholder="—"
+                    disabled={isPastLog}
+                    className="mt-0.5 h-6 w-full text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
+                    data-testid="input-daily-number"
+                  />
                 </div>
-              </div>
-              <div className="w-full rounded-lg border border-border/20 bg-card/50 px-2 py-1.5 opacity-75">
-                <div className="flex items-center gap-1.5">
-                  <div className="text-base leading-none">#</div>
-                  <div className="leading-tight flex-1">
-                    <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Weekly</div>
-                    <Input
-                      type="number"
-                      step="1"
-                      value={weeklyNumber}
-                      onChange={(e) => setWeeklyNumber(e.target.value)}
-                      placeholder="—"
-                      disabled={isPastLog}
-                      className="h-5 w-full text-lg font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
-                      data-testid="input-weekly-number"
-                    />
-                  </div>
+                <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 opacity-75">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weekly</div>
+                  <Input
+                    type="number"
+                    step="1"
+                    value={weeklyNumber}
+                    onChange={(e) => setWeeklyNumber(e.target.value)}
+                    placeholder="—"
+                    disabled={isPastLog}
+                    className="mt-0.5 h-6 w-full text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
+                    data-testid="input-weekly-number"
+                  />
                 </div>
               </div>
             </div>
@@ -850,7 +841,7 @@ Details:
         </div>
 
         {/* Managers grid - 3 column layout on large screens */}
-        <div className="mt-4">
+        <div className="mt-5">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Managers on Duty</div>
           <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-3">
             <div className="flex items-center gap-2 rounded-lg border border-border/[0.08] bg-background/10 px-3 py-2">
