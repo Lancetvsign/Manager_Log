@@ -714,21 +714,21 @@ Details:
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      {/* Header Information - Redesigned Layout */}
-      <div className="rounded-2xl border border-border/[0.08] bg-card/30 p-6" data-testid="card-log-header">
-        {/* TOP: left content + right status card */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_520px]">
-          {/* LEFT */}
+      {/* Header Information - 3-Column Layout */}
+      <div className="rounded-2xl border border-border/10 bg-card/30 p-6" data-testid="card-log-header">
+        {/* TOP: Title/Date (wide) + Weather (compact) + Stats (top-right) */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_0.9fr_auto] lg:items-start">
+          {/* LEFT: Title and Date */}
           <div>
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              Daily Manager Log Entry
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <h2 className="text-xl font-semibold">Daily Manager Log Entry</h2>
               {existingLogId && !isPastLog && (
-                <span className="text-sm font-normal text-muted-foreground">(Editing)</span>
+                <span className="text-sm text-muted-foreground">(Editing)</span>
               )}
               {isPastLog && (
-                <Badge variant="secondary" className="ml-2">View Only</Badge>
+                <Badge variant="secondary">View Only</Badge>
               )}
-            </h2>
+            </div>
             {isPastLog && (
               <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-3 py-2 rounded-md text-sm mt-2">
                 <strong>Read-only:</strong> This log is from {format(date, 'MMMM d, yyyy')} and cannot be edited.
@@ -736,14 +736,14 @@ Details:
             )}
 
             {/* Date + computed day */}
-            <div className="mt-4 flex flex-col gap-2">
+            <div className="mt-5">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">Date</Label>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="mt-2 flex flex-wrap items-center gap-4">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-[180px] justify-start text-left font-normal h-9 bg-background/50"
+                      className="w-[210px] justify-start text-left font-normal h-10 bg-background/50"
                       data-testid="button-date-picker"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
@@ -759,55 +759,25 @@ Details:
                     />
                   </PopoverContent>
                 </Popover>
-                <div className="flex flex-col leading-tight">
-                  <span className="text-sm" data-testid="text-long-date">{format(date, 'MMMM d, yyyy')}</span>
-                  <span className="text-xs text-muted-foreground" data-testid="text-weekday">{getDayOfWeek(date)}</span>
+                <div className="leading-tight">
+                  <div className="text-base font-medium" data-testid="text-long-date">{format(date, 'MMMM d, yyyy')}</div>
+                  <div className="text-sm text-muted-foreground" data-testid="text-weekday">{getDayOfWeek(date)}</div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* RIGHT: Status card fills dead space */}
-          <div className="w-full">
-            <div className="h-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
-              {/* Daily/Weekly # badges */}
-              <div className="flex items-start justify-end gap-3">
-                <div className="min-w-[92px] rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Daily #</div>
-                  <Input
-                    type="number"
-                    step="1"
-                    value={dailyNumber}
-                    onChange={(e) => setDailyNumber(e.target.value)}
-                    placeholder="—"
-                    disabled={isPastLog}
-                    className="h-7 w-16 text-sm font-semibold text-slate-900 dark:text-slate-100 bg-transparent border-0 p-0 focus-visible:ring-0"
-                    data-testid="input-daily-number"
-                  />
-                </div>
-                <div className="min-w-[92px] rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Weekly #</div>
-                  <Input
-                    type="number"
-                    step="1"
-                    value={weeklyNumber}
-                    onChange={(e) => setWeeklyNumber(e.target.value)}
-                    placeholder="—"
-                    disabled={isPastLog}
-                    className="h-7 w-16 text-sm font-semibold text-slate-900 dark:text-slate-100 bg-transparent border-0 p-0 focus-visible:ring-0"
-                    data-testid="input-weekly-number"
-                  />
-                </div>
-              </div>
-
-              {/* Weather widgets - stacked */}
-              <div className="mt-4 space-y-3" data-testid="card-weather">
+          {/* MIDDLE: Weather card (compact) */}
+          <div className="w-full max-w-[520px] lg:justify-self-end">
+            <div className="rounded-2xl border border-border/10 bg-card/50 p-4" data-testid="card-weather">
+              <div className="space-y-3">
                 <WeatherWide
                   title="Today"
                   temp={weatherData.current?.temperature ?? "—"}
                   condition={weatherData.current?.condition ?? "—"}
                   wind={weatherData.current?.windSpeed ?? "—"}
                   isLoading={isLoadingWeather}
+                  compact
                 />
                 <WeatherWide
                   title="Last Year"
@@ -816,8 +786,39 @@ Details:
                   wind={weatherData.historical?.windSpeed ?? "—"}
                   isLoading={isLoadingWeather}
                   muted
+                  compact
                 />
               </div>
+            </div>
+          </div>
+
+          {/* RIGHT: Stats (top-right corner, outside weather) */}
+          <div className="flex gap-3 lg:justify-end">
+            <div className="rounded-xl border border-border/10 bg-card/50 px-3 py-2">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily #</div>
+              <Input
+                type="number"
+                step="1"
+                value={dailyNumber}
+                onChange={(e) => setDailyNumber(e.target.value)}
+                placeholder="—"
+                disabled={isPastLog}
+                className="h-7 w-16 text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
+                data-testid="input-daily-number"
+              />
+            </div>
+            <div className="rounded-xl border border-border/10 bg-card/50 px-3 py-2">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weekly #</div>
+              <Input
+                type="number"
+                step="1"
+                value={weeklyNumber}
+                onChange={(e) => setWeeklyNumber(e.target.value)}
+                placeholder="—"
+                disabled={isPastLog}
+                className="h-7 w-16 text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
+                data-testid="input-weekly-number"
+              />
             </div>
           </div>
         </div>

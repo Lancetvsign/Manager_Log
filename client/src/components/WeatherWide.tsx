@@ -8,6 +8,7 @@ interface WeatherWideProps {
   wind?: string | number;
   icon?: string;
   muted?: boolean;
+  compact?: boolean;
   isLoading?: boolean;
 }
 
@@ -34,15 +35,19 @@ export default function WeatherWide({
   wind = "—",
   icon,
   muted = false,
+  compact = false,
   isLoading = false,
 }: WeatherWideProps) {
   const displayIcon = icon || getWeatherEmoji(String(condition));
 
   if (isLoading) {
     return (
-      <div className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600 dark:border-slate-600 dark:border-t-slate-300" />
+      <div className={[
+        "w-full rounded-xl border border-border/20 bg-card/50",
+        compact ? "px-4 py-3" : "px-5 py-4",
+      ].join(" ")}>
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
           <span className="text-sm">Loading weather...</span>
         </div>
       </div>
@@ -55,53 +60,44 @@ export default function WeatherWide({
   return (
     <div
       className={[
-        "w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-4 shadow-sm",
-        muted ? "opacity-70" : "",
+        "w-full rounded-xl border border-border/20 bg-card/50",
+        compact ? "px-4 py-3" : "px-5 py-4",
+        muted ? "opacity-75" : "",
       ].join(" ")}
       data-testid={`weather-widget-${title.toLowerCase().replace(/\s+/g, '-')}`}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="text-3xl leading-none">{displayIcon}</div>
+        <div className="flex items-center gap-3">
+          <div className={compact ? "text-xl leading-none" : "text-3xl leading-none"}>{displayIcon}</div>
 
           <div className="leading-tight">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               {title}
             </div>
 
-            <div className="flex items-baseline gap-3 mt-1">
-              <div className="text-4xl font-semibold text-slate-900 dark:text-slate-100 leading-none">
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <div className={[
+                "font-semibold text-foreground leading-none",
+                compact ? "text-3xl" : "text-4xl",
+              ].join(" ")}>
                 {temp}°
               </div>
-              <div className="text-sm text-slate-600 dark:text-slate-300">{condition}</div>
+              <div className="text-xs text-muted-foreground">{condition}</div>
             </div>
 
-            {hasHiLo && (
-              <div className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+            {hasHiLo && !compact && (
+              <div className="mt-1.5 text-xs text-muted-foreground">
                 H:{hi}° L:{lo}°
               </div>
             )}
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-3">
-          <div className="text-right">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              Wind
-            </div>
-            <div className="mt-0.5 text-sm font-medium text-slate-700 dark:text-slate-300">{wind} mph</div>
+        <div className="text-right">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Wind
           </div>
-
-          {hasAqi && (
-            <div className="text-right">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                AQI
-              </div>
-              <div className="mt-0.5 inline-flex rounded-full border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300">
-                {aqi}
-              </div>
-            </div>
-          )}
+          <div className="mt-0.5 text-xs font-medium text-foreground/80">{wind} mph</div>
         </div>
       </div>
     </div>
