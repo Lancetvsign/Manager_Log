@@ -1,0 +1,183 @@
+1) Better DMLE layout (fills space + looks clean)
+
+Goal: two tight rows:
+
+Row A: Date | Day | Weather Today | Weather Last Year
+
+Row B: Manager Role dropdown | Manager Name | Daily # | Weekly #
+
+Drop-in JSX
+
+(Replace your DMLE card body with this structure)
+
+{/* DMLE: Row A */}
+<div className="row g-3 align-items-end">
+  <div className="col-12 col-md-3">
+    <label className="form-label small text-muted">Date</label>
+    <input
+      type="date"
+      className="form-control"
+      value={dateStr}
+      onChange={(e) => setDateStr(e.target.value)}
+    />
+  </div>
+
+  <div className="col-12 col-md-2">
+    <label className="form-label small text-muted">Day</label>
+    <input className="form-control" value={dayOfWeek} readOnly />
+  </div>
+
+  <div className="col-12 col-md-3">
+    <label className="form-label small text-muted">Today’s Weather</label>
+    <div className="form-control d-flex justify-content-between align-items-center">
+      <span className="small">
+        {weatherLoading
+          ? "Loading…"
+          : todayWeather
+          ? `${todayWeather.temp}°F • ${todayWeather.condition}`
+          : weatherError
+          ? "Weather error"
+          : "—"}
+      </span>
+      {todayWeather && (
+        <span className="badge bg-secondary">
+          {todayWeather.wind} mph
+        </span>
+      )}
+    </div>
+  </div>
+
+  <div className="col-12 col-md-4">
+    <label className="form-label small text-muted">Last Year (Same Day)</label>
+    <div className="form-control d-flex justify-content-between align-items-center">
+      <span className="small">
+        {weatherLoading
+          ? "Loading…"
+          : lastYearWeather
+          ? `${lastYearWeather.temp}°F • ${lastYearWeather.condition}`
+          : usingFallback
+          ? "Using fallback"
+          : "—"}
+      </span>
+      <span className="small text-muted">
+        {usingFallback ? "(fallback)" : ""}
+      </span>
+    </div>
+  </div>
+</div>
+
+<hr className="my-3 opacity-25" />
+
+{/* DMLE: Row B */}
+<div className="row g-3 align-items-end">
+  <div className="col-12 col-md-3">
+    <label className="form-label small text-muted">Manager Role</label>
+    <select
+      className="form-select"
+      value={managerType}
+      onChange={(e) => setManagerType(e.target.value as any)}
+    >
+      <option value="am">AM Manager</option>
+      <option value="pm">PM Manager</option>
+      <option value="kitchen">Kitchen Manager</option>
+    </select>
+  </div>
+
+  <div className="col-12 col-md-5">
+    <label className="form-label small text-muted">Manager Name</label>
+    <input
+      className="form-control"
+      placeholder="Type your name…"
+      value={managerName}
+      onChange={(e) => setManagerName(e.target.value)}
+    />
+  </div>
+
+  <div className="col-6 col-md-2">
+    <label className="form-label small text-muted">Daily #</label>
+    <input
+      className="form-control"
+      placeholder="e.g. 112"
+      value={dailyNumber}
+      onChange={(e) => setDailyNumber(e.target.value)}
+    />
+  </div>
+
+  <div className="col-6 col-md-2">
+    <label className="form-label small text-muted">Weekly #</label>
+    <input
+      className="form-control"
+      placeholder="e.g. 450"
+      value={weeklyNumber}
+      onChange={(e) => setWeeklyNumber(e.target.value)}
+    />
+  </div>
+</div>
+
+
+This fixes “dead space” by turning weather into real, sized fields that occupy the row like normal form controls.
+
+2) Make weather data actually show (common reason it doesn’t)
+
+Most likely you’ve got one of these issues:
+
+you’re not calling the weather fetch when dateStr changes
+
+todayWeather / lastYearWeather state isn’t being set (or keys don’t match)
+
+you’re swallowing fetch errors and leaving state null
+
+Add this state + effect (client side)
+
+Put near top of your DMLE component:
+
+const [todayWeather, setTodayWeather] = useState<any | null>(null);
+const [lastYearWeather, setLastYearWeather] = useState<any | null>(null);
+const [usingFallback, setUsingFallback] = useState(false);
+const [weatherLoading, setWeatherLoading] = useState(false);
+const [weatherError, setWeatherError] = useState<string | null>(null);
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function loadWeather() {
+    try {
+      setWeatherLoading(true);
+      setWeatherError(null);
+
+      // adjust endpoint names to whatever your app uses
+      const res = await fetch(`/api/weather?date=${dateStr}`);
+      if (!res.ok) throw new Error(`Weather HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (cancelled) return;
+
+      setTodayWeather(data?.today ?? null);
+      setLastYearWeather(data?.lastYear ?? null);
+      setUsingFallback(Boolean(data?.usingFallback));
+    } catch (e: any) {
+      if (cancelled) return;
+      setWeatherError(e?.message || "Weather failed");
+      setTodayWeather(null);
+      setLastYearWeather(null);
+      setUsingFallback(false);
+    } finally {
+      if (!cancelled) setWeatherLoading(false);
+    }
+  }
+
+  if (dateStr) loadWeather();
+
+  return () => {
+    cancelled = true;
+  };
+}, [dateStr]);
+
+
+✅ After this, your UI will show:
+
+Loading… while fetching
+
+actual weather when present
+
+“Weather error” if the endpoint fails (instead of silent blank)
