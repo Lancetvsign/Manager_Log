@@ -935,33 +935,6 @@ Details:
         </CardContent>
       </Card>
 
-      {/* Maintenance Notes */}
-      <Card data-testid="card-notes">
-        <CardHeader>
-          <CardTitle className="text-lg">Maintenance Notes</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Textarea
-            value={dailyNotes}
-            onChange={(e) => setDailyNotes(e.target.value)}
-            placeholder="Enter daily observations, incidents, staff notes, or any other important information..."
-            className="min-h-24"
-            disabled={isPastLog}
-            data-testid="textarea-daily-notes"
-          />
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-medium mb-3">Photos</h4>
-            <NotePhotos
-              logId={existingLogId}
-              noteType="maintenance"
-              disabled={isPastLog}
-              currentDate={dateString}
-              onLogCreated={(id) => setExistingLogId(id)}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Running Maintenance List */}
       <Card data-testid="card-maintenance">
         <CardHeader className="flex flex-row items-center justify-between gap-2">
