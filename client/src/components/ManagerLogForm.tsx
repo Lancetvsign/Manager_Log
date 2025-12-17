@@ -782,24 +782,26 @@ Details:
           <div className="h-[140px] rounded-xl border border-border bg-card p-4" data-testid="card-weather">
             <div className="flex h-full flex-col">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Weather</div>
-              <div className="mt-3 grid gap-2">
-                <WeatherWide
-                  title="Today"
-                  temp={weatherData.current?.temperature ?? "—"}
-                  condition={weatherData.current?.condition ?? "—"}
-                  wind={weatherData.current?.windSpeed ?? "—"}
-                  isLoading={isLoadingWeather}
-                  compact
-                />
-                <WeatherWide
-                  title="Last Year"
-                  temp={weatherData.historical?.temperature ?? "—"}
-                  condition={weatherData.historical?.condition ?? "—"}
-                  wind={weatherData.historical?.windSpeed ?? "—"}
-                  isLoading={isLoadingWeather}
-                  muted
-                  compact
-                />
+              <div className="mt-3 h-[96px] rounded-xl border border-border/10 bg-muted/30 p-3">
+                <div className="grid h-full grid-rows-2 gap-2">
+                  <WeatherWide
+                    title="Today"
+                    temp={weatherData.current?.temperature ?? "—"}
+                    condition={weatherData.current?.condition ?? "—"}
+                    wind={weatherData.current?.windSpeed ?? "—"}
+                    isLoading={isLoadingWeather}
+                    compact
+                  />
+                  <WeatherWide
+                    title="Last Year"
+                    temp={weatherData.historical?.temperature ?? "—"}
+                    condition={weatherData.historical?.condition ?? "—"}
+                    wind={weatherData.historical?.windSpeed ?? "—"}
+                    isLoading={isLoadingWeather}
+                    muted
+                    compact
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -808,32 +810,34 @@ Details:
           <div className="h-[140px] rounded-xl border border-border bg-card p-4">
             <div className="flex h-full flex-col">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Drawing</div>
-              <div className="mt-3 grid gap-2">
-                <div className="rounded-lg border border-border bg-muted/50 px-3 py-2">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily</div>
-                  <Input
-                    type="number"
-                    step="1"
-                    value={dailyNumber}
-                    onChange={(e) => setDailyNumber(e.target.value)}
-                    placeholder="—"
-                    disabled={isPastLog}
-                    className="mt-0.5 h-6 w-full text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
-                    data-testid="input-daily-number"
-                  />
-                </div>
-                <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 opacity-75">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weekly</div>
-                  <Input
-                    type="number"
-                    step="1"
-                    value={weeklyNumber}
-                    onChange={(e) => setWeeklyNumber(e.target.value)}
-                    placeholder="—"
-                    disabled={isPastLog}
-                    className="mt-0.5 h-6 w-full text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
-                    data-testid="input-weekly-number"
-                  />
+              <div className="mt-3 h-[96px] rounded-xl border border-border/10 bg-muted/30 p-3">
+                <div className="grid h-full grid-rows-2 gap-2">
+                  <div className="rounded-lg border border-border/10 bg-muted/50 px-3 py-1.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily</div>
+                    <Input
+                      type="number"
+                      step="1"
+                      value={dailyNumber}
+                      onChange={(e) => setDailyNumber(e.target.value)}
+                      placeholder="—"
+                      disabled={isPastLog}
+                      className="mt-0.5 h-5 w-full text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
+                      data-testid="input-daily-number"
+                    />
+                  </div>
+                  <div className="rounded-lg border border-border/10 bg-muted/50 px-3 py-1.5 opacity-75">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weekly</div>
+                    <Input
+                      type="number"
+                      step="1"
+                      value={weeklyNumber}
+                      onChange={(e) => setWeeklyNumber(e.target.value)}
+                      placeholder="—"
+                      disabled={isPastLog}
+                      className="mt-0.5 h-5 w-full text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
+                      data-testid="input-weekly-number"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
