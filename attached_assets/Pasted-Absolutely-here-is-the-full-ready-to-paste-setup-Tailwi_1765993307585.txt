@@ -1,0 +1,269 @@
+Absolutely — here is the full, ready-to-paste setup (Tailwind + React) with:
+
+✅ Date input + computed “December 17, 2025 / Wednesday”
+
+✅ Daily # + Weekly # moved to top-right
+
+✅ Weather area redesigned to a lock-screen style wide widget (fills dead space)
+
+✅ Managers all on one row
+
+✅ Reduced space between AM/PM/Kitchen label and Name input
+
+✅ Clean spacing + consistent card styling
+
+1) Create src/components/WeatherWide.jsx
+import React from "react";
+
+export default function WeatherWide({
+  title = "Today",
+  temp = "—",
+  condition = "—",
+  hi = "—",
+  lo = "—",
+  aqi = "—",
+  icon = "☁️",
+  muted = false,
+}) {
+  return (
+    <div
+      className={[
+        "rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3",
+        muted ? "opacity-80" : "",
+      ].join(" ")}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="text-2xl leading-none">{icon}</div>
+
+          <div className="leading-tight">
+            <div className="text-[10px] uppercase tracking-wide text-white/50">
+              {title}
+            </div>
+
+            <div className="flex items-baseline gap-2">
+              <div className="text-4xl font-semibold text-white leading-none">
+                {temp}°
+              </div>
+              <div className="text-xs text-white/60">{condition}</div>
+            </div>
+
+            <div className="mt-1 text-xs text-white/60">
+              H:{hi}° L:{lo}°
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-end">
+          <div className="text-[10px] uppercase tracking-wide text-white/50">
+            AQI
+          </div>
+          <div className="mt-1 rounded-full border border-white/[0.08] bg-black/20 px-2 py-1 text-xs text-white/80">
+            {aqi}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+2) Create/Replace src/components/DailyManagerLogHeader.jsx
+import React, { useMemo } from "react";
+import WeatherWide from "./WeatherWide";
+
+function formatLongDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function formatWeekday(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString(undefined, { weekday: "long" });
+}
+
+export default function DailyManagerLogHeader({
+  // required
+  date,
+  setDate,
+
+  amManager,
+  setAmManager,
+  pmManager,
+  setPmManager,
+  kitchenManager,
+  setKitchenManager,
+
+  // optional metadata (numbers can be computed elsewhere)
+  dailyNumber,
+  weeklyNumber,
+
+  // optional weather objects
+  today,
+  lastYear,
+}) {
+  const longDate = useMemo(() => formatLongDate(date), [date]);
+  const weekday = useMemo(() => formatWeekday(date), [date]);
+
+  return (
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+      {/* TOP: left content + right status (daily/weekly + weather) */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_440px]">
+        {/* LEFT */}
+        <div>
+          <h2 className="text-lg font-semibold text-white">
+            Daily Manager Log Entry
+          </h2>
+
+          {/* Date + computed day */}
+          <div className="mt-4 flex flex-col gap-2">
+            <label className="text-xs uppercase tracking-wide text-white/60">
+              Date
+            </label>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="date"
+                value={date || ""}
+                onChange={(e) => setDate?.(e.target.value)}
+                className="h-9 w-[190px] rounded-lg border border-white/[0.08] bg-black/20 px-3 text-sm text-white outline-none focus:border-white/25"
+              />
+
+              <div className="flex flex-col leading-tight">
+                <div className="text-sm text-white/90">
+                  {longDate || "Select a date"}
+                </div>
+                <div className="text-xs text-white/60">{weekday || ""}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT */}
+        <div className="flex flex-col items-end gap-3">
+          {/* Daily/Weekly moved to top-right */}
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl border border-white/[0.08] bg-black/15 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-white/50">
+                Daily #
+              </div>
+              <div className="text-sm font-semibold text-white">
+                {dailyNumber ?? "—"}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/[0.08] bg-black/15 px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-white/50">
+                Weekly #
+              </div>
+              <div className="text-sm font-semibold text-white">
+                {weeklyNumber ?? "—"}
+              </div>
+            </div>
+          </div>
+
+          {/* Weather fills the dead space */}
+          <div className="w-full space-y-2">
+            <WeatherWide
+              title="Today"
+              temp={today?.temp ?? "—"}
+              condition={today?.condition ?? "—"}
+              hi={today?.hi ?? "—"}
+              lo={today?.lo ?? "—"}
+              aqi={today?.aqi ?? "—"}
+              icon={today?.icon ?? "☁️"}
+            />
+
+            <WeatherWide
+              title="Last Year"
+              temp={lastYear?.temp ?? "—"}
+              condition={lastYear?.condition ?? "—"}
+              hi={lastYear?.hi ?? "—"}
+              lo={lastYear?.lo ?? "—"}
+              aqi={lastYear?.aqi ?? "—"}
+              icon={lastYear?.icon ?? "🕰️"}
+              muted
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Managers on Duty (all one row on desktop) */}
+      <div className="mt-6">
+        <div className="text-xs uppercase tracking-wide text-white/60">
+          Managers on Duty
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+          <ManagerRow label="AM" value={amManager} onChange={setAmManager} />
+          <ManagerRow label="PM" value={pmManager} onChange={setPmManager} />
+          <ManagerRow
+            label="Kitchen"
+            value={kitchenManager}
+            onChange={setKitchenManager}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ManagerRow({ label, value, onChange }) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-black/10 px-3 py-2.5">
+      {/* reduced spacing between label and input */}
+      <div className="w-10 text-[11px] font-semibold uppercase tracking-wide text-white/60">
+        {label}
+      </div>
+
+      <input
+        value={value || ""}
+        onChange={(e) => onChange?.(e.target.value)}
+        placeholder="Name"
+        className="h-9 w-full rounded-md border border-white/[0.08] bg-black/20 px-3 text-sm text-white outline-none focus:border-white/25"
+      />
+    </div>
+  );
+}
+
+3) Use it in your page (replace old header block)
+
+Wherever your current header UI lives (ex: TodayLog.jsx / LogEntry.jsx), import:
+
+import DailyManagerLogHeader from "../components/DailyManagerLogHeader";
+
+
+Then render:
+
+<DailyManagerLogHeader
+  date={date}
+  setDate={setDate}
+  amManager={amManager}
+  setAmManager={setAmManager}
+  pmManager={pmManager}
+  setPmManager={setPmManager}
+  kitchenManager={kitchenManager}
+  setKitchenManager={setKitchenManager}
+  dailyNumber={dailyNumber}
+  weeklyNumber={weeklyNumber}
+  today={todayWeather}
+  lastYear={lastYearWeather}
+/>
+
+Weather object shape expected:
+const todayWeather = {
+  temp: 89,
+  condition: "Mostly Cloudy",
+  hi: 91,
+  lo: 74,
+  aqi: 57,
+  icon: "☁️",
+};
+
+
+If your API returns different keys, just map them into that shape once.
