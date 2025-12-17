@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, AlertCircle, Camera, ExternalLink, Loader2 } from "lucide-react";
+import { CheckCircle, AlertCircle, Camera, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 interface MaintenanceItem {
@@ -153,10 +153,15 @@ export function MaintenanceItemsTable({
                     href={item.photoUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700"
+                    className="group inline-block"
+                    data-testid={`link-photo-${itemId}`}
                   >
-                    <ExternalLink className="h-3 w-3" />
-                    View photo
+                    <img
+                      src={item.photoUrl}
+                      alt={`Photo for ${item.description}`}
+                      className="h-10 w-10 rounded object-cover border border-border/50 group-hover:border-teal-500 transition-colors"
+                      data-testid={`img-maintenance-photo-${itemId}`}
+                    />
                   </a>
                 ) : onUploadPhoto ? (
                   <label className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
