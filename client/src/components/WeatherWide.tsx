@@ -49,52 +49,59 @@ export default function WeatherWide({
     );
   }
 
+  const hasHiLo = hi !== "—" && lo !== "—";
+  const hasAqi = aqi !== "—";
+
   return (
     <div
       className={[
-        "w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 shadow-sm",
-        muted ? "opacity-80" : "",
+        "w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-4 shadow-sm",
+        muted ? "opacity-70" : "",
       ].join(" ")}
       data-testid={`weather-widget-${title.toLowerCase().replace(/\s+/g, '-')}`}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="text-2xl leading-none">{displayIcon}</div>
+        <div className="flex items-center gap-4">
+          <div className="text-3xl leading-none">{displayIcon}</div>
 
           <div className="leading-tight">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
               {title}
             </div>
 
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-3 mt-1">
               <div className="text-4xl font-semibold text-slate-900 dark:text-slate-100 leading-none">
                 {temp}°
               </div>
-              <div className="text-xs text-slate-600 dark:text-slate-300">{condition}</div>
+              <div className="text-sm text-slate-600 dark:text-slate-300">{condition}</div>
             </div>
 
-            <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-              H:{hi}° L:{lo}°
-            </div>
+            {hasHiLo && (
+              <div className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                H:{hi}° L:{lo}°
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col items-end gap-3">
           <div className="text-right">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
               Wind
             </div>
-            <div className="text-xs font-medium text-slate-700 dark:text-slate-300">{wind} mph</div>
+            <div className="mt-0.5 text-sm font-medium text-slate-700 dark:text-slate-300">{wind} mph</div>
           </div>
 
-          <div className="text-right">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              AQI
+          {hasAqi && (
+            <div className="text-right">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                AQI
+              </div>
+              <div className="mt-0.5 inline-flex rounded-full border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300">
+                {aqi}
+              </div>
             </div>
-            <div className="inline-flex rounded-full border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-2 py-1 text-xs font-medium text-slate-700 dark:text-slate-300">
-              {aqi}
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
