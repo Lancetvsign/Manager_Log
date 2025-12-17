@@ -714,10 +714,10 @@ Details:
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      {/* Header Information - 3-Column Layout */}
+      {/* Header Information - 2-Column Layout */}
       <div className="rounded-2xl border border-border/10 bg-card/30 p-6" data-testid="card-log-header">
-        {/* TOP: Title/Date (wide) + Weather (compact) + Stats (top-right) */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_0.9fr_auto] lg:items-start">
+        {/* TOP: Title/Date (left) + Weather & Stats (right) */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
           {/* LEFT: Title and Date */}
           <div>
             <div className="flex items-baseline gap-2 flex-wrap">
@@ -767,8 +767,39 @@ Details:
             </div>
           </div>
 
-          {/* MIDDLE: Weather card (compact) */}
-          <div className="w-full max-w-[520px] lg:justify-self-end">
+          {/* RIGHT: Stats + Weather card */}
+          <div className="w-full max-w-[520px]">
+            {/* Stats row */}
+            <div className="flex gap-3 justify-end mb-4">
+              <div className="rounded-xl border border-border/10 bg-card/50 px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily #</div>
+                <Input
+                  type="number"
+                  step="1"
+                  value={dailyNumber}
+                  onChange={(e) => setDailyNumber(e.target.value)}
+                  placeholder="—"
+                  disabled={isPastLog}
+                  className="h-7 w-16 text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
+                  data-testid="input-daily-number"
+                />
+              </div>
+              <div className="rounded-xl border border-border/10 bg-card/50 px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weekly #</div>
+                <Input
+                  type="number"
+                  step="1"
+                  value={weeklyNumber}
+                  onChange={(e) => setWeeklyNumber(e.target.value)}
+                  placeholder="—"
+                  disabled={isPastLog}
+                  className="h-7 w-16 text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
+                  data-testid="input-weekly-number"
+                />
+              </div>
+            </div>
+
+            {/* Weather widgets */}
             <div className="rounded-2xl border border-border/10 bg-card/50 p-4" data-testid="card-weather">
               <div className="space-y-3">
                 <WeatherWide
@@ -789,36 +820,6 @@ Details:
                   compact
                 />
               </div>
-            </div>
-          </div>
-
-          {/* RIGHT: Stats (top-right corner, outside weather) */}
-          <div className="flex gap-3 lg:justify-end">
-            <div className="rounded-xl border border-border/10 bg-card/50 px-3 py-2">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily #</div>
-              <Input
-                type="number"
-                step="1"
-                value={dailyNumber}
-                onChange={(e) => setDailyNumber(e.target.value)}
-                placeholder="—"
-                disabled={isPastLog}
-                className="h-7 w-16 text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
-                data-testid="input-daily-number"
-              />
-            </div>
-            <div className="rounded-xl border border-border/10 bg-card/50 px-3 py-2">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weekly #</div>
-              <Input
-                type="number"
-                step="1"
-                value={weeklyNumber}
-                onChange={(e) => setWeeklyNumber(e.target.value)}
-                placeholder="—"
-                disabled={isPastLog}
-                className="h-7 w-16 text-sm font-semibold bg-transparent border-0 p-0 focus-visible:ring-0"
-                data-testid="input-weekly-number"
-              />
             </div>
           </div>
         </div>
