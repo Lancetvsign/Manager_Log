@@ -713,177 +713,158 @@ Details:
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      {/* Header Information */}
-      <Card data-testid="card-log-header">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            Daily Manager Log Entry
-            {existingLogId && !isPastLog && (
-              <span className="text-sm font-normal text-muted-foreground">(Editing existing entry)</span>
-            )}
+      {/* Header Information - Redesigned Layout */}
+      <div className="rounded-xl border border-border/50 bg-card/50 p-5" data-testid="card-log-header">
+        {/* Top row: Title + Metadata/Weather */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              Daily Manager Log Entry
+              {existingLogId && !isPastLog && (
+                <span className="text-sm font-normal text-muted-foreground">(Editing)</span>
+              )}
+              {isPastLog && (
+                <Badge variant="secondary" className="ml-2">View Only</Badge>
+              )}
+            </h2>
             {isPastLog && (
-              <Badge variant="secondary" className="ml-2">View Only</Badge>
+              <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-3 py-2 rounded-md text-sm mt-2">
+                <strong>Read-only:</strong> This log is from {format(date, 'MMMM d, yyyy')} and cannot be edited.
+              </div>
             )}
-          </CardTitle>
-          {isPastLog && (
-            <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-3 py-2 rounded-md text-sm mt-2">
-              <strong>Read-only:</strong> This log is from {format(date, 'MMMM d, yyyy')} and cannot be edited.
-            </div>
-          )}
-        </CardHeader>
-        <CardContent className="pt-2">
-          {/* Row 1: Date, Day of Week, Managers on Duty */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 mb-2">
-            <div className="md:col-span-3 space-y-1">
-              <Label className="text-xs text-muted-foreground">Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal h-9"
-                    data-testid="button-date-picker"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(date, "PPP")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={handleDateChange}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="md:col-span-2 space-y-1">
-              <Label className="text-xs text-muted-foreground">Day</Label>
-              <Input
-                value={getDayOfWeek(date)}
-                readOnly
-                className="bg-muted h-9"
-                data-testid="input-day-of-week"
-              />
-            </div>
-            <div className="md:col-span-7 space-y-1">
-              <Label className="text-xs text-muted-foreground font-medium">Managers on Duty</Label>
-              <div className="grid grid-cols-3 gap-1">
-                <div className="flex">
-                  <span className="inline-flex items-center px-2 text-xs font-medium text-muted-foreground bg-muted border border-r-0 rounded-l-md min-w-[32px] justify-center">
-                    AM
-                  </span>
-                  <Input
-                    value={amManagerName}
-                    onChange={(e) => setAmManagerName(e.target.value)}
-                    placeholder="Name"
-                    disabled={isPastLog}
-                    className="rounded-l-none h-9"
-                    data-testid="input-am-manager"
-                  />
+
+            {/* Date section */}
+            <div className="mt-4 flex flex-col gap-2">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Date</Label>
+              <div className="flex flex-wrap items-center gap-3">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-[180px] justify-start text-left font-normal h-9 bg-background/50"
+                      data-testid="button-date-picker"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(date, "yyyy-MM-dd")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={handleDateChange}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <div className="flex flex-col leading-tight">
+                  <span className="text-sm" data-testid="text-long-date">{format(date, 'MMMM d, yyyy')}</span>
+                  <span className="text-xs text-muted-foreground" data-testid="text-weekday">{getDayOfWeek(date)}</span>
                 </div>
-                <div className="flex">
-                  <span className="inline-flex items-center px-2 text-xs font-medium text-muted-foreground bg-muted border border-r-0 rounded-l-md min-w-[32px] justify-center">
-                    PM
-                  </span>
-                  <Input
-                    value={pmManagerName}
-                    onChange={(e) => setPmManagerName(e.target.value)}
-                    placeholder="Name"
-                    disabled={isPastLog}
-                    className="rounded-l-none h-9"
-                    data-testid="input-pm-manager"
-                  />
-                </div>
-                <div className="flex">
-                  <span className="inline-flex items-center px-2 text-xs font-medium text-muted-foreground bg-muted border border-r-0 rounded-l-md min-w-[32px] justify-center">
-                    Kit
-                  </span>
-                  <Input
-                    value={kitchenManagerName}
-                    onChange={(e) => setKitchenManagerName(e.target.value)}
-                    placeholder="Name"
-                    disabled={isPastLog}
-                    className="rounded-l-none h-9"
-                    data-testid="input-kitchen-manager"
-                  />
-                </div>
+              </div>
+            </div>
+
+            {/* Daily/Weekly Numbers - Compact inline inputs */}
+            <div className="mt-4 flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">Daily #</Label>
+                <Input
+                  type="number"
+                  step="1"
+                  value={dailyNumber}
+                  onChange={(e) => setDailyNumber(e.target.value)}
+                  placeholder="—"
+                  disabled={isPastLog}
+                  className="h-8 w-20 text-sm bg-background/50"
+                  data-testid="input-daily-number"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">Weekly #</Label>
+                <Input
+                  type="number"
+                  step="1"
+                  value={weeklyNumber}
+                  onChange={(e) => setWeeklyNumber(e.target.value)}
+                  placeholder="—"
+                  disabled={isPastLog}
+                  className="h-8 w-20 text-sm bg-background/50"
+                  data-testid="input-weekly-number"
+                />
               </div>
             </div>
           </div>
 
-          {/* Row 2: Daily #, Weekly #, Weather */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
-            <div className="md:col-span-2 space-y-1">
-              <Label className="text-xs text-muted-foreground" htmlFor="daily-number">Daily #</Label>
-              <Input
-                id="daily-number"
-                type="number"
-                step="1"
-                value={dailyNumber}
-                onChange={(e) => setDailyNumber(e.target.value)}
-                placeholder="#"
-                disabled={isPastLog}
-                className="h-9"
-                data-testid="input-daily-number"
-              />
-            </div>
-            <div className="md:col-span-2 space-y-1">
-              <Label className="text-xs text-muted-foreground" htmlFor="weekly-number">Weekly #</Label>
-              <Input
-                id="weekly-number"
-                type="number"
-                step="1"
-                value={weeklyNumber}
-                onChange={(e) => setWeeklyNumber(e.target.value)}
-                placeholder="#"
-                disabled={isPastLog}
-                className="h-9"
-                data-testid="input-weekly-number"
-              />
-            </div>
-            <div className="md:col-span-8 flex items-end">
-              <div className="flex flex-wrap items-center gap-3 px-2 py-1.5 rounded-md bg-muted/50 text-xs w-full" data-testid="card-weather">
-                {isLoadingWeather ? (
-                  <div className="text-muted-foreground flex items-center gap-1">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Loading...
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-1" data-testid="weather-current">
-                      <Sun className="h-3.5 w-3.5 text-amber-500" />
-                      <span className="text-muted-foreground">Today:</span>
-                      {weatherData.current ? (
-                        <span>
-                          <span className="font-medium">{weatherData.current.temperature}°F</span>
-                          <span className="text-muted-foreground mx-1">•</span>
-                          <span>{weatherData.current.condition}</span>
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 text-muted-foreground" data-testid="weather-historical">
-                      <Cloud className="h-3.5 w-3.5" />
-                      <span>Last Yr:</span>
-                      {weatherData.historical ? (
-                        <span>
-                          <span className="font-medium text-foreground">{weatherData.historical.temperature}°F</span>
-                          <span className="mx-1">•</span>
-                          <span>{weatherData.historical.condition}</span>
-                        </span>
-                      ) : (
-                        <span>—</span>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
+          {/* Right side: Weather pills */}
+          <div className="flex flex-col items-end gap-2">
+            {/* Weather pills */}
+            <div className="flex flex-wrap items-center gap-2" data-testid="card-weather">
+              {isLoadingWeather ? (
+                <span className="rounded-full border border-border/50 bg-muted/30 px-3 py-1 text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading...
+                </span>
+              ) : (
+                <>
+                  <span className="rounded-full border border-border/50 bg-muted/30 px-3 py-1 text-xs flex items-center gap-1" data-testid="weather-current">
+                    <Sun className="h-3 w-3 text-amber-500" />
+                    Today: {weatherData.current ? `${weatherData.current.temperature}°F, ${weatherData.current.condition}` : '—'}
+                  </span>
+                  <span className="rounded-full border border-border/50 bg-muted/30 px-3 py-1 text-xs flex items-center gap-1 text-muted-foreground" data-testid="weather-historical">
+                    <Cloud className="h-3 w-3" />
+                    Last Year: {weatherData.historical ? (
+                      <>
+                        {weatherData.historical.temperature}°F, {weatherData.historical.condition}
+                        {weatherData.historicalFallbackNote && <span className="ml-1 text-amber-500">(~)</span>}
+                      </>
+                    ) : '—'}
+                  </span>
+                </>
+              )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Managers grid - 2 column layout */}
+        <div className="mt-6">
+          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Managers on Duty</Label>
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/30 p-3">
+              <span className="w-16 text-xs font-semibold uppercase tracking-wide text-muted-foreground">AM</span>
+              <Input
+                value={amManagerName}
+                onChange={(e) => setAmManagerName(e.target.value)}
+                placeholder="Name"
+                disabled={isPastLog}
+                className="h-9 bg-background/50"
+                data-testid="input-am-manager"
+              />
+            </div>
+            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/30 p-3">
+              <span className="w-16 text-xs font-semibold uppercase tracking-wide text-muted-foreground">PM</span>
+              <Input
+                value={pmManagerName}
+                onChange={(e) => setPmManagerName(e.target.value)}
+                placeholder="Name"
+                disabled={isPastLog}
+                className="h-9 bg-background/50"
+                data-testid="input-pm-manager"
+              />
+            </div>
+            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/30 p-3">
+              <span className="w-16 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kitchen</span>
+              <Input
+                value={kitchenManagerName}
+                onChange={(e) => setKitchenManagerName(e.target.value)}
+                placeholder="Name"
+                disabled={isPastLog}
+                className="h-9 bg-background/50"
+                data-testid="input-kitchen-manager"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Sales Data */}
       <SalesInput
