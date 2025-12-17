@@ -12,6 +12,7 @@ interface MaintenanceItem {
   createdAt?: string;
   photoUrl?: string | null;
   logDate?: string;
+  resolvedAt?: string | null;
 }
 
 interface MaintenanceItemsTableProps {
@@ -73,6 +74,22 @@ export function MaintenanceItemsTable({
     });
   };
 
+  const formatCompletedAt = (completedAt: string | null | undefined) => {
+    if (!completedAt) return "";
+    const d = new Date(completedAt);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    if (sameDay) {
+      return `Today ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+    }
+    return d.toLocaleDateString(undefined, { 
+      month: "short", 
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-4">
@@ -127,21 +144,28 @@ export function MaintenanceItemsTable({
               {item.description}
             </div>
             <div className="col-span-2">
-              <Badge
-                variant={isOpen ? "secondary" : "default"}
-                className={`flex items-center gap-1 w-fit ${
-                  isOpen 
-                    ? "text-green-700 border-green-300 bg-green-50" 
-                    : ""
-                }`}
-              >
-                {isOpen ? (
-                  <AlertCircle className="h-3 w-3" />
-                ) : (
-                  <CheckCircle className="h-3 w-3" />
+              <div className="flex flex-col gap-1">
+                <Badge
+                  variant={isOpen ? "secondary" : "default"}
+                  className={`flex items-center gap-1 w-fit ${
+                    isOpen 
+                      ? "text-green-700 border-green-300 bg-green-50" 
+                      : ""
+                  }`}
+                >
+                  {isOpen ? (
+                    <AlertCircle className="h-3 w-3" />
+                  ) : (
+                    <CheckCircle className="h-3 w-3" />
+                  )}
+                  {isOpen ? "Open" : "Completed"}
+                </Badge>
+                {!isOpen && item.resolvedAt && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {formatCompletedAt(item.resolvedAt)}
+                  </span>
                 )}
-                {isOpen ? "Open" : "Completed"}
-              </Badge>
+              </div>
             </div>
             <div className={`col-span-${showPhoto || showActions ? '3' : '5'} text-sm text-muted-foreground`}>
               {item.notes || "-"}

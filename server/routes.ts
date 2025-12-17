@@ -775,6 +775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           logDate: managerLogs.logDate,
           photoUrl: maintenanceItems.photoUrl,
           managerLogId: maintenanceItems.managerLogId,
+          resolvedAt: maintenanceItems.resolvedAt,
         })
         .from(maintenanceItems)
         .innerJoin(

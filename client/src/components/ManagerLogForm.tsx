@@ -146,6 +146,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     logDate: string;
     photoUrl: string | null;
     managerLogId: number;
+    resolvedAt: string | null;
   }
 
   // Fetch all open maintenance items for this club (oldest to newest)
@@ -923,26 +924,27 @@ Details:
 
           {/* Add New Maintenance Item Form - only show for today/future */}
           {!isPastLog && (
-            <div className="border-t pt-4">
-              <h4 className="text-sm font-medium mb-3">Add New Maintenance Item</h4>
-              <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
-                <div className="md:col-span-2 space-y-1">
-                  <Label htmlFor="maintenance-description" className="text-xs">Description</Label>
+            <div className="border-t pt-5 pb-2">
+              <h4 className="text-base font-medium mb-4">Add New Maintenance Item</h4>
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label htmlFor="maintenance-description" className="text-sm">Description</Label>
                   <Input
                     id="maintenance-description"
                     value={newMaintenanceDescription}
                     onChange={(e) => setNewMaintenanceDescription(e.target.value)}
                     placeholder="Enter maintenance item description"
+                    className="h-10"
                     data-testid="input-maintenance-description"
                   />
                 </div>
-                <div className="md:col-span-1 space-y-1">
-                  <Label htmlFor="maintenance-status" className="text-xs">Status</Label>
+                <div className="md:col-span-1 space-y-1.5">
+                  <Label htmlFor="maintenance-status" className="text-sm">Status</Label>
                   <Select 
                     value={newMaintenanceStatus} 
                     onValueChange={(value: "open" | "completed") => setNewMaintenanceStatus(value)}
                   >
-                    <SelectTrigger data-testid="select-maintenance-status">
+                    <SelectTrigger className="h-10" data-testid="select-maintenance-status">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -951,19 +953,19 @@ Details:
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="md:col-span-3 space-y-1">
-                  <Label htmlFor="maintenance-notes" className="text-xs">Notes</Label>
+                <div className="md:col-span-3 space-y-1.5">
+                  <Label htmlFor="maintenance-notes" className="text-sm">Notes</Label>
                   <Textarea
                     id="maintenance-notes"
                     value={newMaintenanceNotes}
                     onChange={(e) => setNewMaintenanceNotes(e.target.value)}
                     placeholder="Additional notes..."
-                    className="min-h-[38px] resize-none"
+                    className="min-h-[46px] resize-none"
                     data-testid="textarea-maintenance-notes"
                   />
                 </div>
               </div>
-              <div className="mt-4">
+              <div className="mt-5">
                 <Button
                   type="button"
                   onClick={handleAddMaintenanceItem}
