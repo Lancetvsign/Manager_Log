@@ -24,7 +24,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems, runningMaintenanceList, runningMaintenanceSnapshots } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, count, asc, gte, lte, sql } from "drizzle-orm";
+import { eq, desc, and, count, asc, gte, lte, sql, or, isNull } from "drizzle-orm";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
 import { sendLogNotificationEmail, isEmailConfigured } from "./email";
 import { getNotificationLists, seedDefaultNotificationLists } from "./notificationLists";
@@ -753,9 +753,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   /**
    * GET /api/maintenance/open
-   * Retrieves all maintenance items for a club with their log dates.
-   * Returns all items - frontend uses resolvedAt for daily completion state.
-   * Items completed today show greyed-out; tomorrow they reset to open.
+   * Retrieves all maintenance items for the Running Maintenance List.
+   * Returns all items; client filters to show open + completed-today based on local time.
    * @query clubId - The club identifier (required)
    */
   app.get("/api/maintenance/open", async (req, res) => {
@@ -766,6 +765,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { maintenanceItems } = await import("@shared/schema");
+      
       const items = await db
         .select({
           id: maintenanceItems.id,

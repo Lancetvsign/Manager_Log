@@ -888,42 +888,9 @@ Details:
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Running Maintenance Items List - All Open Items */}
-          <MaintenanceItemsTable
-            items={runningItems || []}
-            isLoading={isLoadingRunning}
-            showDateAdded={true}
-            showPhoto={true}
-            showActions={true}
-            onToggleStatus={async (itemId, newStatus) => {
-              const res = await fetch(`${apiBaseUrl}/api/maintenance-items/${itemId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: newStatus }),
-              });
-              if (res.ok) {
-                refetchRunning();
-                queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
-              }
-            }}
-            onUploadPhoto={async (itemId, file) => {
-              const formData = new FormData();
-              formData.append("photo", file);
-              const res = await fetch(`${apiBaseUrl}/api/maintenance/${itemId}/photo`, {
-                method: "POST",
-                body: formData,
-              });
-              if (res.ok) {
-                refetchRunning();
-                queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
-              }
-            }}
-            emptyMessage="No open maintenance items. Nice work!"
-          />
-
           {/* Add New Maintenance Item Form - only show for today/future */}
           {!isPastLog && (
-            <div className="border-t pt-5 pb-2">
+            <div className="pb-4 border-b">
               <h4 className="text-base font-medium mb-4">Add New Maintenance Item</h4>
               <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                 <div className="md:col-span-2 space-y-1.5">
@@ -985,15 +952,47 @@ Details:
                   )}
                 </Button>
               </div>
+              {/* Hint when no log saved */}
+              {!existingLogId && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  First maintenance item will automatically create today's log entry.
+                </p>
+              )}
             </div>
           )}
 
-          {/* Hint when no log saved */}
-          {!existingLogId && !isPastLog && (
-            <p className="text-xs text-muted-foreground mt-2">
-              First maintenance item will automatically create today's log entry.
-            </p>
-          )}
+          {/* Running Maintenance Items List - Open items + completed today */}
+          <MaintenanceItemsTable
+            items={runningItems || []}
+            isLoading={isLoadingRunning}
+            showDateAdded={true}
+            showPhoto={true}
+            showActions={true}
+            onToggleStatus={async (itemId, newStatus) => {
+              const res = await fetch(`${apiBaseUrl}/api/maintenance-items/${itemId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: newStatus }),
+              });
+              if (res.ok) {
+                refetchRunning();
+                queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
+              }
+            }}
+            onUploadPhoto={async (itemId, file) => {
+              const formData = new FormData();
+              formData.append("photo", file);
+              const res = await fetch(`${apiBaseUrl}/api/maintenance/${itemId}/photo`, {
+                method: "POST",
+                body: formData,
+              });
+              if (res.ok) {
+                refetchRunning();
+                queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
+              }
+            }}
+            emptyMessage="No open maintenance items. Nice work!"
+          />
         </CardContent>
       </Card>
 

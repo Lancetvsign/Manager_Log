@@ -48,7 +48,14 @@ export function MaintenanceItemsTable({
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
+    // Filter: show only open items (resolvedAt is null) OR items completed today
+    const filtered = items.filter((item) => {
+      if (!item.resolvedAt) return true; // Open items
+      return isCompletedToday(item.resolvedAt); // Completed today
+    });
+    
+    // Sort: open items first, completed-today at bottom
+    return filtered.sort((a, b) => {
       const aCompletedToday = isCompletedToday(a.resolvedAt);
       const bCompletedToday = isCompletedToday(b.resolvedAt);
       if (aCompletedToday && !bCompletedToday) return 1;
@@ -118,7 +125,7 @@ export function MaintenanceItemsTable({
     );
   }
 
-  if (!items || items.length === 0) {
+  if (sortedItems.length === 0) {
     return (
       <p className="text-sm text-muted-foreground text-center py-4">
         {emptyMessage}
@@ -126,21 +133,26 @@ export function MaintenanceItemsTable({
     );
   }
 
-  const getColSpan = () => {
-    let descriptionSpan = 5;
-    if (showDateAdded) descriptionSpan -= 2;
-    if (showPhoto) descriptionSpan -= 2;
-    if (showActions) descriptionSpan -= 1;
-    return Math.max(2, descriptionSpan);
+  const getDescriptionSpan = () => {
+    let span = 12;
+    if (showDateAdded) span -= 1;
+    span -= 2; // Status
+    span -= 2; // Notes
+    if (showPhoto) span -= 2;
+    if (showActions) span -= 2;
+    return Math.max(2, span);
   };
+
+  const descSpan = getDescriptionSpan();
 
   return (
     <div className="border rounded-lg divide-y overflow-x-auto">
-      <div className="grid grid-cols-12 gap-2 p-3 bg-muted/50 text-sm font-medium min-w-[600px]">
-        {showDateAdded && <div className="col-span-2">Date Added</div>}
-        <div className={`col-span-${showDateAdded ? '3' : getColSpan()}`}>Description</div>
+      {/* Header row - 12 column grid dynamically allocated */}
+      <div className="grid grid-cols-12 gap-2 p-3 bg-muted/50 text-sm font-medium min-w-[700px]">
+        {showDateAdded && <div className="col-span-1">Date</div>}
+        <div className={`col-span-${descSpan}`}>Description</div>
         <div className="col-span-2">Status</div>
-        <div className={`col-span-${showPhoto || showActions ? '2' : '5'}`}>Notes</div>
+        <div className="col-span-2">Notes</div>
         {showPhoto && <div className="col-span-2">Photo</div>}
         {showActions && <div className="col-span-2 text-right">Actions</div>}
       </div>
@@ -152,17 +164,17 @@ export function MaintenanceItemsTable({
         return (
           <div
             key={item.id}
-            className={`grid grid-cols-12 gap-2 p-3 items-center min-w-[600px] ${
+            className={`grid grid-cols-12 gap-2 p-3 items-center min-w-[700px] ${
               completedToday ? "bg-muted/30 opacity-60" : ""
             }`}
             data-testid={`maintenance-item-${itemId}`}
           >
             {showDateAdded && (
-              <div className="col-span-2 text-xs text-muted-foreground">
+              <div className="col-span-1 text-xs text-muted-foreground">
                 {formatDate(item.logDate ?? item.createdAt)}
               </div>
             )}
-            <div className={`col-span-${showDateAdded ? '3' : getColSpan()} text-sm ${completedToday ? "line-through text-muted-foreground" : ""}`}>
+            <div className={`col-span-${descSpan} text-sm ${completedToday ? "line-through text-muted-foreground" : ""}`}>
               {item.description}
             </div>
             <div className="col-span-2">
@@ -189,7 +201,7 @@ export function MaintenanceItemsTable({
                 )}
               </div>
             </div>
-            <div className={`col-span-${showPhoto || showActions ? '2' : '5'} text-sm text-muted-foreground`}>
+            <div className="col-span-2 text-sm text-muted-foreground">
               {item.notes || "-"}
             </div>
             {showPhoto && (
