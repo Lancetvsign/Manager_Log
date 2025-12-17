@@ -33,18 +33,30 @@ export function NotificationSettingsPanel({
   const [newRecipientEmail, setNewRecipientEmail] = useState("");
 
   async function loadLists() {
-    const res = await fetch(`/api/notifications/lists?clubId=${clubId}`);
-    const data = await res.json();
-    setLists(data);
-    if (!selectedListId && data.length) {
-      setSelectedListId(data[0].id);
+    try {
+      const res = await fetch(`/api/notifications/lists?clubId=${clubId}`);
+      const data = await res.json();
+      const listsArray = Array.isArray(data) ? data : [];
+      setLists(listsArray);
+      if (!selectedListId && listsArray.length) {
+        setSelectedListId(listsArray[0].id);
+      }
+    } catch (error) {
+      console.error("Failed to load notification lists:", error);
+      setLists([]);
     }
   }
 
   async function loadRecipients(listId: number) {
-    const res = await fetch(`/api/notifications/lists/${listId}/recipients`);
-    const data = await res.json();
-    setRecipients(data);
+    try {
+      const res = await fetch(`/api/notifications/lists/${listId}/recipients`);
+      const data = await res.json();
+      const recipientsArray = Array.isArray(data) ? data : [];
+      setRecipients(recipientsArray);
+    } catch (error) {
+      console.error("Failed to load recipients:", error);
+      setRecipients([]);
+    }
   }
 
   useEffect(() => {
