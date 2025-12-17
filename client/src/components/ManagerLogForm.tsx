@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronRight, Camera, ExternalLink, Sun, Cloud } from "lucide-react";
+import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail } from "lucide-react";
 import WeatherCard from "./WeatherCard";
 import WeatherWide from "./WeatherWide";
 import SalesInput from "./SalesInput";
@@ -547,58 +547,6 @@ Details:
     }
   });
 
-  // Rollover to-do items to next day
-  const rolloverMutation = useMutation({
-    mutationFn: async ({ fromDate, toDate }: { fromDate: string; toDate: string }) => {
-      const response = await fetch(`${apiBaseUrl}/api/maintenance-items/rollover?clubId=${clubId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fromDate, toDate })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to rollover items');
-      }
-      
-      return response.json();
-    },
-    onSuccess: (data) => {
-      if (data.createdCount > 0) {
-        toast({
-          title: "Rolled Over",
-          description: `${data.createdCount} open item(s) rolled to ${data.toDate}`
-        });
-      } else {
-        toast({
-          title: "No Items to Roll",
-          description: "No open items to roll over.",
-          variant: "default"
-        });
-      }
-      // Invalidate both source and target dates
-      queryClient.invalidateQueries({ queryKey: ['/api/manager-logs'] });
-    },
-    onError: (error: any) => {
-      console.error('Failed to rollover items:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to rollover items.",
-        variant: "destructive"
-      });
-    }
-  });
-
-  const handleRolloverToNextDay = () => {
-    const nextDay = new Date(date);
-    nextDay.setDate(nextDay.getDate() + 1);
-    const toDateString = format(nextDay, 'yyyy-MM-dd');
-    rolloverMutation.mutate({ fromDate: dateString, toDate: toDateString });
-  };
-
-  // Check if there are open items that can be rolled over
-  const hasOpenItems = maintenanceItems?.some(item => item.status === "open" && !item.rolledOverToDate);
-
   const getDayOfWeek = (date: Date) => {
     return date.toLocaleDateString('en-US', { weekday: 'long' });
   };
@@ -761,18 +709,20 @@ Details:
                 </Popover>
               </div>
 
-              <div className="mt-3 flex items-center gap-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-muted/50">
-                  <CalendarIcon className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="leading-tight">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Selected</div>
-                  <div className="text-2xl font-semibold text-foreground">{format(date, 'd')}</div>
-                  <div className="text-base text-muted-foreground" data-testid="text-long-date">{format(date, 'MMMM d, yyyy')}</div>
-                </div>
-                <div className="ml-auto text-right">
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Day</div>
-                  <div className="text-base font-medium text-foreground/80" data-testid="text-weekday">{getDayOfWeek(date)}</div>
+              <div className="mt-3 h-[107px] rounded-xl border border-border/10 bg-muted/30 px-4">
+                <div className="flex h-full items-center gap-4">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-muted/50">
+                    <CalendarIcon className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="leading-tight">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Selected</div>
+                    <div className="text-2xl font-semibold text-foreground">{format(date, 'd')}</div>
+                    <div className="text-base text-muted-foreground" data-testid="text-long-date">{format(date, 'MMMM d, yyyy')}</div>
+                  </div>
+                  <div className="ml-auto text-right">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Day</div>
+                    <div className="text-base font-medium text-foreground/80" data-testid="text-weekday">{getDayOfWeek(date)}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -782,8 +732,8 @@ Details:
           <div className="h-[164px] rounded-xl border border-border bg-card p-4" data-testid="card-weather">
             <div className="flex h-full flex-col">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Weather</div>
-              <div className="mt-3 h-[107px] rounded-xl border border-white/10 bg-black/10 px-4">
-                <div className="grid h-full content-center gap-2.5">
+              <div className="mt-3 h-[107px] rounded-xl border border-border/10 bg-muted/30 px-4">
+                <div className="grid h-full content-center gap-3">
                   <WeatherWide
                     title="Today"
                     temp={weatherData.current?.temperature ?? "—"}
@@ -810,7 +760,7 @@ Details:
           <div className="h-[164px] rounded-xl border border-border bg-card p-4">
             <div className="flex h-full flex-col">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Drawing</div>
-              <div className="mt-3 h-[107px] rounded-xl border border-white/10 bg-black/10 px-4">
+              <div className="mt-3 h-[107px] rounded-xl border border-border/10 bg-muted/30 px-4">
                 <div className="grid h-full grid-rows-2 content-center gap-2.5 py-2">
                   <div className="flex items-center justify-between rounded-lg border border-border/10 bg-muted/50 px-3 py-2">
                     <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily</div>
@@ -935,23 +885,6 @@ Details:
               Showing all open items · oldest to newest
             </span>
           </div>
-          {hasOpenItems && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleRolloverToNextDay}
-              disabled={rolloverMutation.isPending}
-              data-testid="button-rollover-todos"
-            >
-              {rolloverMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : (
-                <ChevronRight className="h-4 w-4 mr-1" />
-              )}
-              Roll to Next Day
-            </Button>
-          )}
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Running Maintenance Items List - All Open Items */}
