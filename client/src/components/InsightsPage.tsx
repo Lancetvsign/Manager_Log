@@ -493,7 +493,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
 
             <Card data-testid="card-todo-status">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
-                <CardTitle className="text-sm font-medium">To-Do List Items</CardTitle>
+                <CardTitle className="text-sm font-medium">Maintenance Items</CardTitle>
                 <CheckCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -686,7 +686,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
 
           <CollapsibleSection
             id="toDoInsights"
-            title="To-Do List Insights"
+            title="Maintenance List Insights"
             icon={<PieChart className="h-5 w-5" />}
             defaultExpanded={true}
           >

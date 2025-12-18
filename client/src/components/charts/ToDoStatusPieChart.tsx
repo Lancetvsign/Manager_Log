@@ -91,12 +91,12 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
-            To-Do List Status
+            Maintenance List Status
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-            No to-do list items in this period
+            No maintenance items in this period
           </div>
         </CardContent>
       </Card>
@@ -108,7 +108,7 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5" />
-          To-Do List Status
+          Maintenance List Status
         </CardTitle>
       </CardHeader>
       <CardContent>
