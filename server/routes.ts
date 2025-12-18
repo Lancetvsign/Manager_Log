@@ -24,7 +24,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems, runningMaintenanceList, runningMaintenanceSnapshots } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, count, asc, gte, lte, sql, or, isNull } from "drizzle-orm";
+import { eq, desc, and, count, asc, gte, lte, sql, or, isNull, isNotNull } from "drizzle-orm";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
 import { sendLogNotificationEmail, isEmailConfigured } from "./email";
 import { getNotificationLists, seedDefaultNotificationLists } from "./notificationLists";
@@ -753,9 +753,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   /**
    * GET /api/maintenance/open
-   * Retrieves all maintenance items for the Running Maintenance List.
-   * Returns all items; client filters to show open + completed-today based on local time.
+   * Retrieves maintenance items for the Running Maintenance List.
+   * Shows all open items + only items completed on the given date.
    * @query clubId - The club identifier (required)
+   * @query date - The selected date (YYYY-MM-DD) to filter completed items (defaults to today)
    */
   app.get("/api/maintenance/open", async (req, res) => {
     try {
@@ -764,8 +765,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "clubId is required" });
       }
 
+      // Default to today's date if not provided (backwards compatibility)
+      const selectedDate = (req.query.date as string) || new Date().toISOString().slice(0, 10);
+
       const { maintenanceItems } = await import("@shared/schema");
       
+      // Filter: show all open items (resolvedAt is null) OR items completed on selectedDate
       const items = await db
         .select({
           id: maintenanceItems.id,
@@ -783,8 +788,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           managerLogs,
           eq(maintenanceItems.managerLogId, managerLogs.id)
         )
-        .where(eq(managerLogs.clubId, clubId))
-        .orderBy(maintenanceItems.createdAt);
+        .where(
+          and(
+            eq(managerLogs.clubId, clubId),
+            or(
+              // Open items (never completed) always show
+              isNull(maintenanceItems.resolvedAt),
+              // Completed items only if resolvedAt is on selectedDate
+              and(
+                isNotNull(maintenanceItems.resolvedAt),
+                sql`${maintenanceItems.resolvedAt}::date = ${selectedDate}::date`
+              )
+            )
+          )
+        )
+        .orderBy(
+          // Open items first, then completed-on-date
+          sql`CASE WHEN ${maintenanceItems.resolvedAt} IS NULL THEN 0 ELSE 1 END`,
+          maintenanceItems.createdAt
+        );
 
       res.json(items);
     } catch (error) {

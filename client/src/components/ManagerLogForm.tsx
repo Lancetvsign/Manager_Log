@@ -149,16 +149,18 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     resolvedAt: string | null;
   }
 
-  // Fetch all open maintenance items for this club (oldest to newest)
+  // Fetch maintenance items for the Running Maintenance List
+  // Shows all open items + only items completed on the selected date
   const { data: runningItems, isLoading: isLoadingRunning, refetch: refetchRunning } = useQuery<RunningMaintenanceItem[]>({
-    queryKey: ['/api/maintenance/open', clubId],
+    queryKey: ['/api/maintenance/open', clubId, dateString],
     queryFn: async () => {
-      const url = buildApiUrl('/api/maintenance/open', clubId, apiBaseUrl);
+      const baseUrl = buildApiUrl('/api/maintenance/open', clubId, apiBaseUrl);
+      const url = `${baseUrl}&date=${dateString}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch running maintenance items');
       return response.json();
     },
-    enabled: !!clubId,
+    enabled: !!clubId && !!dateString,
   });
 
   // Check if email notifications are configured
@@ -500,7 +502,7 @@ Details:
         description: "Maintenance item added successfully!"
       });
       queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/maintenance/open', clubId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/maintenance/open', clubId, dateString] });
       setNewMaintenanceDescription("");
       setNewMaintenanceStatus("open");
       setNewMaintenanceNotes("");
@@ -536,7 +538,7 @@ Details:
         description: "Maintenance item updated!"
       });
       queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/maintenance/open', clubId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/maintenance/open', clubId, dateString] });
     },
     onError: (error: any) => {
       console.error('Failed to update maintenance item:', error);

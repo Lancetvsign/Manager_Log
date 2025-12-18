@@ -27,11 +27,10 @@ interface MaintenanceItemsTableProps {
   apiBaseUrl?: string;
 }
 
-function isCompletedToday(resolvedAt: string | null | undefined): boolean {
-  if (!resolvedAt) return false;
-  const resolved = new Date(resolvedAt);
-  const today = new Date();
-  return resolved.toDateString() === today.toDateString();
+// Server now filters items - returns only open items + items completed on selectedDate
+// Items with resolvedAt are "completed on the selected date"
+function isCompletedOnSelectedDate(resolvedAt: string | null | undefined): boolean {
+  return !!resolvedAt;
 }
 
 export function MaintenanceItemsTable({
@@ -47,30 +46,16 @@ export function MaintenanceItemsTable({
   const [uploadingId, setUploadingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
-  const sortedItems = useMemo(() => {
-    // Filter: show only open items (resolvedAt is null) OR items completed today
-    const filtered = items.filter((item) => {
-      if (!item.resolvedAt) return true; // Open items
-      return isCompletedToday(item.resolvedAt); // Completed today
-    });
-    
-    // Sort: open items first, completed-today at bottom
-    return filtered.sort((a, b) => {
-      const aCompletedToday = isCompletedToday(a.resolvedAt);
-      const bCompletedToday = isCompletedToday(b.resolvedAt);
-      if (aCompletedToday && !bCompletedToday) return 1;
-      if (!aCompletedToday && bCompletedToday) return -1;
-      return 0;
-    });
-  }, [items]);
+  // Server already filters and sorts, just use items directly
+  const sortedItems = items;
 
   const handleToggleStatus = async (item: MaintenanceItem) => {
     if (!onToggleStatus) return;
     const itemId = item.itemId ?? item.id;
     setTogglingId(itemId);
     try {
-      const completedToday = isCompletedToday(item.resolvedAt);
-      const newStatus = completedToday ? "open" : "completed";
+      const isCompleted = isCompletedOnSelectedDate(item.resolvedAt);
+      const newStatus = isCompleted ? "open" : "completed";
       await onToggleStatus(itemId, newStatus);
     } finally {
       setTogglingId(null);
@@ -158,14 +143,14 @@ export function MaintenanceItemsTable({
       </div>
       {sortedItems.map((item) => {
         const itemId = item.itemId ?? item.id;
-        const completedToday = isCompletedToday(item.resolvedAt);
-        const isOpen = !completedToday;
+        const isCompleted = isCompletedOnSelectedDate(item.resolvedAt);
+        const isOpen = !isCompleted;
         
         return (
           <div
             key={item.id}
             className={`grid grid-cols-12 gap-2 p-3 items-center min-w-[700px] ${
-              completedToday ? "bg-muted/30 opacity-60" : ""
+              isCompleted ? "bg-muted/30 opacity-60" : ""
             }`}
             data-testid={`maintenance-item-${itemId}`}
           >
@@ -174,7 +159,7 @@ export function MaintenanceItemsTable({
                 {formatDate(item.logDate ?? item.createdAt)}
               </div>
             )}
-            <div className={`col-span-${descSpan} text-sm ${completedToday ? "line-through text-muted-foreground" : ""}`}>
+            <div className={`col-span-${descSpan} text-sm ${isCompleted ? "line-through text-muted-foreground" : ""}`}>
               {item.description}
             </div>
             <div className="col-span-2">
@@ -194,7 +179,7 @@ export function MaintenanceItemsTable({
                   )}
                   {isOpen ? "Open" : "Completed"}
                 </Badge>
-                {completedToday && item.resolvedAt && (
+                {isCompleted && item.resolvedAt && (
                   <span className="text-[11px] text-muted-foreground">
                     {formatCompletedAt(item.resolvedAt)}
                   </span>
@@ -242,16 +227,16 @@ export function MaintenanceItemsTable({
               <div className="col-span-2 text-right">
                 <Button
                   type="button"
-                  variant={completedToday ? "outline" : "ghost"}
+                  variant={isCompleted ? "outline" : "ghost"}
                   size="sm"
                   onClick={() => handleToggleStatus(item)}
                   disabled={togglingId === itemId}
-                  className={completedToday ? "text-amber-600 border-amber-300 hover:bg-amber-50" : ""}
+                  className={isCompleted ? "text-amber-600 border-amber-300 hover:bg-amber-50" : ""}
                   data-testid={`button-toggle-status-${itemId}`}
                 >
                   {togglingId === itemId ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : completedToday ? (
+                  ) : isCompleted ? (
                     <>
                       <Undo2 className="h-4 w-4 mr-1" />
                       Undo
