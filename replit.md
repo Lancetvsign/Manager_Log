@@ -112,7 +112,7 @@ The UI features a dark header with a teal background, leveraging `shadcn/ui` com
 
 ### Feature Specifications
 - **Daily Manager Logs**: Sales tracking (food, bar, gaming), weather, and operational notes. Past logs are read-only to prevent accidental modifications.
-- **Running Maintenance List**: Standalone club-scoped maintenance tracking (separate from daily logs). Accessible via dedicated Maintenance tab. Features add/complete/reopen functionality with status filtering.
+- **Running Maintenance List**: Standalone club-scoped maintenance tracking (separate from daily logs). Accessible via dedicated Maintenance tab. Features add/complete/reopen functionality. **Daily Reset Behavior**: Items use `resolvedAt` timestamp instead of permanent status changes. On any given day, the list shows all open items plus only items completed on that specific day (greyed out with strikethrough). Items completed on previous days are hidden but remain in the database. This creates a "daily reset" where tasks reappear each day until completed.
 - **Weather Integration**: Displays current and historical weather data with year-over-year comparisons.
 - **Insights & Analytics**: Summary cards, sales trend charts (daily, weekly, monthly granularity), period-over-period comparison, sales heatmap, sales by weekday, to-do status, sales breakdown pie charts, top performing days table, date range filtering, and export (CSV, PNG/PDF). Includes **Maintenance Insights** section showing open items count, completed items in date range, average days to complete, and a table of oldest open items with color-coded urgency badges.
 - **Email Notifications**: Managers can send professional HTML emails with log summaries to specified recipients.
