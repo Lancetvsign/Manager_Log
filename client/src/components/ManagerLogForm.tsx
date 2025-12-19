@@ -15,6 +15,7 @@ import WeatherWide from "./WeatherWide";
 import SalesInput from "./SalesInput";
 import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
 import EscalationRulesModal from "./EscalationRulesModal";
+import EmailLogModal from "./EmailLogModal";
 import { NotePhotos } from "./NotePhotos";
 import { MaintenanceItemsTable } from "./MaintenanceItemsTable";
 import { useToast } from "@/hooks/use-toast";
@@ -71,6 +72,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const [sendResult, setSendResult] = useState<string | null>(null);
   const [showNotifSettings, setShowNotifSettings] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
   
   // Notification history type
   interface NotificationHistoryItem {
@@ -669,14 +671,26 @@ Details:
       <Card data-testid="card-log-header">
         <CardContent className="p-4">
         {/* Title banner */}
-        <div className="flex items-baseline gap-2 flex-wrap mb-3">
-          <h2 className="text-xl font-semibold">Daily Manager Log Entry</h2>
-          {existingLogId && !isPastLog && (
-            <span className="text-sm text-muted-foreground">(Editing)</span>
-          )}
-          {isPastLog && (
-            <Badge variant="secondary">View Only</Badge>
-          )}
+        <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <h2 className="text-xl font-semibold">Daily Manager Log Entry</h2>
+            {existingLogId && !isPastLog && (
+              <span className="text-sm text-muted-foreground">(Editing)</span>
+            )}
+            {isPastLog && (
+              <Badge variant="secondary">View Only</Badge>
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowEmailModal(true)}
+            data-testid="button-email-log"
+          >
+            <Mail className="h-4 w-4 mr-1" />
+            Email
+          </Button>
         </div>
         {isPastLog && (
           <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-3 py-2 rounded-md text-sm mb-3">
@@ -1240,6 +1254,16 @@ Details:
             }}
           />
         )}
+
+        {/* Email Log Modal */}
+        <EmailLogModal
+          open={showEmailModal}
+          onOpenChange={setShowEmailModal}
+          clubId={clubId}
+          logId={existingLogId}
+          logDateISO={format(date, 'yyyy-MM-dd')}
+          managerName={amManagerName || pmManagerName || defaultManagerName}
+        />
     </form>
   );
 }
