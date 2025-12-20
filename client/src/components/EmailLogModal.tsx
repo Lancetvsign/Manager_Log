@@ -10,67 +10,34 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface ContentSettings {
-  includeHeader: boolean;
-  includeWeather: boolean;
-  includeSales: boolean;
-  includeDrawing: boolean;
   includeOperationalNotes: boolean;
   includeMaintenanceNotes: boolean;
   includeMaintenanceList: boolean;
-  includePhotos: boolean;
 }
 
 const PRESETS: Record<string, { label: string; settings: ContentSettings }> = {
   full: {
     label: "Full Log",
     settings: {
-      includeHeader: true,
-      includeWeather: true,
-      includeSales: true,
-      includeDrawing: true,
       includeOperationalNotes: true,
       includeMaintenanceNotes: true,
       includeMaintenanceList: true,
-      includePhotos: true,
     },
   },
   ops_only: {
     label: "Ops Only",
     settings: {
-      includeHeader: true,
-      includeWeather: false,
-      includeSales: false,
-      includeDrawing: false,
       includeOperationalNotes: true,
       includeMaintenanceNotes: false,
       includeMaintenanceList: false,
-      includePhotos: true,
     },
   },
   maintenance_only: {
     label: "Maintenance Only",
     settings: {
-      includeHeader: true,
-      includeWeather: false,
-      includeSales: false,
-      includeDrawing: false,
       includeOperationalNotes: false,
       includeMaintenanceNotes: true,
       includeMaintenanceList: true,
-      includePhotos: true,
-    },
-  },
-  sales_only: {
-    label: "Sales Only",
-    settings: {
-      includeHeader: true,
-      includeWeather: false,
-      includeSales: true,
-      includeDrawing: true,
-      includeOperationalNotes: false,
-      includeMaintenanceNotes: false,
-      includeMaintenanceList: false,
-      includePhotos: false,
     },
   },
 };
@@ -421,44 +388,13 @@ A link to this log entry will be included automatically.`
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm">Include Sections</Label>
-                <div className="grid grid-cols-2 gap-2 rounded-md border p-3">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="content-header"
-                      checked={contentSettings.includeHeader}
-                      onCheckedChange={() => toggleContentSetting("includeHeader")}
-                      data-testid="checkbox-header"
-                    />
-                    <Label htmlFor="content-header" className="cursor-pointer text-sm">Date & Manager</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="content-weather"
-                      checked={contentSettings.includeWeather}
-                      onCheckedChange={() => toggleContentSetting("includeWeather")}
-                      data-testid="checkbox-weather"
-                    />
-                    <Label htmlFor="content-weather" className="cursor-pointer text-sm">Weather</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="content-sales"
-                      checked={contentSettings.includeSales}
-                      onCheckedChange={() => toggleContentSetting("includeSales")}
-                      data-testid="checkbox-sales"
-                    />
-                    <Label htmlFor="content-sales" className="cursor-pointer text-sm">Sales</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="content-drawing"
-                      checked={contentSettings.includeDrawing}
-                      onCheckedChange={() => toggleContentSetting("includeDrawing")}
-                      data-testid="checkbox-drawing"
-                    />
-                    <Label htmlFor="content-drawing" className="cursor-pointer text-sm">Drawing</Label>
-                  </div>
+                <Label className="text-sm">Always Included</Label>
+                <p className="text-xs text-muted-foreground">Date & Manager, Sales, Drawing</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm">Optional Sections</Label>
+                <div className="grid grid-cols-1 gap-2 rounded-md border p-3">
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id="content-ops-notes"
@@ -466,7 +402,7 @@ A link to this log entry will be included automatically.`
                       onCheckedChange={() => toggleContentSetting("includeOperationalNotes")}
                       data-testid="checkbox-ops-notes"
                     />
-                    <Label htmlFor="content-ops-notes" className="cursor-pointer text-sm">Ops Notes</Label>
+                    <Label htmlFor="content-ops-notes" className="cursor-pointer text-sm">Ops Notes (with photos)</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -475,7 +411,7 @@ A link to this log entry will be included automatically.`
                       onCheckedChange={() => toggleContentSetting("includeMaintenanceNotes")}
                       data-testid="checkbox-maint-notes"
                     />
-                    <Label htmlFor="content-maint-notes" className="cursor-pointer text-sm">Maint Notes</Label>
+                    <Label htmlFor="content-maint-notes" className="cursor-pointer text-sm">Maintenance Notes (with photos)</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -484,16 +420,7 @@ A link to this log entry will be included automatically.`
                       onCheckedChange={() => toggleContentSetting("includeMaintenanceList")}
                       data-testid="checkbox-maint-list"
                     />
-                    <Label htmlFor="content-maint-list" className="cursor-pointer text-sm">Maint List</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="content-photos"
-                      checked={contentSettings.includePhotos}
-                      onCheckedChange={() => toggleContentSetting("includePhotos")}
-                      data-testid="checkbox-photos"
-                    />
-                    <Label htmlFor="content-photos" className="cursor-pointer text-sm">Photos</Label>
+                    <Label htmlFor="content-maint-list" className="cursor-pointer text-sm">Maintenance List</Label>
                   </div>
                 </div>
               </div>

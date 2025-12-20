@@ -1282,28 +1282,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Return defaults if not yet created
       return res.json({
         clubId,
-        includeHeader: true,
-        includeWeather: true,
-        includeSales: true,
-        includeDrawing: true,
         includeOperationalNotes: true,
         includeMaintenanceNotes: true,
         includeMaintenanceList: true,
-        includePhotos: true,
         listDefaults: {},
       });
     }
 
     res.json({
       clubId,
-      includeHeader: row[0].includeHeader,
-      includeWeather: row[0].includeWeather,
-      includeSales: row[0].includeSales,
-      includeDrawing: row[0].includeDrawing,
       includeOperationalNotes: row[0].includeOperationalNotes,
       includeMaintenanceNotes: row[0].includeMaintenanceNotes,
       includeMaintenanceList: row[0].includeMaintenanceList,
-      includePhotos: row[0].includePhotos,
       listDefaults: row[0].listDefaults || {},
     });
   });
@@ -1311,19 +1301,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * PUT /api/email-settings
    * Update email content settings for a club
-   * Body: { clubId, includeHeader, includeWeather, ... }
+   * Body: { clubId, includeOperationalNotes, includeMaintenanceNotes, includeMaintenanceList, listDefaults }
    */
   app.put("/api/email-settings", async (req, res) => {
     const {
       clubId,
-      includeHeader,
-      includeWeather,
-      includeSales,
-      includeDrawing,
       includeOperationalNotes,
       includeMaintenanceNotes,
       includeMaintenanceList,
-      includePhotos,
       listDefaults,
     } = req.body || {};
 
@@ -1336,28 +1321,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .insert(emailSettings)
       .values({
         clubId,
-        includeHeader: includeHeader ?? true,
-        includeWeather: includeWeather ?? true,
-        includeSales: includeSales ?? true,
-        includeDrawing: includeDrawing ?? true,
         includeOperationalNotes: includeOperationalNotes ?? true,
         includeMaintenanceNotes: includeMaintenanceNotes ?? true,
         includeMaintenanceList: includeMaintenanceList ?? true,
-        includePhotos: includePhotos ?? true,
         listDefaults: listDefaults || {},
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: emailSettings.clubId,
         set: {
-          includeHeader: includeHeader ?? true,
-          includeWeather: includeWeather ?? true,
-          includeSales: includeSales ?? true,
-          includeDrawing: includeDrawing ?? true,
           includeOperationalNotes: includeOperationalNotes ?? true,
           includeMaintenanceNotes: includeMaintenanceNotes ?? true,
           includeMaintenanceList: includeMaintenanceList ?? true,
-          includePhotos: includePhotos ?? true,
           listDefaults: listDefaults || {},
           updatedAt: new Date(),
         },
@@ -1623,14 +1598,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: z.string().optional(),
         clubId: z.string().default(DEFAULT_CLUB_ID),
         contentSettings: z.object({
-          includeHeader: z.boolean().default(true),
-          includeWeather: z.boolean().default(true),
-          includeSales: z.boolean().default(true),
-          includeDrawing: z.boolean().default(true),
           includeOperationalNotes: z.boolean().default(true),
           includeMaintenanceNotes: z.boolean().default(true),
           includeMaintenanceList: z.boolean().default(true),
-          includePhotos: z.boolean().default(true),
         }).optional()
       });
 
@@ -1645,15 +1615,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { reason, listIds, subject, message, clubId, contentSettings } = parsed.data;
 
       // Use provided content settings or defaults
-      const settings = contentSettings || {
-        includeHeader: true,
-        includeWeather: true,
-        includeSales: true,
-        includeDrawing: true,
-        includeOperationalNotes: true,
-        includeMaintenanceNotes: true,
-        includeMaintenanceList: true,
-        includePhotos: true,
+      // Header, Sales, and Drawing are always included
+      // Weather is never included
+      // Photos are included when notes are included
+      const settings = {
+        includeOperationalNotes: contentSettings?.includeOperationalNotes ?? true,
+        includeMaintenanceNotes: contentSettings?.includeMaintenanceNotes ?? true,
+        includeMaintenanceList: contentSettings?.includeMaintenanceList ?? true,
       };
 
       // Check rate limit
@@ -1675,9 +1643,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch attachments for this log
       const attachments = await storage.getLogAttachmentsByLogId(logId, clubId);
 
-      // Fetch note photos if needed
+      // Fetch note photos if notes are included
       let notePhotos: any[] = [];
-      if (settings.includePhotos) {
+      if (settings.includeOperationalNotes || settings.includeMaintenanceNotes) {
         notePhotos = await storage.getNotePhotosByLogId(logId, clubId);
       }
 
@@ -1718,48 +1686,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const baseUrl = `${req.protocol}://${req.get("host")}`;
       let htmlSections: string[] = [];
 
-      // Header section (date, day, manager)
-      if (settings.includeHeader) {
-        const dayOfWeek = log.dayOfWeek || new Date(log.logDate).toLocaleDateString('en-US', { weekday: 'long' });
-        htmlSections.push(`
-          <div style="margin-bottom:16px;">
-            <p style="margin:0;"><strong>Date:</strong> ${log.logDate} (${dayOfWeek})</p>
-            <p style="margin:0;"><strong>Manager:</strong> ${log.managerName || 'Not specified'}</p>
-          </div>
-        `);
-      }
+      // Header section (date, day, manager) - always included
+      const dayOfWeek = log.dayOfWeek || new Date(log.logDate).toLocaleDateString('en-US', { weekday: 'long' });
+      htmlSections.push(`
+        <div style="margin-bottom:16px;">
+          <p style="margin:0;"><strong>Date:</strong> ${log.logDate} (${dayOfWeek})</p>
+          <p style="margin:0;"><strong>Manager:</strong> ${log.managerName || 'Not specified'}</p>
+        </div>
+      `);
 
-      // Weather section
-      if (settings.includeWeather && (log.weatherTemp !== null || log.weatherCondition)) {
-        htmlSections.push(`
-          <div style="margin-bottom:16px;">
-            <h4 style="margin:0 0 8px 0;color:#666;">Weather</h4>
-            <p style="margin:0;">${log.weatherTemp !== null ? `${log.weatherTemp}°F` : ''} ${log.weatherCondition || ''}</p>
-          </div>
-        `);
-      }
+      // Sales section - always included
+      const foodSales = log.foodSales || 0;
+      const barSales = log.barSales || 0;
+      const gamingSales = log.gamingSales || 0;
+      const totalSales = log.totalSales || 0;
+      htmlSections.push(`
+        <div style="margin-bottom:16px;">
+          <h4 style="margin:0 0 8px 0;color:#666;">Sales</h4>
+          <table style="border-collapse:collapse;">
+            <tr><td style="padding:2px 12px 2px 0;">Food:</td><td style="text-align:right;">$${foodSales.toLocaleString()}</td></tr>
+            <tr><td style="padding:2px 12px 2px 0;">Bar:</td><td style="text-align:right;">$${barSales.toLocaleString()}</td></tr>
+            <tr><td style="padding:2px 12px 2px 0;">Gaming:</td><td style="text-align:right;">$${gamingSales.toLocaleString()}</td></tr>
+            <tr style="font-weight:bold;"><td style="padding:2px 12px 2px 0;border-top:1px solid #ccc;">Total:</td><td style="text-align:right;border-top:1px solid #ccc;">$${totalSales.toLocaleString()}</td></tr>
+          </table>
+        </div>
+      `);
 
-      // Sales section
-      if (settings.includeSales) {
-        const foodSales = log.foodSales || 0;
-        const barSales = log.barSales || 0;
-        const gamingSales = log.gamingSales || 0;
-        const totalSales = log.totalSales || 0;
-        htmlSections.push(`
-          <div style="margin-bottom:16px;">
-            <h4 style="margin:0 0 8px 0;color:#666;">Sales</h4>
-            <table style="border-collapse:collapse;">
-              <tr><td style="padding:2px 12px 2px 0;">Food:</td><td style="text-align:right;">$${foodSales.toLocaleString()}</td></tr>
-              <tr><td style="padding:2px 12px 2px 0;">Bar:</td><td style="text-align:right;">$${barSales.toLocaleString()}</td></tr>
-              <tr><td style="padding:2px 12px 2px 0;">Gaming:</td><td style="text-align:right;">$${gamingSales.toLocaleString()}</td></tr>
-              <tr style="font-weight:bold;"><td style="padding:2px 12px 2px 0;border-top:1px solid #ccc;">Total:</td><td style="text-align:right;border-top:1px solid #ccc;">$${totalSales.toLocaleString()}</td></tr>
-            </table>
-          </div>
-        `);
-      }
-
-      // Drawing section
-      if (settings.includeDrawing && (log.dailyDrawing || log.weeklyDrawing)) {
+      // Drawing section - always included when data exists
+      if (log.dailyDrawing || log.weeklyDrawing) {
         htmlSections.push(`
           <div style="margin-bottom:16px;">
             <h4 style="margin:0 0 8px 0;color:#666;">Drawing</h4>
@@ -1800,15 +1754,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `);
       }
 
-      // Photos section
-      if (settings.includePhotos && notePhotos.length > 0) {
-        const photoLinks = notePhotos.map(p => `<li><a href="${p.url}">${p.noteType === 'operational' ? 'Ops' : 'Maint'} Photo</a></li>`).join('');
-        htmlSections.push(`
-          <div style="margin-bottom:16px;">
-            <h4 style="margin:0 0 8px 0;color:#666;">Photos</h4>
-            <ul style="margin:0;padding-left:20px;">${photoLinks}</ul>
-          </div>
-        `);
+      // Photos section - included when notes are included
+      if (notePhotos.length > 0) {
+        // Filter photos based on which note sections are included
+        const filteredPhotos = notePhotos.filter(p => 
+          (p.noteType === 'operational' && settings.includeOperationalNotes) ||
+          (p.noteType === 'maintenance' && settings.includeMaintenanceNotes)
+        );
+        if (filteredPhotos.length > 0) {
+          const photoLinks = filteredPhotos.map(p => `<li><a href="${p.url}">${p.noteType === 'operational' ? 'Ops' : 'Maint'} Photo</a></li>`).join('');
+          htmlSections.push(`
+            <div style="margin-bottom:16px;">
+              <h4 style="margin:0 0 8px 0;color:#666;">Photos</h4>
+              <ul style="margin:0;padding-left:20px;">${photoLinks}</ul>
+            </div>
+          `);
+        }
       }
 
       // Attachments section (always included if present)
