@@ -927,18 +927,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
           )}
 
           <CollapsibleSection
-            id="toDoInsights"
-            title="Maintenance List Insights"
-            icon={<PieChart className="h-5 w-5" />}
-            defaultExpanded={true}
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ToDoStatusPieChart status={metrics.toDoStatus} />
-              <SalesBreakdownChart salesByCategory={metrics.salesByCategory} />
-            </div>
-          </CollapsibleSection>
-
-          <CollapsibleSection
             id="maintenanceInsights"
             title="Maintenance Insights"
             icon={<Wrench className="h-5 w-5" />}
@@ -981,6 +969,11 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                   <p className="text-xs text-muted-foreground">average days to complete</p>
                 </CardContent>
               </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <ToDoStatusPieChart status={metrics.toDoStatus} />
+              <SalesBreakdownChart salesByCategory={metrics.salesByCategory} />
             </div>
 
             {maintenanceInsights?.topOldestOpen && maintenanceInsights.topOldestOpen.length > 0 && (
