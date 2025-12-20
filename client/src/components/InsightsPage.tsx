@@ -832,27 +832,21 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               clubName={clubName}
               onChartTypeChange={setChartType}
             />
-          </CollapsibleSection>
-
-          <CollapsibleSection
-            id="heatmap"
-            title="Sales Heatmap"
-            icon={<CalendarDays className="h-5 w-5" />}
-            defaultExpanded={true}
-          >
-            <SalesHeatmapCalendar
-              data={metrics.dailySales}
-              startDate={dateRange.startDate}
-              endDate={dateRange.endDate}
-              dateRange={dateRangeDisplay}
-              clubName={clubName}
-              onDayClick={(date) => {
-                const log = metrics.topDays.find((d) => d.date === date);
-                if (log && onViewLog) {
-                  onViewLog(log.logId, date);
-                }
-              }}
-            />
+            <div className="mt-6">
+              <SalesHeatmapCalendar
+                data={metrics.dailySales}
+                startDate={dateRange.startDate}
+                endDate={dateRange.endDate}
+                dateRange={dateRangeDisplay}
+                clubName={clubName}
+                onDayClick={(date) => {
+                  const log = metrics.topDays.find((d) => d.date === date);
+                  if (log && onViewLog) {
+                    onViewLog(log.logId, date);
+                  }
+                }}
+              />
+            </div>
           </CollapsibleSection>
 
           <CollapsibleSection
