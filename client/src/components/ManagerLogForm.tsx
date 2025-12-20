@@ -649,7 +649,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           <div className="h-[164px] rounded-xl border border-border bg-card p-4">
             <div className="flex h-full flex-col">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Drawing</div>
-              <div className="mt-3 h-[107px] rounded-xl border border-border/10 bg-muted/30 px-4">
+              <div className="mt-3 h-[107px] px-4">
                 <div className="grid h-full grid-rows-2 content-center gap-2.5 py-2">
                   <div className="flex items-center justify-between rounded-lg border border-border/10 bg-muted/50 px-3 py-2">
                     <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Daily</div>
