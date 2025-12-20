@@ -423,6 +423,41 @@ export const notePhotos = pgTable("note_photos", {
 });
 
 /**
+ * EMAIL_SETTINGS TABLE
+ * --------------------
+ * Stores default email content settings per club.
+ * Controls which sections are included when composing email notifications.
+ * 
+ * Fields:
+ * - id: Auto-incrementing primary key
+ * - clubId: Unique club identifier (one settings row per club)
+ * - includeHeader: Include date/day/managers section
+ * - includeWeather: Include weather data
+ * - includeSales: Include sales figures
+ * - includeDrawing: Include daily/weekly drawing numbers
+ * - includeOperationalNotes: Include operational notes
+ * - includeMaintenanceNotes: Include maintenance notes
+ * - includeMaintenanceList: Include running maintenance list
+ * - includePhotos: Include photo links
+ * - listDefaults: JSON storing per-list preset defaults (e.g., {"Core Team": "full", "Kitchen Staff": "ops_only"})
+ * - updatedAt: When settings were last updated
+ */
+export const emailSettings = pgTable("email_settings", {
+  id: serial("id").primaryKey(),
+  clubId: varchar("club_id", { length: 64 }).notNull().unique(),
+  includeHeader: boolean("include_header").notNull().default(true),
+  includeWeather: boolean("include_weather").notNull().default(true),
+  includeSales: boolean("include_sales").notNull().default(true),
+  includeDrawing: boolean("include_drawing").notNull().default(true),
+  includeOperationalNotes: boolean("include_operational_notes").notNull().default(true),
+  includeMaintenanceNotes: boolean("include_maintenance_notes").notNull().default(true),
+  includeMaintenanceList: boolean("include_maintenance_list").notNull().default(true),
+  includePhotos: boolean("include_photos").notNull().default(true),
+  listDefaults: jsonb("list_defaults").$type<Record<string, string>>().default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * TABLE RELATIONSHIPS
  * -------------------
  * Defines the one-to-many relationship between ManagerLogs and MaintenanceItems.
@@ -658,6 +693,7 @@ export type LogAttachment = typeof logAttachments.$inferSelect;
 export type InsertNotePhoto = z.infer<typeof insertNotePhotoSchema>;
 export type NotePhoto = typeof notePhotos.$inferSelect;
 export type NoteType = "operational" | "maintenance";
+export type EmailSettings = typeof emailSettings.$inferSelect;
 export type LogMaintenanceSnapshot = typeof logMaintenanceSnapshots.$inferSelect;
 export type RunningMaintenanceSnapshot = typeof runningMaintenanceSnapshots.$inferSelect;
 export type InsertPrepChecklistItem = z.infer<typeof insertPrepChecklistItemSchema>;

@@ -22,7 +22,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems, runningMaintenanceList, runningMaintenanceSnapshots } from "@shared/schema";
+import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems, runningMaintenanceList, runningMaintenanceSnapshots, emailSettings } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count, asc, gte, lte, sql, or, isNull, isNotNull } from "drizzle-orm";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
@@ -1256,6 +1256,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching maintenance insights:", error);
       res.status(500).json({ error: "Failed to load maintenance insights" });
     }
+  });
+
+  // ==========================================
+  // EMAIL SETTINGS ENDPOINTS
+  // ==========================================
+
+  /**
+   * GET /api/email-settings
+   * Get email content settings for a club
+   * Query: ?clubId=xxx
+   * Returns: EmailSettings object with toggle values
+   */
+  app.get("/api/email-settings", async (req, res) => {
+    const clubId = (req.query.clubId as string) || DEFAULT_CLUB_ID;
+
+    const row = await db
+      .select()
+      .from(emailSettings)
+      .where(eq(emailSettings.clubId, clubId))
+      .limit(1);
+
+    if (row.length === 0) {
+      // Return defaults if not yet created
+      return res.json({
+        clubId,
+        includeHeader: true,
+        includeWeather: true,
+        includeSales: true,
+        includeDrawing: true,
+        includeOperationalNotes: true,
+        includeMaintenanceNotes: true,
+        includeMaintenanceList: true,
+        includePhotos: true,
+        listDefaults: {},
+      });
+    }
+
+    res.json({
+      clubId,
+      includeHeader: row[0].includeHeader,
+      includeWeather: row[0].includeWeather,
+      includeSales: row[0].includeSales,
+      includeDrawing: row[0].includeDrawing,
+      includeOperationalNotes: row[0].includeOperationalNotes,
+      includeMaintenanceNotes: row[0].includeMaintenanceNotes,
+      includeMaintenanceList: row[0].includeMaintenanceList,
+      includePhotos: row[0].includePhotos,
+      listDefaults: row[0].listDefaults || {},
+    });
+  });
+
+  /**
+   * PUT /api/email-settings
+   * Update email content settings for a club
+   * Body: { clubId, includeHeader, includeWeather, ... }
+   */
+  app.put("/api/email-settings", async (req, res) => {
+    const {
+      clubId,
+      includeHeader,
+      includeWeather,
+      includeSales,
+      includeDrawing,
+      includeOperationalNotes,
+      includeMaintenanceNotes,
+      includeMaintenanceList,
+      includePhotos,
+      listDefaults,
+    } = req.body || {};
+
+    if (!clubId) {
+      return res.status(400).json({ error: "clubId required" });
+    }
+
+    // Upsert: insert or update on conflict
+    await db
+      .insert(emailSettings)
+      .values({
+        clubId,
+        includeHeader: includeHeader ?? true,
+        includeWeather: includeWeather ?? true,
+        includeSales: includeSales ?? true,
+        includeDrawing: includeDrawing ?? true,
+        includeOperationalNotes: includeOperationalNotes ?? true,
+        includeMaintenanceNotes: includeMaintenanceNotes ?? true,
+        includeMaintenanceList: includeMaintenanceList ?? true,
+        includePhotos: includePhotos ?? true,
+        listDefaults: listDefaults || {},
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: emailSettings.clubId,
+        set: {
+          includeHeader: includeHeader ?? true,
+          includeWeather: includeWeather ?? true,
+          includeSales: includeSales ?? true,
+          includeDrawing: includeDrawing ?? true,
+          includeOperationalNotes: includeOperationalNotes ?? true,
+          includeMaintenanceNotes: includeMaintenanceNotes ?? true,
+          includeMaintenanceList: includeMaintenanceList ?? true,
+          includePhotos: includePhotos ?? true,
+          listDefaults: listDefaults || {},
+          updatedAt: new Date(),
+        },
+      });
+
+    res.json({ ok: true });
   });
 
   // ==========================================
