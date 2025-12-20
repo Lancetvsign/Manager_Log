@@ -9,7 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail } from "lucide-react";
+import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import WeatherCard from "./WeatherCard";
 import WeatherWide from "./WeatherWide";
 import SalesInput from "./SalesInput";
@@ -65,6 +66,9 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   
   // Email modal state
   const [showEmailModal, setShowEmailModal] = useState(false);
+  
+  // Collapsible state for maintenance list
+  const [maintenanceOpen, setMaintenanceOpen] = useState(true);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -559,16 +563,6 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
               <Badge variant="secondary">View Only</Badge>
             )}
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowEmailModal(true)}
-            data-testid="button-email-log"
-          >
-            <Mail className="h-4 w-4 mr-1" />
-            Email Log
-          </Button>
         </div>
         {isPastLog && (
           <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-3 py-2 rounded-md text-sm mb-3">
@@ -771,20 +765,30 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         </CardContent>
       </Card>
 
-      {/* Running Maintenance List */}
-      <Card data-testid="card-maintenance">
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <div className="flex flex-col gap-1">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Wrench className="h-5 w-5" />
-              Running Maintenance List
-            </CardTitle>
-            <span className="text-xs text-muted-foreground">
-              Showing all open items · oldest to newest
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
+      {/* Running Maintenance List - Collapsible */}
+      <Collapsible open={maintenanceOpen} onOpenChange={setMaintenanceOpen}>
+        <Card data-testid="card-maintenance">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer hover-elevate rounded-t-lg">
+              <div className="flex flex-col gap-1">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Wrench className="h-5 w-5" />
+                  Running Maintenance List
+                  {runningItems && runningItems.filter(i => i.status === 'open').length > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {runningItems.filter(i => i.status === 'open').length} open
+                    </Badge>
+                  )}
+                </CardTitle>
+                <span className="text-xs text-muted-foreground">
+                  Showing all open items · oldest to newest
+                </span>
+              </div>
+              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${maintenanceOpen ? 'rotate-180' : ''}`} />
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-6">
           {/* Add New Maintenance Item Form - only show for today/future */}
           {!isPastLog && (
             <div className="pb-4 border-b">
@@ -890,12 +894,23 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
             }}
             emptyMessage="No open maintenance items. Nice work!"
           />
-        </CardContent>
-      </Card>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
-      {/* Submit Button */}
-      {!isPastLog && (
-        <div className="flex justify-end mt-4">
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-3 mt-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setShowEmailModal(true)}
+          data-testid="button-email-log"
+        >
+          <Mail className="h-4 w-4 mr-2" />
+          Email Log
+        </Button>
+        {!isPastLog && (
           <button 
             type="submit" 
             disabled={isLoading}
@@ -904,8 +919,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           >
             {saveLogMutation.isPending ? "Saving..." : "Save Log Entry"}
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
         {/* Email Log Modal */}
         <EmailLogModal
