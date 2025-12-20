@@ -42,6 +42,7 @@ import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { format, subDays, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import {
   Calendar,
@@ -62,8 +63,11 @@ import {
   Wrench,
   Clock,
   AlertTriangle,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import type {
   MetricsResponse,
   ChartType,
@@ -216,6 +220,61 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch maintenance insights");
       return response.json();
+    },
+  });
+
+  // AI Overview state and queries
+  interface ClubSettings {
+    clubId: string;
+    aiOverviewEnabled: boolean;
+  }
+
+  interface AIOverviewResponse {
+    overview: string;
+    generatedAt: string;
+    dataRange?: { startDate: string; endDate: string };
+    logsAnalyzed?: number;
+    openMaintenanceItems?: number;
+  }
+
+  const [aiOverview, setAiOverview] = useState<AIOverviewResponse | null>(null);
+
+  const { data: clubSettings } = useQuery<ClubSettings>({
+    queryKey: ["/api/club-settings", clubId],
+    queryFn: async () => {
+      const url = buildApiUrl("/api/club-settings", clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch club settings");
+      return response.json();
+    },
+  });
+
+  const toggleAiMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const url = buildApiUrl("/api/club-settings", clubId, apiBaseUrl);
+      const response = await apiRequest("PATCH", url, { aiOverviewEnabled: enabled });
+      return response.json();
+    },
+    onSuccess: (_, enabled) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/club-settings", clubId] });
+      // Clear cached AI overview when disabling to force fresh fetch on re-enable
+      if (!enabled) {
+        setAiOverview(null);
+      }
+    },
+  });
+
+  const generateAiMutation = useMutation({
+    mutationFn: async () => {
+      const url = buildApiUrl("/api/ai-overview", clubId, apiBaseUrl);
+      const response = await apiRequest("POST", url, {
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setAiOverview(data);
     },
   });
 
@@ -511,6 +570,104 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
           </div>
         </CollapsibleSection>
       )}
+
+      {/* AI Overview Section - Optional Feature */}
+      <CollapsibleSection
+        id="aiOverview"
+        title="AI Overview"
+        icon={<Sparkles className="h-5 w-5" />}
+        defaultExpanded={true}
+      >
+        <div className="space-y-4">
+          {/* Enable/Disable Toggle */}
+          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Enable AI Analysis</p>
+              <p className="text-xs text-muted-foreground">
+                AI analysis uses credits. Enable only when needed.
+              </p>
+            </div>
+            <Switch
+              checked={clubSettings?.aiOverviewEnabled ?? false}
+              onCheckedChange={(checked) => toggleAiMutation.mutate(checked)}
+              disabled={toggleAiMutation.isPending}
+              data-testid="switch-ai-enabled"
+            />
+          </div>
+
+          {/* AI Overview Content */}
+          {clubSettings?.aiOverviewEnabled ? (
+            <div className="space-y-4">
+              {/* Generate Button */}
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => generateAiMutation.mutate()}
+                  disabled={generateAiMutation.isPending}
+                  className="gap-2"
+                  data-testid="button-generate-ai"
+                >
+                  {generateAiMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Generate AI Overview
+                    </>
+                  )}
+                </Button>
+                {aiOverview && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => generateAiMutation.mutate()}
+                    disabled={generateAiMutation.isPending}
+                    data-testid="button-refresh-ai"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* AI Response */}
+              {aiOverview && (
+                <Card className="border-primary/20 bg-primary/5">
+                  <CardContent className="pt-4">
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <p className="whitespace-pre-wrap" data-testid="text-ai-overview">
+                        {aiOverview.overview}
+                      </p>
+                    </div>
+                    <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+                      {aiOverview.logsAnalyzed !== undefined && (
+                        <span>{aiOverview.logsAnalyzed} days analyzed</span>
+                      )}
+                      {aiOverview.openMaintenanceItems !== undefined && (
+                        <span>{aiOverview.openMaintenanceItems} open maintenance items</span>
+                      )}
+                      <span>
+                        Generated: {format(parseISO(aiOverview.generatedAt), "MMM d, h:mm a")}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {!aiOverview && !generateAiMutation.isPending && (
+                <p className="text-sm text-muted-foreground">
+                  Click &quot;Generate AI Overview&quot; to get AI-powered insights for the selected date range.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Enable AI analysis above to generate intelligent insights about your sales trends and operational data.
+            </p>
+          )}
+        </div>
+      </CollapsibleSection>
 
       <Card>
         <CardHeader className="pb-3">

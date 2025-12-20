@@ -38,6 +38,7 @@ export const clubs = pgTable("clubs", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   prepChecklistNotificationListId: integer("prep_checklist_notification_list_id"),
+  aiOverviewEnabled: boolean("ai_overview_enabled").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

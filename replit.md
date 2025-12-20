@@ -118,6 +118,7 @@ The UI features a dark header with a teal background, leveraging `shadcn/ui` com
 - **Email Notifications**: Managers can send professional HTML emails with log summaries to specified recipients via the "Email Log" button. The system supports configurable notification lists and sends to multiple recipients. **Email Content Settings**: Users can customize which sections are included in emails via presets (Full Log, Ops Only, Maintenance Only, Sales Only) or individual toggles for: Header (date/manager), Weather, Sales, Drawing, Operational Notes, Maintenance Notes, Maintenance List, and Photos.
 - **Escalation Rules / Smart Automations**: Allows configuration of automated notifications based on triggers using preset-based models (e.g., Maintenance Alerts, Sales Drop Warning).
 - **Tomorrow's Prep Checklist**: Manages daily prep tasks with rollover tracking and status updates.
+- **AI Overview (Optional)**: AI-powered analysis of sales and maintenance data on the Insights page. **Cost Control**: This feature is disabled by default and can be enabled/disabled per club via a toggle. When enabled, users can click "Generate AI Overview" to receive AI-generated insights for the selected date range. Uses Replit AI Integrations (OpenAI) - usage is charged to Replit credits. The AI analyzes sales trends, identifies patterns, and provides actionable recommendations.
 
 ## External Dependencies
 

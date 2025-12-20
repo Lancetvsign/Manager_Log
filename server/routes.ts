@@ -22,7 +22,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems, runningMaintenanceList, runningMaintenanceSnapshots, emailSettings } from "@shared/schema";
+import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems, runningMaintenanceList, runningMaintenanceSnapshots, emailSettings, clubs } from "@shared/schema";
+import OpenAI from "openai";
 import { db } from "./db";
 import { eq, desc, and, count, asc, gte, lte, sql, or, isNull, isNotNull } from "drizzle-orm";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
@@ -2521,6 +2522,234 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error verifying embed signature:", error);
       res.status(500).json({ error: "Failed to verify embed signature" });
+    }
+  });
+
+  // ========================================
+  // AI OVERVIEW ENDPOINTS
+  // ========================================
+
+  // Initialize OpenAI client for AI Overview feature
+  const openai = new OpenAI({
+    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  });
+
+  // GET /api/club-settings - Get club settings including AI overview toggle
+  app.get("/api/club-settings", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      
+      const [club] = await db
+        .select()
+        .from(clubs)
+        .where(eq(clubs.id, clubId))
+        .limit(1);
+      
+      if (!club) {
+        // Return default settings if club doesn't exist yet
+        return res.json({
+          clubId,
+          aiOverviewEnabled: false
+        });
+      }
+      
+      res.json({
+        clubId: club.id,
+        aiOverviewEnabled: club.aiOverviewEnabled
+      });
+    } catch (error) {
+      console.error("Error fetching club settings:", error);
+      res.status(500).json({ error: "Failed to fetch club settings" });
+    }
+  });
+
+  // Zod schema for club settings update
+  const updateClubSettingsSchema = z.object({
+    aiOverviewEnabled: z.boolean().optional(),
+  });
+
+  // PATCH /api/club-settings - Update club settings (e.g., toggle AI overview)
+  app.patch("/api/club-settings", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      
+      // Validate request body
+      const parseResult = updateClubSettingsSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid request body",
+          details: parseResult.error.errors 
+        });
+      }
+      
+      const { aiOverviewEnabled } = parseResult.data;
+      
+      // Check if club exists
+      const [existingClub] = await db
+        .select()
+        .from(clubs)
+        .where(eq(clubs.id, clubId))
+        .limit(1);
+      
+      if (!existingClub) {
+        // Create club with settings
+        const [newClub] = await db
+          .insert(clubs)
+          .values({
+            id: clubId,
+            name: `Club ${clubId}`,
+            aiOverviewEnabled: aiOverviewEnabled ?? false
+          })
+          .returning();
+        
+        return res.json({
+          clubId: newClub.id,
+          aiOverviewEnabled: newClub.aiOverviewEnabled
+        });
+      }
+      
+      // Update existing club
+      const [updatedClub] = await db
+        .update(clubs)
+        .set({
+          aiOverviewEnabled: aiOverviewEnabled ?? existingClub.aiOverviewEnabled,
+          updatedAt: new Date()
+        })
+        .where(eq(clubs.id, clubId))
+        .returning();
+      
+      res.json({
+        clubId: updatedClub.id,
+        aiOverviewEnabled: updatedClub.aiOverviewEnabled
+      });
+    } catch (error) {
+      console.error("Error updating club settings:", error);
+      res.status(500).json({ error: "Failed to update club settings" });
+    }
+  });
+
+  // POST /api/ai-overview - Generate AI-powered insights analysis
+  app.post("/api/ai-overview", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const { startDate, endDate } = req.body;
+      
+      // Check if AI is enabled for this club
+      const [club] = await db
+        .select()
+        .from(clubs)
+        .where(eq(clubs.id, clubId))
+        .limit(1);
+      
+      if (!club?.aiOverviewEnabled) {
+        return res.status(403).json({ 
+          error: "AI Overview is not enabled for this club",
+          enabled: false 
+        });
+      }
+      
+      // Fetch logs for the date range
+      const logs = await db
+        .select()
+        .from(managerLogs)
+        .where(
+          and(
+            eq(managerLogs.clubId, clubId),
+            gte(managerLogs.logDate, startDate),
+            lte(managerLogs.logDate, endDate)
+          )
+        )
+        .orderBy(asc(managerLogs.logDate));
+      
+      // Fetch open maintenance items
+      const maintenance = await db
+        .select()
+        .from(runningMaintenanceList)
+        .where(
+          and(
+            eq(runningMaintenanceList.clubId, clubId),
+            eq(runningMaintenanceList.status, "open")
+          )
+        )
+        .orderBy(asc(runningMaintenanceList.dateAdded));
+      
+      if (logs.length === 0) {
+        return res.json({
+          overview: "No data available for the selected date range. Start logging daily entries to receive AI-powered insights.",
+          generatedAt: new Date().toISOString()
+        });
+      }
+      
+      // Prepare data summary for AI
+      const salesSummary = logs.map(log => ({
+        date: log.logDate,
+        day: log.dayOfWeek,
+        food: parseFloat(log.foodSales || "0"),
+        bar: parseFloat(log.barSales || "0"),
+        gaming: parseFloat(log.gamingSales || "0"),
+        total: parseFloat(log.totalSales || "0"),
+        notes: log.salesNotes || log.dailyNotes
+      }));
+      
+      const totalFood = salesSummary.reduce((sum, d) => sum + d.food, 0);
+      const totalBar = salesSummary.reduce((sum, d) => sum + d.bar, 0);
+      const totalGaming = salesSummary.reduce((sum, d) => sum + d.gaming, 0);
+      const grandTotal = salesSummary.reduce((sum, d) => sum + d.total, 0);
+      const avgDaily = grandTotal / logs.length;
+      
+      const maintenanceList = maintenance.map(m => ({
+        title: m.title,
+        priority: m.priority,
+        daysOpen: Math.floor((Date.now() - new Date(m.dateAdded || Date.now()).getTime()) / (1000 * 60 * 60 * 24))
+      }));
+      
+      // Generate AI overview
+      const prompt = `You are an expert restaurant operations analyst. Analyze this data and provide a brief, actionable overview (2-3 paragraphs max).
+
+DATA SUMMARY (${startDate} to ${endDate}):
+- Days logged: ${logs.length}
+- Total Sales: $${grandTotal.toLocaleString()}
+- Average Daily Sales: $${avgDaily.toFixed(0)}
+- Food Sales: $${totalFood.toLocaleString()} (${((totalFood/grandTotal)*100).toFixed(1)}%)
+- Bar Sales: $${totalBar.toLocaleString()} (${((totalBar/grandTotal)*100).toFixed(1)}%)
+- Gaming Sales: $${totalGaming.toLocaleString()} (${((totalGaming/grandTotal)*100).toFixed(1)}%)
+
+Daily breakdown:
+${salesSummary.slice(-7).map(d => `${d.date} (${d.day}): $${d.total.toLocaleString()}${d.notes ? ` - "${d.notes.slice(0,50)}..."` : ''}`).join('\n')}
+
+Open Maintenance Items (${maintenanceList.length}):
+${maintenanceList.slice(0, 5).map(m => `- ${m.title} (${m.priority} priority, ${m.daysOpen} days open)`).join('\n') || 'None'}
+
+Provide:
+1. Key performance observations (trends, strong/weak days)
+2. Actionable recommendations
+3. Any concerns that need attention
+
+Keep the tone professional but friendly. Focus on actionable insights.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: "You are a helpful restaurant operations analyst. Be concise and actionable." },
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 500,
+        temperature: 0.7
+      });
+      
+      const overview = completion.choices[0]?.message?.content || "Unable to generate overview. Please try again.";
+      
+      res.json({
+        overview,
+        generatedAt: new Date().toISOString(),
+        dataRange: { startDate, endDate },
+        logsAnalyzed: logs.length,
+        openMaintenanceItems: maintenanceList.length
+      });
+    } catch (error) {
+      console.error("Error generating AI overview:", error);
+      res.status(500).json({ error: "Failed to generate AI overview" });
     }
   });
 
