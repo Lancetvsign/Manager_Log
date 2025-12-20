@@ -1608,7 +1608,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
    *   listIds: number[],        // Notification list IDs
    *   subject?: string,         // Custom subject line
    *   message?: string,         // Additional message
-   *   clubId?: string           // Club ID for data isolation
+   *   clubId?: string,          // Club ID for data isolation
+   *   contentSettings?: object  // Optional toggles for email sections
    * }
    */
   app.post("/api/logs/:logId/notify", async (req, res) => {
@@ -1619,7 +1620,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         listIds: z.array(z.number()).min(1),
         subject: z.string().optional(),
         message: z.string().optional(),
-        clubId: z.string().default(DEFAULT_CLUB_ID)
+        clubId: z.string().default(DEFAULT_CLUB_ID),
+        contentSettings: z.object({
+          includeHeader: z.boolean().default(true),
+          includeWeather: z.boolean().default(true),
+          includeSales: z.boolean().default(true),
+          includeDrawing: z.boolean().default(true),
+          includeOperationalNotes: z.boolean().default(true),
+          includeMaintenanceNotes: z.boolean().default(true),
+          includeMaintenanceList: z.boolean().default(true),
+          includePhotos: z.boolean().default(true),
+        }).optional()
       });
 
       const parsed = schema.safeParse(req.body);
@@ -1630,7 +1641,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { reason, listIds, subject, message, clubId } = parsed.data;
+      const { reason, listIds, subject, message, clubId, contentSettings } = parsed.data;
+
+      // Use provided content settings or defaults
+      const settings = contentSettings || {
+        includeHeader: true,
+        includeWeather: true,
+        includeSales: true,
+        includeDrawing: true,
+        includeOperationalNotes: true,
+        includeMaintenanceNotes: true,
+        includeMaintenanceList: true,
+        includePhotos: true,
+      };
 
       // Check rate limit
       const rateLimit = checkEmailRateLimit(clubId);
@@ -1651,6 +1674,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch attachments for this log
       const attachments = await storage.getLogAttachmentsByLogId(logId, clubId);
 
+      // Fetch note photos if needed
+      let notePhotos: any[] = [];
+      if (settings.includePhotos) {
+        notePhotos = await storage.getNotePhotosByLogId(logId, clubId);
+      }
+
+      // Fetch running maintenance list if needed
+      let runningMaintenance: any[] = [];
+      if (settings.includeMaintenanceList) {
+        runningMaintenance = await db
+          .select()
+          .from(runningMaintenanceList)
+          .where(
+            and(
+              eq(runningMaintenanceList.clubId, clubId),
+              eq(runningMaintenanceList.status, "open")
+            )
+          )
+          .orderBy(asc(runningMaintenanceList.dateAdded));
+      }
+
       // Fetch lists from database
       const allLists = await getNotificationLists(clubId);
       const selectedLists = allLists.filter(l => listIds.includes(l.id));
@@ -1669,10 +1713,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Build log URL
       const logUrl = `${req.protocol}://${req.get("host")}/logs/${log.id}`;
 
-      // Build attachments HTML section
-      let attachmentsHtml = "";
+      // Build comprehensive HTML body based on content settings
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      let htmlSections: string[] = [];
+
+      // Header section (date, day, manager)
+      if (settings.includeHeader) {
+        const dayOfWeek = log.dayOfWeek || new Date(log.logDate).toLocaleDateString('en-US', { weekday: 'long' });
+        htmlSections.push(`
+          <div style="margin-bottom:16px;">
+            <p style="margin:0;"><strong>Date:</strong> ${log.logDate} (${dayOfWeek})</p>
+            <p style="margin:0;"><strong>Manager:</strong> ${log.managerName || 'Not specified'}</p>
+          </div>
+        `);
+      }
+
+      // Weather section
+      if (settings.includeWeather && (log.weatherTemp !== null || log.weatherCondition)) {
+        htmlSections.push(`
+          <div style="margin-bottom:16px;">
+            <h4 style="margin:0 0 8px 0;color:#666;">Weather</h4>
+            <p style="margin:0;">${log.weatherTemp !== null ? `${log.weatherTemp}°F` : ''} ${log.weatherCondition || ''}</p>
+          </div>
+        `);
+      }
+
+      // Sales section
+      if (settings.includeSales) {
+        const foodSales = log.foodSales || 0;
+        const barSales = log.barSales || 0;
+        const gamingSales = log.gamingSales || 0;
+        const totalSales = log.totalSales || 0;
+        htmlSections.push(`
+          <div style="margin-bottom:16px;">
+            <h4 style="margin:0 0 8px 0;color:#666;">Sales</h4>
+            <table style="border-collapse:collapse;">
+              <tr><td style="padding:2px 12px 2px 0;">Food:</td><td style="text-align:right;">$${foodSales.toLocaleString()}</td></tr>
+              <tr><td style="padding:2px 12px 2px 0;">Bar:</td><td style="text-align:right;">$${barSales.toLocaleString()}</td></tr>
+              <tr><td style="padding:2px 12px 2px 0;">Gaming:</td><td style="text-align:right;">$${gamingSales.toLocaleString()}</td></tr>
+              <tr style="font-weight:bold;"><td style="padding:2px 12px 2px 0;border-top:1px solid #ccc;">Total:</td><td style="text-align:right;border-top:1px solid #ccc;">$${totalSales.toLocaleString()}</td></tr>
+            </table>
+          </div>
+        `);
+      }
+
+      // Drawing section
+      if (settings.includeDrawing && (log.dailyDrawing || log.weeklyDrawing)) {
+        htmlSections.push(`
+          <div style="margin-bottom:16px;">
+            <h4 style="margin:0 0 8px 0;color:#666;">Drawing</h4>
+            ${log.dailyDrawing ? `<p style="margin:0;">Daily: $${log.dailyDrawing.toLocaleString()}</p>` : ''}
+            ${log.weeklyDrawing ? `<p style="margin:0;">Weekly: $${log.weeklyDrawing.toLocaleString()}</p>` : ''}
+          </div>
+        `);
+      }
+
+      // Operational Notes section
+      if (settings.includeOperationalNotes && log.operationalNotes) {
+        htmlSections.push(`
+          <div style="margin-bottom:16px;">
+            <h4 style="margin:0 0 8px 0;color:#666;">Operational Notes</h4>
+            <p style="margin:0;white-space:pre-wrap;">${log.operationalNotes}</p>
+          </div>
+        `);
+      }
+
+      // Maintenance Notes section
+      if (settings.includeMaintenanceNotes && log.maintenanceNotes) {
+        htmlSections.push(`
+          <div style="margin-bottom:16px;">
+            <h4 style="margin:0 0 8px 0;color:#666;">Maintenance Notes</h4>
+            <p style="margin:0;white-space:pre-wrap;">${log.maintenanceNotes}</p>
+          </div>
+        `);
+      }
+
+      // Running Maintenance List section
+      if (settings.includeMaintenanceList && runningMaintenance.length > 0) {
+        const items = runningMaintenance.map(m => `<li>${m.title}${m.priority === 'high' ? ' <span style="color:red;">(High Priority)</span>' : ''}</li>`).join('');
+        htmlSections.push(`
+          <div style="margin-bottom:16px;">
+            <h4 style="margin:0 0 8px 0;color:#666;">Open Maintenance Items (${runningMaintenance.length})</h4>
+            <ul style="margin:0;padding-left:20px;">${items}</ul>
+          </div>
+        `);
+      }
+
+      // Photos section
+      if (settings.includePhotos && notePhotos.length > 0) {
+        const photoLinks = notePhotos.map(p => `<li><a href="${p.url}">${p.noteType === 'operational' ? 'Ops' : 'Maint'} Photo</a></li>`).join('');
+        htmlSections.push(`
+          <div style="margin-bottom:16px;">
+            <h4 style="margin:0 0 8px 0;color:#666;">Photos</h4>
+            <ul style="margin:0;padding-left:20px;">${photoLinks}</ul>
+          </div>
+        `);
+      }
+
+      // Attachments section (always included if present)
       if (attachments.length > 0) {
-        const baseUrl = `${req.protocol}://${req.get("host")}`;
         const links = attachments
           .map(
             (a) =>
@@ -1681,23 +1820,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
               )} KB)</li>`
           )
           .join("");
-
-        attachmentsHtml = `
-          <h4>Attachments</h4>
-          <ul>${links}</ul>
-        `;
+        htmlSections.push(`
+          <div style="margin-bottom:16px;">
+            <h4 style="margin:0 0 8px 0;color:#666;">Attachments</h4>
+            <ul style="margin:0;padding-left:20px;">${links}</ul>
+          </div>
+        `);
       }
 
-      // Build HTML body matching Social Club Pro pattern
+      // Additional message if provided
+      if (message) {
+        htmlSections.push(`
+          <div style="margin-bottom:16px;padding:12px;background:#f5f5f5;border-radius:4px;">
+            <p style="margin:0;white-space:pre-wrap;">${message}</p>
+          </div>
+        `);
+      }
+
+      // Build final HTML body
       const htmlBody = `
-        <p><strong>Reason:</strong> ${reason}</p>
-        <p><strong>Date:</strong> ${log.logDate}</p>
-        <p><strong>Manager:</strong> ${log.managerName || 'Not specified'}</p>
-        <p><strong>Total Sales:</strong> $${log.totalSales || 0}</p>
-        ${message ? `<p>${message.replace(/\n/g, '<br>')}</p>` : ''}
-        ${attachmentsHtml}
-        <hr />
-        <p>View this entry in the Manager's Log: <a href="${logUrl}">${logUrl}</a></p>
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+          ${htmlSections.join('')}
+          <hr style="border:none;border-top:1px solid #ddd;margin:20px 0;" />
+          <p style="margin:0;color:#666;font-size:14px;">View this entry in the Manager's Log: <a href="${logUrl}">${logUrl}</a></p>
+        </div>
       `;
 
       // Build subject if not provided
