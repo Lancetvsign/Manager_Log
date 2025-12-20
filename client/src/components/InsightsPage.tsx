@@ -856,6 +856,77 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
           </CollapsibleSection>
 
           <CollapsibleSection
+            id="weekdayAnalysis"
+            title="Weekday Analysis"
+            icon={<CalendarRange className="h-5 w-5" />}
+            defaultExpanded={true}
+          >
+            <WeekdaySalesChart
+              data={metrics.dailySales}
+              dateRange={dateRangeDisplay}
+              clubName={clubName}
+            />
+          </CollapsibleSection>
+
+          {metrics.topDays.length > 0 && (
+            <CollapsibleSection
+              id="topDays"
+              title="Top Performing Days"
+              icon={<TrendingUp className="h-5 w-5" />}
+              defaultExpanded={true}
+            >
+              <Card data-testid="card-top-days">
+                <CardContent className="pt-6">
+                  <div className="border rounded-lg divide-y">
+                    <div className="grid grid-cols-12 gap-2 p-3 bg-muted/50 text-sm font-medium">
+                      <div className="col-span-3">Date</div>
+                      <div className="col-span-2">Sales</div>
+                      <div className="col-span-5">Notes</div>
+                      <div className="col-span-2 text-right">Action</div>
+                    </div>
+                    {metrics.topDays.map((day, index) => (
+                      <div
+                        key={day.date}
+                        className="grid grid-cols-12 gap-2 p-3 items-center"
+                        data-testid={`row-topday-${index}`}
+                      >
+                        <div className="col-span-3">
+                          <p className="font-medium">
+                            {format(new Date(day.date + "T00:00:00"), "MMM d, yyyy")}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{day.dayOfWeek}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <Badge variant="secondary" className="font-mono">
+                            {formatCurrency(day.totalSales)}
+                          </Badge>
+                        </div>
+                        <div className="col-span-5 text-sm text-muted-foreground truncate">
+                          {day.narrativeSnippet || "No notes"}
+                        </div>
+                        <div className="col-span-2 text-right">
+                          {onViewLog && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onViewLog(day.logId, day.date)}
+                              className="gap-1"
+                              data-testid={`button-view-log-${index}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                              View
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </CollapsibleSection>
+          )}
+
+          <CollapsibleSection
             id="toDoInsights"
             title="Maintenance List Insights"
             icon={<PieChart className="h-5 w-5" />}
@@ -945,77 +1016,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               </Card>
             )}
           </CollapsibleSection>
-
-          <CollapsibleSection
-            id="weekdayAnalysis"
-            title="Weekday Analysis"
-            icon={<CalendarRange className="h-5 w-5" />}
-            defaultExpanded={true}
-          >
-            <WeekdaySalesChart
-              data={metrics.dailySales}
-              dateRange={dateRangeDisplay}
-              clubName={clubName}
-            />
-          </CollapsibleSection>
-
-          {metrics.topDays.length > 0 && (
-            <CollapsibleSection
-              id="topDays"
-              title="Top Performing Days"
-              icon={<TrendingUp className="h-5 w-5" />}
-              defaultExpanded={true}
-            >
-              <Card data-testid="card-top-days">
-                <CardContent className="pt-6">
-                  <div className="border rounded-lg divide-y">
-                    <div className="grid grid-cols-12 gap-2 p-3 bg-muted/50 text-sm font-medium">
-                      <div className="col-span-3">Date</div>
-                      <div className="col-span-2">Sales</div>
-                      <div className="col-span-5">Notes</div>
-                      <div className="col-span-2 text-right">Action</div>
-                    </div>
-                    {metrics.topDays.map((day, index) => (
-                      <div
-                        key={day.date}
-                        className="grid grid-cols-12 gap-2 p-3 items-center"
-                        data-testid={`row-topday-${index}`}
-                      >
-                        <div className="col-span-3">
-                          <p className="font-medium">
-                            {format(new Date(day.date + "T00:00:00"), "MMM d, yyyy")}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{day.dayOfWeek}</p>
-                        </div>
-                        <div className="col-span-2">
-                          <Badge variant="secondary" className="font-mono">
-                            {formatCurrency(day.totalSales)}
-                          </Badge>
-                        </div>
-                        <div className="col-span-5 text-sm text-muted-foreground truncate">
-                          {day.narrativeSnippet || "No notes"}
-                        </div>
-                        <div className="col-span-2 text-right">
-                          {onViewLog && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onViewLog(day.logId, day.date)}
-                              className="gap-1"
-                              data-testid={`button-view-log-${index}`}
-                            >
-                              <Eye className="h-4 w-4" />
-                              View
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </CollapsibleSection>
-          )}
         </>
       )}
     </div>
