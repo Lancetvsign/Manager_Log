@@ -48,6 +48,18 @@ interface MaintenanceSnapshotItem {
   photoUrl: string | null;
 }
 
+interface RunningMaintenanceItem {
+  id: number;
+  clubId: string;
+  title: string;
+  description: string | null;
+  status: string;
+  dateAdded: string;
+  dateCompleted: string | null;
+  createdBy: string | null;
+  relatedLogDate: string | null;
+}
+
 type DateRangeFilter = "all" | "7days" | "30days" | "specific";
 
 interface ManagerLogListProps {
@@ -89,6 +101,21 @@ export default function ManagerLogList({
       return response.json();
     },
     enabled: !!selectedLog?.id,
+  });
+
+  // Fetch running maintenance items for the selected log's date (with daily reset behavior)
+  const { data: runningMaintenanceByDate, isLoading: isLoadingRunningMaintenance } = useQuery<RunningMaintenanceItem[]>({
+    queryKey: ['/api/running-maintenance/by-date', selectedLog?.logDate, clubId],
+    queryFn: async () => {
+      if (!selectedLog?.logDate) return [];
+      const url = buildApiUrl(`/api/running-maintenance/by-date/${selectedLog.logDate}`, clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch running maintenance for date');
+      }
+      return response.json();
+    },
+    enabled: !!selectedLog?.logDate,
   });
 
   const { data: specificDateLog, isLoading: isLoadingSpecificDate } = useQuery<ManagerLog>({
@@ -311,21 +338,62 @@ export default function ManagerLogList({
           </CardContent>
         </Card>
 
-        {/* Running Maintenance List (snapshot of open items at log save time) */}
+        {/* Running Maintenance List (items as of this date with daily reset behavior) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wrench className="h-5 w-5" />
               Running Maintenance List
+              {runningMaintenanceByDate && runningMaintenanceByDate.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {runningMaintenanceByDate.filter(i => i.status === "open").length} Open
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <MaintenanceItemsTable
-              items={snapshotItems || []}
-              isLoading={isLoadingSnapshot}
-              showDateAdded={true}
-              emptyMessage="No maintenance items were recorded for this date."
-            />
+            {isLoadingRunningMaintenance ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : runningMaintenanceByDate && runningMaintenanceByDate.length > 0 ? (
+              <div className="space-y-2">
+                {runningMaintenanceByDate.map((item) => (
+                  <div 
+                    key={item.id} 
+                    className={`p-3 rounded-lg border ${
+                      item.status === "completed" 
+                        ? "bg-muted/50 border-muted line-through opacity-60" 
+                        : "bg-card"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium">{item.title}</div>
+                        {item.description && (
+                          <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                        )}
+                      </div>
+                      <Badge variant={item.status === "open" ? "default" : "secondary"}>
+                        {item.status === "open" ? "Open" : "Completed"}
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-2">
+                      Added: {format(new Date(item.dateAdded), "MMM d, yyyy")}
+                      {item.dateCompleted && (
+                        <span className="ml-2">
+                          | Completed: {format(new Date(item.dateCompleted), "MMM d, yyyy")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No maintenance items were recorded for this date.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

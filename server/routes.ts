@@ -999,12 +999,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startDateStr = startDate as string;
       const endDateStr = endDate as string;
 
-      // Fetch logs and to-do items for the date range
+      // Fetch logs for the date range
       const logs = await storage.getManagerLogsByDateRange(startDateStr, endDateStr, clubId);
-      const toDoItems = await storage.getAllMaintenanceItems(clubId, {
-        startDate: startDateStr,
-        endDate: endDateStr
-      });
+      
+      // Fetch ALL running maintenance items to calculate proper counts
+      const allRunningItems = await storage.getRunningMaintenanceItems(clubId);
+      
+      // Count open items (currently open)
+      const openToDo = allRunningItems.filter(item => item.status === "open").length;
+      
+      // Count items completed within the date range (based on dateCompleted)
+      const startDateObj = new Date(startDateStr);
+      const endDateObj = new Date(endDateStr);
+      endDateObj.setHours(23, 59, 59, 999); // Include the full end day
+      
+      const completedToDo = allRunningItems.filter(item => {
+        if (item.status !== "completed" || !item.dateCompleted) return false;
+        const completedDate = new Date(item.dateCompleted);
+        return completedDate >= startDateObj && completedDate <= endDateObj;
+      }).length;
 
       // Calculate summary metrics
       const daysWithLogs = logs.length;
@@ -1012,10 +1025,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return sum + (parseFloat(log.totalSales || "0") || 0);
       }, 0);
       const averageDailySales = daysWithLogs > 0 ? totalSales / daysWithLogs : 0;
-      
-      // Count to-do items by status
-      const openToDo = toDoItems.filter(item => item.status === "open").length;
-      const completedToDo = toDoItems.filter(item => item.status === "completed").length;
 
       const summary: MetricsSummary = {
         daysWithLogs,
@@ -2412,6 +2421,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting running maintenance item:", error);
       res.status(500).json({ error: "Failed to delete maintenance item" });
+    }
+  });
+
+  /**
+   * GET /api/running-maintenance/by-date/:date
+   * Returns running maintenance items as they were on a specific date.
+   * Implements "daily reset" behavior:
+   * - Shows all items that were open on/before that date
+   * - Shows items completed ON that specific date (with completed status)
+   * Used in Log History view to show accurate historical maintenance state.
+   */
+  app.get("/api/running-maintenance/by-date/:date", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const dateStr = req.params.date; // YYYY-MM-DD format
+      
+      if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD" });
+      }
+      
+      const targetDate = new Date(dateStr);
+      const targetDateEnd = new Date(dateStr);
+      targetDateEnd.setHours(23, 59, 59, 999);
+      
+      // Get all running maintenance items for this club
+      const allItems = await db
+        .select()
+        .from(runningMaintenanceList)
+        .where(eq(runningMaintenanceList.clubId, clubId))
+        .orderBy(asc(runningMaintenanceList.dateAdded));
+      
+      // Filter items based on "daily reset" logic:
+      // 1. Items that were open (added before or on target date AND not completed before target date)
+      // 2. Items completed ON the target date (show as completed)
+      const result = allItems.filter(item => {
+        const addedDate = new Date(item.dateAdded);
+        
+        // Item must have been added on or before the target date
+        if (addedDate > targetDateEnd) return false;
+        
+        if (item.status === "open") {
+          // Open items - show if they existed by that date
+          return true;
+        } else if (item.status === "completed" && item.dateCompleted) {
+          const completedDate = new Date(item.dateCompleted);
+          // Show completed items only if they were completed on the target date
+          // or if they were still open on that date (completed after)
+          const completedDateStr = completedDate.toISOString().split('T')[0];
+          if (completedDateStr === dateStr) {
+            // Completed on this exact day - show it
+            return true;
+          }
+          // If completed AFTER the target date, show as "open" (it was open on target date)
+          if (completedDate > targetDateEnd) {
+            return true;
+          }
+          // Completed before target date - don't show (hidden per daily reset)
+          return false;
+        }
+        
+        return false;
+      }).map(item => {
+        // For items completed after the target date, show them as "open" for historical accuracy
+        if (item.status === "completed" && item.dateCompleted) {
+          const completedDate = new Date(item.dateCompleted);
+          const completedDateStr = completedDate.toISOString().split('T')[0];
+          if (completedDateStr !== dateStr && completedDate > targetDateEnd) {
+            return { ...item, status: "open", dateCompleted: null };
+          }
+        }
+        return item;
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching running maintenance by date:", error);
+      res.status(500).json({ error: "Failed to fetch maintenance items" });
     }
   });
 
