@@ -765,7 +765,6 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
                 Email Log
               </Button>
               <div className="flex-1">
-                <h4 className="text-sm font-medium mb-3">Photos</h4>
                 <NotePhotos
                   logId={existingLogId}
                   noteType="operational"
