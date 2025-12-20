@@ -705,6 +705,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         onSalesChange={handleSalesChange}
         showComparison={true}
         disabled={isPastLog}
+        comparisonDate={format(comparisonDate, 'EEEE, MMM d, yyyy')}
       />
 
 

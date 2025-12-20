@@ -25,6 +25,7 @@ interface SalesInputProps {
   onSalesChange: (field: string, value: string) => void;
   showComparison?: boolean;
   disabled?: boolean;
+  comparisonDate?: string;
 }
 
 const calculateChange = (current: string, lastYear: string) => {
@@ -51,7 +52,7 @@ const getTrendIcon = (trend: string) => {
   }
 };
 
-export default function SalesInput({ title, salesData, onSalesChange, showComparison = true, disabled = false }: SalesInputProps) {
+export default function SalesInput({ title, salesData, onSalesChange, showComparison = true, disabled = false, comparisonDate }: SalesInputProps) {
   const [compareToLastYear, setCompareToLastYear] = useState(false);
 
   const foodChange = calculateChange(salesData.current.food, salesData.lastYear.food);
@@ -77,8 +78,8 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
     <Card data-testid="card-sales">
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-lg">{title}</CardTitle>
-        {showComparison && hasLastYearData && (
-          <div className="flex items-center gap-2">
+        {showComparison && (
+          <div className="flex items-center gap-2 flex-wrap">
             <Label htmlFor="compare-toggle" className="text-sm text-muted-foreground cursor-pointer">
               Compare to last year
             </Label>
@@ -86,8 +87,19 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
               id="compare-toggle"
               checked={compareToLastYear}
               onCheckedChange={setCompareToLastYear}
+              disabled={!hasLastYearData}
               data-testid="switch-compare-last-year"
             />
+            {compareToLastYear && hasLastYearData && comparisonDate && (
+              <span className="text-xs text-muted-foreground">
+                (vs. {comparisonDate})
+              </span>
+            )}
+            {!hasLastYearData && (
+              <span className="text-xs text-muted-foreground">
+                No data for comparison
+              </span>
+            )}
           </div>
         )}
       </CardHeader>
