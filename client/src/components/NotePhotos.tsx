@@ -149,7 +149,6 @@ export function NotePhotos({ logId, noteType, disabled, currentDate, onLogCreate
         <Button
           type="button"
           variant="outline"
-          size="sm"
           onClick={() => fileInputRef.current?.click()}
           disabled={!canUpload || uploading}
           data-testid={`button-add-photo-${noteType}`}
