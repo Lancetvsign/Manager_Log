@@ -762,7 +762,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
                 data-testid="button-email-log-operational"
               >
                 <Mail className="h-4 w-4 mr-2" />
-                Email Log
+                Email Team
               </Button>
               <div className="flex-1">
                 <NotePhotos
@@ -921,7 +921,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           data-testid="button-email-log"
         >
           <Mail className="h-4 w-4 mr-2" />
-          Email Log
+          Email Team
         </Button>
         {!isPastLog && (
           <button 
@@ -935,7 +935,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         )}
       </div>
 
-        {/* Email Log Modal */}
+        {/* Email Team Modal */}
         <EmailLogModal
           open={showEmailModal}
           onOpenChange={setShowEmailModal}
