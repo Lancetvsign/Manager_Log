@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -539,12 +537,6 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     });
   };
 
-  const handleDateChange = (newDate: Date | undefined) => {
-    if (newDate) {
-      setDate(newDate);
-    }
-  };
-
   const isLoading = saveLogMutation.isPending || isLoadingWeather || isLoadingLog;
 
   return (
@@ -575,28 +567,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           {/* Column 1: Date */}
           <div className="h-[164px] rounded-xl border border-border bg-card p-4">
             <div className="flex h-full flex-col">
-              <div className="flex items-center justify-between">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Date</div>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="text-xs font-medium text-primary hover:text-primary/80"
-                      data-testid="button-date-picker"
-                    >
-                      Change Date
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={handleDateChange}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Date</div>
 
               <div className="mt-3 h-[107px] rounded-xl border border-border/10 bg-muted/30 px-4">
                 <div className="flex h-full items-center gap-4">
