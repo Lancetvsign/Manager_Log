@@ -1317,22 +1317,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     // Upsert: insert or update on conflict
+    // Deprecated fields are set to their fixed values (header/sales/drawing always true, weather/photos managed via notes)
     await db
       .insert(emailSettings)
       .values({
         clubId,
+        includeHeader: true,
+        includeWeather: false,
+        includeSales: true,
+        includeDrawing: true,
         includeOperationalNotes: includeOperationalNotes ?? true,
         includeMaintenanceNotes: includeMaintenanceNotes ?? true,
         includeMaintenanceList: includeMaintenanceList ?? true,
+        includePhotos: true,
         listDefaults: listDefaults || {},
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: emailSettings.clubId,
         set: {
+          includeHeader: true,
+          includeWeather: false,
+          includeSales: true,
+          includeDrawing: true,
           includeOperationalNotes: includeOperationalNotes ?? true,
           includeMaintenanceNotes: includeMaintenanceNotes ?? true,
           includeMaintenanceList: includeMaintenanceList ?? true,
+          includePhotos: true,
           listDefaults: listDefaults || {},
           updatedAt: new Date(),
         },
