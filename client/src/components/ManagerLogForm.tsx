@@ -468,9 +468,13 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       return;
     }
     
+    // Determine primary manager name (first non-empty value)
+    const primaryManager = amManagerName.trim() || pmManagerName.trim() || kitchenManagerName.trim();
+    
     const logData = {
       logDate: dateString,
       dayOfWeek: getDayOfWeek(date),
+      managerName: primaryManager, // Required field - primary manager for the day
       amManagerName: amManagerName.trim() || null,
       pmManagerName: pmManagerName.trim() || null,
       kitchenManagerName: kitchenManagerName.trim() || null,
