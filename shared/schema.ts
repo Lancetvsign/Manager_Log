@@ -576,6 +576,9 @@ export const insertManagerLogSchema = createInsertSchema(managerLogs).omit({
   totalSales: z.string().optional().nullable(),
   dailyNumber: z.string().optional().nullable(),
   weeklyNumber: z.string().optional().nullable(),
+  // Weather fields - explicitly included for proper validation
+  weather: z.string().optional().nullable(),
+  weatherLastYear: z.string().optional().nullable(),
 });
 
 // MaintenanceItem insert schema with status validation
