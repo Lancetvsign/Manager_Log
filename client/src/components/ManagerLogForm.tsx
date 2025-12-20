@@ -753,14 +753,28 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
             data-testid="textarea-sales-notes"
           />
           <div className="border-t pt-4">
-            <h4 className="text-sm font-medium mb-3">Photos</h4>
-            <NotePhotos
-              logId={existingLogId}
-              noteType="operational"
-              disabled={isPastLog}
-              currentDate={dateString}
-              onLogCreated={(id) => setExistingLogId(id)}
-            />
+            <div className="flex items-start gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowEmailModal(true)}
+                className="bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-white dark:text-gray-700 dark:border-gray-300 dark:hover:bg-gray-100"
+                data-testid="button-email-log-operational"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Email Log
+              </Button>
+              <div className="flex-1">
+                <h4 className="text-sm font-medium mb-3">Photos</h4>
+                <NotePhotos
+                  logId={existingLogId}
+                  noteType="operational"
+                  disabled={isPastLog}
+                  currentDate={dateString}
+                  onLogCreated={(id) => setExistingLogId(id)}
+                />
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -903,8 +917,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       <div className="flex justify-end gap-3 mt-4">
         <Button
           type="button"
-          variant="outline"
           onClick={() => setShowEmailModal(true)}
+          className="bg-teal-600 text-white hover:bg-teal-700"
           data-testid="button-email-log"
         >
           <Mail className="h-4 w-4 mr-2" />
