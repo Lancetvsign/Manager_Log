@@ -3,8 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TrendingUp, TrendingDown, Minus, GitCompare } from "lucide-react";
+
+export type ComparisonPeriod = "none" | "last_year";
+
+const COMPARISON_OPTIONS = [
+  { value: "none", label: "No Comparison" },
+  { value: "last_year", label: "Same Day Last Year" },
+] as const;
 
 interface SalesData {
   current: {
@@ -52,8 +59,16 @@ const getTrendIcon = (trend: string) => {
   }
 };
 
-export default function SalesInput({ title, salesData, onSalesChange, showComparison = true, disabled = false, comparisonDate }: SalesInputProps) {
-  const [compareToLastYear, setCompareToLastYear] = useState(false);
+export default function SalesInput({ 
+  title, 
+  salesData, 
+  onSalesChange, 
+  showComparison = true, 
+  disabled = false, 
+  comparisonDate
+}: SalesInputProps) {
+  const [comparisonPeriod, setComparisonPeriod] = useState<ComparisonPeriod>("none");
+  const showComparisonData = comparisonPeriod !== "none";
 
   const foodChange = calculateChange(salesData.current.food, salesData.lastYear.food);
   const barChange = calculateChange(salesData.current.bar, salesData.lastYear.bar);
@@ -72,32 +87,39 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
   const difference = currentTotal - lastYearTotal;
   const diffPercentage = lastYearTotal !== 0 ? (difference / lastYearTotal) * 100 : 0;
 
-  const hasLastYearData = lastYearTotal > 0;
+  const hasComparisonData = lastYearTotal > 0;
 
   return (
     <Card data-testid="card-sales">
-      <CardHeader className="flex flex-row items-center justify-between gap-2">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
         <CardTitle className="text-lg">{title}</CardTitle>
         {showComparison && (
           <div className="flex items-center gap-2 flex-wrap">
-            <Label htmlFor="compare-toggle" className="text-sm text-muted-foreground cursor-pointer">
-              Compare to last year
-            </Label>
-            <Switch
-              id="compare-toggle"
-              checked={compareToLastYear}
-              onCheckedChange={setCompareToLastYear}
-              disabled={!hasLastYearData}
-              data-testid="switch-compare-last-year"
-            />
-            {compareToLastYear && hasLastYearData && comparisonDate && (
+            <div className="flex items-center gap-1.5">
+              <GitCompare className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground hidden sm:inline">Compare:</span>
+            </div>
+            <Select
+              value={comparisonPeriod}
+              onValueChange={(value) => setComparisonPeriod(value as ComparisonPeriod)}
+            >
+              <SelectTrigger 
+                className="w-[160px] h-8 text-xs bg-primary/10 border-primary/30 focus:ring-primary"
+                data-testid="select-comparison-period"
+              >
+                <SelectValue placeholder="Select period" />
+              </SelectTrigger>
+              <SelectContent>
+                {COMPARISON_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {showComparisonData && comparisonDate && (
               <span className="text-xs text-muted-foreground">
                 (vs. {comparisonDate})
-              </span>
-            )}
-            {!hasLastYearData && (
-              <span className="text-xs text-muted-foreground">
-                No data for comparison
               </span>
             )}
           </div>
@@ -119,9 +141,9 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
               disabled={disabled}
               data-testid="input-food-sales"
             />
-            {compareToLastYear && salesData.lastYear.food && (
+            {showComparisonData && hasComparisonData && salesData.lastYear.food && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Last year: ${salesData.lastYear.food}</span>
+                <span>Comparison: ${salesData.lastYear.food}</span>
                 <Badge variant="outline" className="flex items-center space-x-1">
                   {getTrendIcon(foodChange.trend)}
                   <span data-testid="text-food-change">{foodChange.percentage.toFixed(1)}%</span>
@@ -144,9 +166,9 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
               disabled={disabled}
               data-testid="input-bar-sales"
             />
-            {compareToLastYear && salesData.lastYear.bar && (
+            {showComparisonData && hasComparisonData && salesData.lastYear.bar && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Last year: ${salesData.lastYear.bar}</span>
+                <span>Comparison: ${salesData.lastYear.bar}</span>
                 <Badge variant="outline" className="flex items-center space-x-1">
                   {getTrendIcon(barChange.trend)}
                   <span data-testid="text-bar-change">{barChange.percentage.toFixed(1)}%</span>
@@ -169,9 +191,9 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
               disabled={disabled}
               data-testid="input-gaming-sales"
             />
-            {compareToLastYear && salesData.lastYear.gaming && (
+            {showComparisonData && hasComparisonData && salesData.lastYear.gaming && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Last year: ${salesData.lastYear.gaming}</span>
+                <span>Comparison: ${salesData.lastYear.gaming}</span>
                 <Badge variant="outline" className="flex items-center space-x-1">
                   {getTrendIcon(gamingChange.trend)}
                   <span data-testid="text-gaming-change">{gamingChange.percentage.toFixed(1)}%</span>
@@ -190,12 +212,12 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
             </span>
           </div>
 
-          {/* Last year comparison - only when toggle is ON */}
-          {compareToLastYear && hasLastYearData && (
+          {/* Comparison totals - only when comparison is selected */}
+          {showComparisonData && hasComparisonData && (
             <>
               <div className="flex justify-between items-center text-sm text-muted-foreground">
-                <span>Last Year Total:</span>
-                <span data-testid="text-last-year-total">${lastYearTotal.toFixed(2)}</span>
+                <span>Comparison Total:</span>
+                <span data-testid="text-comparison-total">${lastYearTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Difference:</span>
@@ -210,6 +232,11 @@ export default function SalesInput({ title, salesData, onSalesChange, showCompar
                 </span>
               </div>
             </>
+          )}
+          {showComparisonData && !hasComparisonData && (
+            <div className="text-sm text-muted-foreground italic">
+              No data available for comparison period
+            </div>
           )}
         </div>
       </CardContent>
