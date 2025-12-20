@@ -75,8 +75,9 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const comparisonDateString = format(comparisonDate, 'yyyy-MM-dd');
   
   // Check if viewing a past log (read-only mode)
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const isPastLog = dateString < todayIso;
+  // Use local time for both to avoid timezone mismatches
+  const todayLocal = format(new Date(), 'yyyy-MM-dd');
+  const isPastLog = dateString < todayLocal;
 
   const { data: existingLog, isLoading: isLoadingLog } = useQuery<ManagerLog>({
     queryKey: ['/api/manager-logs/by-date', dateString, clubId],
