@@ -1608,11 +1608,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subject: z.string().optional(),
         message: z.string().optional(),
         clubId: z.string().default(DEFAULT_CLUB_ID),
-        contentSettings: z.object({
-          includeOperationalNotes: z.boolean().default(true),
-          includeMaintenanceNotes: z.boolean().default(true),
-          includeMaintenanceList: z.boolean().default(true),
-        }).optional()
       });
 
       const parsed = schema.safeParse(req.body);
@@ -1623,17 +1618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { reason, listIds, subject, message, clubId, contentSettings } = parsed.data;
-
-      // Use provided content settings or defaults
-      // Header, Sales, and Drawing are always included
-      // Weather is never included
-      // Photos are included when notes are included
-      const settings = {
-        includeOperationalNotes: contentSettings?.includeOperationalNotes ?? true,
-        includeMaintenanceNotes: contentSettings?.includeMaintenanceNotes ?? true,
-        includeMaintenanceList: contentSettings?.includeMaintenanceList ?? true,
-      };
+      const { reason, listIds, subject, message, clubId } = parsed.data;
 
       // Check rate limit
       const rateLimit = checkEmailRateLimit(clubId);
@@ -1654,26 +1639,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch attachments for this log
       const attachments = await storage.getLogAttachmentsByLogId(logId, clubId);
 
-      // Fetch note photos if notes are included
-      let notePhotos: any[] = [];
-      if (settings.includeOperationalNotes || settings.includeMaintenanceNotes) {
-        notePhotos = await storage.getNotePhotosByLogId(logId, clubId);
-      }
+      // Fetch note photos - always included
+      const notePhotos = await storage.getNotePhotosByLogId(logId, clubId);
 
-      // Fetch running maintenance list if needed
-      let runningMaintenance: any[] = [];
-      if (settings.includeMaintenanceList) {
-        runningMaintenance = await db
-          .select()
-          .from(runningMaintenanceList)
-          .where(
-            and(
-              eq(runningMaintenanceList.clubId, clubId),
-              eq(runningMaintenanceList.status, "open")
-            )
+      // Fetch running maintenance list - always included
+      const runningMaintenance = await db
+        .select()
+        .from(runningMaintenanceList)
+        .where(
+          and(
+            eq(runningMaintenanceList.clubId, clubId),
+            eq(runningMaintenanceList.status, "open")
           )
-          .orderBy(asc(runningMaintenanceList.dateAdded));
-      }
+        )
+        .orderBy(asc(runningMaintenanceList.dateAdded));
 
       // Fetch lists from database
       const allLists = await getNotificationLists(clubId);
@@ -1734,8 +1713,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `);
       }
 
-      // Operational Notes section
-      if (settings.includeOperationalNotes && log.operationalNotes) {
+      // Operational Notes section - always included
+      if (log.operationalNotes) {
         htmlSections.push(`
           <div style="margin-bottom:16px;">
             <h4 style="margin:0 0 8px 0;color:#666;">Operational Notes</h4>
@@ -1744,8 +1723,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `);
       }
 
-      // Maintenance Notes section
-      if (settings.includeMaintenanceNotes && log.maintenanceNotes) {
+      // Maintenance Notes section - always included
+      if (log.maintenanceNotes) {
         htmlSections.push(`
           <div style="margin-bottom:16px;">
             <h4 style="margin:0 0 8px 0;color:#666;">Maintenance Notes</h4>
@@ -1754,9 +1733,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `);
       }
 
-      // Running Maintenance List section
-      if (settings.includeMaintenanceList && runningMaintenance.length > 0) {
-        const items = runningMaintenance.map(m => `<li>${m.title}${m.priority === 'high' ? ' <span style="color:red;">(High Priority)</span>' : ''}</li>`).join('');
+      // Running Maintenance List section - always included
+      if (runningMaintenance.length > 0) {
+        const items = runningMaintenance.map(m => `<li>${m.title}</li>`).join('');
         htmlSections.push(`
           <div style="margin-bottom:16px;">
             <h4 style="margin:0 0 8px 0;color:#666;">Open Maintenance Items (${runningMaintenance.length})</h4>
@@ -1765,22 +1744,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `);
       }
 
-      // Photos section - included when notes are included
+      // Photos section - always included
       if (notePhotos.length > 0) {
-        // Filter photos based on which note sections are included
-        const filteredPhotos = notePhotos.filter(p => 
-          (p.noteType === 'operational' && settings.includeOperationalNotes) ||
-          (p.noteType === 'maintenance' && settings.includeMaintenanceNotes)
-        );
-        if (filteredPhotos.length > 0) {
-          const photoLinks = filteredPhotos.map(p => `<li><a href="${p.url}">${p.noteType === 'operational' ? 'Ops' : 'Maint'} Photo</a></li>`).join('');
-          htmlSections.push(`
-            <div style="margin-bottom:16px;">
-              <h4 style="margin:0 0 8px 0;color:#666;">Photos</h4>
-              <ul style="margin:0;padding-left:20px;">${photoLinks}</ul>
-            </div>
-          `);
-        }
+        const photoLinks = notePhotos.map(p => `<li><a href="${p.url}">${p.noteType === 'operational' ? 'Ops' : 'Maint'} Photo</a></li>`).join('');
+        htmlSections.push(`
+          <div style="margin-bottom:16px;">
+            <h4 style="margin:0 0 8px 0;color:#666;">Photos</h4>
+            <ul style="margin:0;padding-left:20px;">${photoLinks}</ul>
+          </div>
+        `);
       }
 
       // Attachments section (always included if present)

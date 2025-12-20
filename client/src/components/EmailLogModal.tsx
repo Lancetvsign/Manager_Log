@@ -1,46 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Mail, Send, Loader2, Settings, Users, Zap, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { Mail, Send, Loader2, Settings, Users, Zap } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox";
 
-interface ContentSettings {
-  includeOperationalNotes: boolean;
-  includeMaintenanceNotes: boolean;
-  includeMaintenanceList: boolean;
-}
-
-const PRESETS: Record<string, { label: string; settings: ContentSettings }> = {
-  full: {
-    label: "Full Log",
-    settings: {
-      includeOperationalNotes: true,
-      includeMaintenanceNotes: true,
-      includeMaintenanceList: true,
-    },
-  },
-  ops_only: {
-    label: "Ops Only",
-    settings: {
-      includeOperationalNotes: true,
-      includeMaintenanceNotes: false,
-      includeMaintenanceList: false,
-    },
-  },
-  maintenance_only: {
-    label: "Maintenance Only",
-    settings: {
-      includeOperationalNotes: false,
-      includeMaintenanceNotes: true,
-      includeMaintenanceList: true,
-    },
-  },
-};
 import {
   Dialog,
   DialogContent,
@@ -84,9 +51,6 @@ export default function EmailLogModal({
   const [reason, setReason] = useState<"maintenance" | "operations" | "other">("maintenance");
   const [settingsTab, setSettingsTab] = useState<"contacts" | "rules">("contacts");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [contentOpen, setContentOpen] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<string>("full");
-  const [contentSettings, setContentSettings] = useState<ContentSettings>(PRESETS.full.settings);
 
   const niceDate = useMemo(() => {
     try {
@@ -169,16 +133,6 @@ A link to this log entry will be included automatically.`
     );
   };
 
-  const applyPreset = (presetKey: string) => {
-    setSelectedPreset(presetKey);
-    setContentSettings(PRESETS[presetKey].settings);
-  };
-
-  const toggleContentSetting = (key: keyof ContentSettings) => {
-    setContentSettings((prev) => ({ ...prev, [key]: !prev[key] }));
-    setSelectedPreset("custom");
-  };
-
   const sendEmailMutation = useMutation({
     mutationFn: async () => {
       if (!logId) throw new Error("Save the log entry first to enable emailing.");
@@ -191,7 +145,6 @@ A link to this log entry will be included automatically.`
         subject,
         message,
         listIds: selectedListIds,
-        contentSettings,
       });
     },
     onSuccess: () => {
@@ -349,83 +302,6 @@ A link to this log entry will be included automatically.`
               A link to this log entry will be included automatically.
             </p>
           </div>
-
-          <Collapsible open={contentOpen} onOpenChange={setContentOpen}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-between"
-                type="button"
-                data-testid="button-toggle-content"
-              >
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Email Content
-                  <span className="text-xs text-muted-foreground ml-1">
-                    ({selectedPreset === "custom" ? "Custom" : PRESETS[selectedPreset]?.label || "Full Log"})
-                  </span>
-                </div>
-                {contentOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-3 space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm">Quick Presets</Label>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(PRESETS).map(([key, preset]) => (
-                    <Button
-                      key={key}
-                      type="button"
-                      variant={selectedPreset === key ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => applyPreset(key)}
-                      data-testid={`preset-${key}`}
-                    >
-                      {preset.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm">Always Included</Label>
-                <p className="text-xs text-muted-foreground">Date & Manager, Sales, Drawing</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm">Optional Sections</Label>
-                <div className="grid grid-cols-1 gap-2 rounded-md border p-3">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="content-ops-notes"
-                      checked={contentSettings.includeOperationalNotes}
-                      onCheckedChange={() => toggleContentSetting("includeOperationalNotes")}
-                      data-testid="checkbox-ops-notes"
-                    />
-                    <Label htmlFor="content-ops-notes" className="cursor-pointer text-sm">Ops Notes (with photos)</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="content-maint-notes"
-                      checked={contentSettings.includeMaintenanceNotes}
-                      onCheckedChange={() => toggleContentSetting("includeMaintenanceNotes")}
-                      data-testid="checkbox-maint-notes"
-                    />
-                    <Label htmlFor="content-maint-notes" className="cursor-pointer text-sm">Maintenance Notes (with photos)</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="content-maint-list"
-                      checked={contentSettings.includeMaintenanceList}
-                      onCheckedChange={() => toggleContentSetting("includeMaintenanceList")}
-                      data-testid="checkbox-maint-list"
-                    />
-                    <Label htmlFor="content-maint-list" className="cursor-pointer text-sm">Maintenance List</Label>
-                  </div>
-                </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
 
           <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
             <CollapsibleTrigger asChild>
