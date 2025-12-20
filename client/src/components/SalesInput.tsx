@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TrendingUp, TrendingDown, Minus, GitCompare } from "lucide-react";
 
-export type ComparisonPeriod = "none" | "last_year";
+export type ComparisonPeriod = "none" | "last_year" | "last_week";
 
 const COMPARISON_OPTIONS = [
   { value: "none", label: "No Comparison" },
+  { value: "last_week", label: "Last Week Today" },
   { value: "last_year", label: "Same Day Last Year" },
 ] as const;
 
@@ -24,6 +25,11 @@ interface SalesData {
     bar: string;
     gaming: string;
   };
+  lastWeek?: {
+    food: string;
+    bar: string;
+    gaming: string;
+  };
 }
 
 interface SalesInputProps {
@@ -33,6 +39,8 @@ interface SalesInputProps {
   showComparison?: boolean;
   disabled?: boolean;
   comparisonDate?: string;
+  comparisonPeriod?: ComparisonPeriod;
+  onComparisonPeriodChange?: (period: ComparisonPeriod) => void;
 }
 
 const calculateChange = (current: string, lastYear: string) => {
@@ -65,29 +73,40 @@ export default function SalesInput({
   onSalesChange, 
   showComparison = true, 
   disabled = false, 
-  comparisonDate
+  comparisonDate,
+  comparisonPeriod: externalPeriod,
+  onComparisonPeriodChange
 }: SalesInputProps) {
-  const [comparisonPeriod, setComparisonPeriod] = useState<ComparisonPeriod>("none");
+  const [localComparisonPeriod, setLocalComparisonPeriod] = useState<ComparisonPeriod>("none");
+  const comparisonPeriod = externalPeriod ?? localComparisonPeriod;
   const showComparisonData = comparisonPeriod !== "none";
+  
+  const handlePeriodChange = (value: ComparisonPeriod) => {
+    setLocalComparisonPeriod(value);
+    onComparisonPeriodChange?.(value);
+  };
 
-  const foodChange = calculateChange(salesData.current.food, salesData.lastYear.food);
-  const barChange = calculateChange(salesData.current.bar, salesData.lastYear.bar);
-  const gamingChange = calculateChange(salesData.current.gaming, salesData.lastYear.gaming);
+  // Get comparison data based on selected period
+  const comparisonData = comparisonPeriod === "last_week" ? (salesData.lastWeek || { food: "", bar: "", gaming: "" }) : salesData.lastYear;
+
+  const foodChange = calculateChange(salesData.current.food, comparisonData.food);
+  const barChange = calculateChange(salesData.current.bar, comparisonData.bar);
+  const gamingChange = calculateChange(salesData.current.gaming, comparisonData.gaming);
 
   const currentTotal = 
     (parseFloat(salesData.current.food) || 0) +
     (parseFloat(salesData.current.bar) || 0) +
     (parseFloat(salesData.current.gaming) || 0);
 
-  const lastYearTotal = 
-    (parseFloat(salesData.lastYear.food) || 0) +
-    (parseFloat(salesData.lastYear.bar) || 0) +
-    (parseFloat(salesData.lastYear.gaming) || 0);
+  const comparisonTotal = 
+    (parseFloat(comparisonData.food) || 0) +
+    (parseFloat(comparisonData.bar) || 0) +
+    (parseFloat(comparisonData.gaming) || 0);
 
-  const difference = currentTotal - lastYearTotal;
-  const diffPercentage = lastYearTotal !== 0 ? (difference / lastYearTotal) * 100 : 0;
+  const difference = currentTotal - comparisonTotal;
+  const diffPercentage = comparisonTotal !== 0 ? (difference / comparisonTotal) * 100 : 0;
 
-  const hasComparisonData = lastYearTotal > 0;
+  const hasComparisonData = comparisonTotal > 0;
 
   return (
     <Card data-testid="card-sales">
@@ -101,7 +120,7 @@ export default function SalesInput({
             </div>
             <Select
               value={comparisonPeriod}
-              onValueChange={(value) => setComparisonPeriod(value as ComparisonPeriod)}
+              onValueChange={(value) => handlePeriodChange(value as ComparisonPeriod)}
             >
               <SelectTrigger 
                 className="w-[160px] h-8 text-xs bg-primary/10 border-primary/30 focus:ring-primary"
@@ -141,9 +160,9 @@ export default function SalesInput({
               disabled={disabled}
               data-testid="input-food-sales"
             />
-            {showComparisonData && hasComparisonData && salesData.lastYear.food && (
+            {showComparisonData && hasComparisonData && comparisonData.food && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Comparison: ${salesData.lastYear.food}</span>
+                <span>Comparison: ${comparisonData.food}</span>
                 <Badge variant="outline" className="flex items-center space-x-1">
                   {getTrendIcon(foodChange.trend)}
                   <span data-testid="text-food-change">{foodChange.percentage.toFixed(1)}%</span>
@@ -166,9 +185,9 @@ export default function SalesInput({
               disabled={disabled}
               data-testid="input-bar-sales"
             />
-            {showComparisonData && hasComparisonData && salesData.lastYear.bar && (
+            {showComparisonData && hasComparisonData && comparisonData.bar && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Comparison: ${salesData.lastYear.bar}</span>
+                <span>Comparison: ${comparisonData.bar}</span>
                 <Badge variant="outline" className="flex items-center space-x-1">
                   {getTrendIcon(barChange.trend)}
                   <span data-testid="text-bar-change">{barChange.percentage.toFixed(1)}%</span>
@@ -191,9 +210,9 @@ export default function SalesInput({
               disabled={disabled}
               data-testid="input-gaming-sales"
             />
-            {showComparisonData && hasComparisonData && salesData.lastYear.gaming && (
+            {showComparisonData && hasComparisonData && comparisonData.gaming && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Comparison: ${salesData.lastYear.gaming}</span>
+                <span>Comparison: ${comparisonData.gaming}</span>
                 <Badge variant="outline" className="flex items-center space-x-1">
                   {getTrendIcon(gamingChange.trend)}
                   <span data-testid="text-gaming-change">{gamingChange.percentage.toFixed(1)}%</span>
@@ -217,7 +236,7 @@ export default function SalesInput({
             <>
               <div className="flex justify-between items-center text-sm text-muted-foreground">
                 <span>Comparison Total:</span>
-                <span data-testid="text-comparison-total">${lastYearTotal.toFixed(2)}</span>
+                <span data-testid="text-comparison-total">${comparisonTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Difference:</span>

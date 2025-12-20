@@ -47,7 +47,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const [weeklyNumber, setWeeklyNumber] = useState("");
   const [salesData, setSalesData] = useState({
     current: { food: "", bar: "", gaming: "" },
-    lastYear: { food: "", bar: "", gaming: "" }
+    lastYear: { food: "", bar: "", gaming: "" },
+    lastWeek: { food: "", bar: "", gaming: "" }
   });
   const [weatherData, setWeatherData] = useState<{
     current: WeatherData | null;
@@ -56,6 +57,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   }>({ current: null, historical: null, historicalFallbackNote: null });
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   const [existingLogId, setExistingLogId] = useState<number | null>(null);
+  const [comparisonPeriod, setComparisonPeriod] = useState<"none" | "last_year" | "last_week">("none");
   
   const [newMaintenanceDescription, setNewMaintenanceDescription] = useState("");
   const [newMaintenanceStatus, setNewMaintenanceStatus] = useState<"open" | "completed">("open");
@@ -69,10 +71,14 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
 
   const dateString = format(date, 'yyyy-MM-dd');
   
-  // Calculate comparison date: 52 weeks (364 days) before selected date for year-over-year comparison
-  const comparisonDate = new Date(date);
-  comparisonDate.setDate(comparisonDate.getDate() - 364);
-  const comparisonDateString = format(comparisonDate, 'yyyy-MM-dd');
+  // Calculate comparison dates for last year (52 weeks/364 days) and last week (7 days)
+  const lastYearDate = new Date(date);
+  lastYearDate.setDate(lastYearDate.getDate() - 364);
+  const comparisonDateString = format(lastYearDate, 'yyyy-MM-dd');
+  
+  const lastWeekDate = new Date(date);
+  lastWeekDate.setDate(lastWeekDate.getDate() - 7);
+  const lastWeekDateString = format(lastWeekDate, 'yyyy-MM-dd');
   
   // Check if viewing a past log (read-only mode)
   // Use local time for both to avoid timezone mismatches
@@ -106,6 +112,21 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       return response.json();
     },
     enabled: !!comparisonDateString,
+  });
+
+  // Fetch log from 7 days ago for last week comparison
+  const { data: lastWeekLog } = useQuery<ManagerLog>({
+    queryKey: ['/api/manager-logs/by-date', lastWeekDateString, clubId, 'last-week'],
+    queryFn: async () => {
+      const url = buildApiUrl(`/api/manager-logs/by-date/${lastWeekDateString}`, clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error('Failed to fetch last week log');
+      }
+      return response.json();
+    },
+    enabled: !!lastWeekDateString,
   });
 
   const { data: maintenanceItems, isLoading: isLoadingMaintenance } = useQuery<MaintenanceItem[]>({
@@ -189,22 +210,32 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           food: comparisonLog?.foodSales || "",
           bar: comparisonLog?.barSales || "",
           gaming: comparisonLog?.gamingSales || ""
+        },
+        lastWeek: {
+          food: lastWeekLog?.foodSales || "",
+          bar: lastWeekLog?.barSales || "",
+          gaming: lastWeekLog?.gamingSales || ""
         }
       });
     } else {
       setExistingLogId(null);
       resetForm();
-      // Even without a current log, populate last year data for comparison
+      // Even without a current log, populate comparison data
       setSalesData(prev => ({
         ...prev,
         lastYear: {
           food: comparisonLog?.foodSales || "",
           bar: comparisonLog?.barSales || "",
           gaming: comparisonLog?.gamingSales || ""
+        },
+        lastWeek: {
+          food: lastWeekLog?.foodSales || "",
+          bar: lastWeekLog?.barSales || "",
+          gaming: lastWeekLog?.gamingSales || ""
         }
       }));
     }
-  }, [existingLog, comparisonLog, dateString]);
+  }, [existingLog, comparisonLog, lastWeekLog, dateString]);
 
   useEffect(() => {
     /**
@@ -499,7 +530,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     setWeeklyNumber("");
     setSalesData({
       current: { food: "", bar: "", gaming: "" },
-      lastYear: { food: "", bar: "", gaming: "" }
+      lastYear: { food: "", bar: "", gaming: "" },
+      lastWeek: { food: "", bar: "", gaming: "" }
     });
   };
 
@@ -706,7 +738,9 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         onSalesChange={handleSalesChange}
         showComparison={true}
         disabled={isPastLog}
-        comparisonDate={format(comparisonDate, 'EEEE, MMM d, yyyy')}
+        comparisonPeriod={comparisonPeriod}
+        onComparisonPeriodChange={setComparisonPeriod}
+        comparisonDate={comparisonPeriod === "last_week" ? format(lastWeekDate, 'EEEE, MMM d, yyyy') : format(lastYearDate, 'EEEE, MMM d, yyyy')}
       />
 
 
