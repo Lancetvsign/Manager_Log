@@ -24,6 +24,7 @@ import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
 import EscalationRulesPanel from "./EscalationRulesPanel";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
 import type { NotificationList } from "@shared/schema";
 
 interface EmailLogModalProps {
@@ -45,6 +46,7 @@ export default function EmailLogModal({
 }: EmailLogModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { apiBaseUrl } = useManagerLog();
   const [selectedListIds, setSelectedListIds] = useState<number[]>([]);
   const [reason, setReason] = useState<"maintenance" | "operations" | "other">("maintenance");
   const [settingsTab, setSettingsTab] = useState<"contacts" | "rules">("contacts");
@@ -72,12 +74,25 @@ export default function EmailLogModal({
   const { data: lists = [], isLoading: loadingLists } = useQuery<(NotificationList & { recipientCount: number })[]>({
     queryKey: ["/api/notifications/lists", clubId],
     queryFn: async () => {
-      const res = await fetch(`/api/notifications/lists?clubId=${encodeURIComponent(clubId)}`);
+      const url = buildApiUrl("/api/notifications/lists", clubId, apiBaseUrl);
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch notification lists");
       return res.json();
     },
     enabled: open,
   });
+
+  const { data: emailStatus } = useQuery<{ configured: boolean }>({
+    queryKey: ["/api/notifications/status"],
+    queryFn: async () => {
+      const res = await fetch(`${apiBaseUrl}/api/notifications/status`);
+      if (!res.ok) return { configured: false };
+      return res.json();
+    },
+    enabled: open,
+  });
+
+  const isSmtpConfigured = emailStatus?.configured ?? false;
 
   useEffect(() => {
     if (open && lists.length > 0 && selectedListIds.length === 0) {
@@ -123,9 +138,9 @@ A link to this log entry will be included automatically.`
       if (!logId) throw new Error("Save the log entry first to enable emailing.");
       if (selectedListIds.length === 0) throw new Error("Pick at least one notification list.");
 
-      return apiRequest("POST", `/api/notify-core-team`, {
+      const url = `${apiBaseUrl}/api/logs/${logId}/notify`;
+      return apiRequest("POST", url, {
         clubId,
-        logId,
         reason,
         subject,
         message,
@@ -192,6 +207,12 @@ A link to this log entry will be included automatically.`
         {!canEmail && (
           <div className="rounded-md bg-amber-100 dark:bg-amber-900/30 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
             Save this log to enable emailing.
+          </div>
+        )}
+
+        {!isSmtpConfigured && (
+          <div className="rounded-md bg-blue-100 dark:bg-blue-900/30 px-3 py-2 text-sm text-blue-800 dark:text-blue-200" data-testid="smtp-warning">
+            <strong>Simulation mode:</strong> Email server not configured. Emails will be logged but not sent until SMTP is set up.
           </div>
         )}
 

@@ -26,7 +26,7 @@ import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, 
 import { db } from "./db";
 import { eq, desc, and, count, asc, gte, lte, sql, or, isNull, isNotNull } from "drizzle-orm";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
-import { sendLogNotificationEmail, isEmailConfigured } from "./email";
+import { sendLogNotificationEmail, isEmailConfigured, logEmailConfigStatus } from "./email";
 import { getNotificationLists, seedDefaultNotificationLists } from "./notificationLists";
 import { z } from "zod";
 import { escalationRules, escalationRuleTargets } from "@shared/schema";
@@ -57,6 +57,32 @@ const upload = multer({
 
 // Default clubId for backwards compatibility when not provided
 const DEFAULT_CLUB_ID = "default";
+
+// Rate limiting for email notifications (per clubId)
+// Max 10 emails per hour per club
+const emailRateLimits = new Map<string, { count: number; resetTime: number }>();
+const EMAIL_RATE_LIMIT = 10;
+const EMAIL_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function checkEmailRateLimit(clubId: string): { allowed: boolean; remaining: number; resetIn: number } {
+  const now = Date.now();
+  const key = clubId;
+  const record = emailRateLimits.get(key);
+
+  if (!record || now > record.resetTime) {
+    // Reset or initialize
+    emailRateLimits.set(key, { count: 1, resetTime: now + EMAIL_RATE_WINDOW_MS });
+    return { allowed: true, remaining: EMAIL_RATE_LIMIT - 1, resetIn: EMAIL_RATE_WINDOW_MS };
+  }
+
+  if (record.count >= EMAIL_RATE_LIMIT) {
+    const resetIn = record.resetTime - now;
+    return { allowed: false, remaining: 0, resetIn };
+  }
+
+  record.count++;
+  return { allowed: true, remaining: EMAIL_RATE_LIMIT - record.count, resetIn: record.resetTime - now };
+}
 
 /**
  * Extracts clubId from request query params
@@ -290,6 +316,8 @@ function formatWeatherString(weather: { temperature: number; condition: string; 
 // ==================
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Log email configuration status at startup
+  logEmailConfigStatus();
   
   // ==================
   // MANAGER LOGS API
@@ -1496,6 +1524,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { reason, listIds, subject, message, clubId } = parsed.data;
+
+      // Check rate limit
+      const rateLimit = checkEmailRateLimit(clubId);
+      if (!rateLimit.allowed) {
+        const resetMinutes = Math.ceil(rateLimit.resetIn / 60000);
+        return res.status(429).json({ 
+          error: `Rate limit exceeded. Try again in ${resetMinutes} minutes.`,
+          resetIn: rateLimit.resetIn
+        });
+      }
 
       // Fetch the log
       const log = await storage.getManagerLog(logId, clubId);

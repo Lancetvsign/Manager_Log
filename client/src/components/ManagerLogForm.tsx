@@ -13,8 +13,6 @@ import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Ma
 import WeatherCard from "./WeatherCard";
 import WeatherWide from "./WeatherWide";
 import SalesInput from "./SalesInput";
-import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
-import EscalationRulesModal from "./EscalationRulesModal";
 import EmailLogModal from "./EmailLogModal";
 import { NotePhotos } from "./NotePhotos";
 import { MaintenanceItemsTable } from "./MaintenanceItemsTable";
@@ -63,26 +61,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const [newMaintenanceStatus, setNewMaintenanceStatus] = useState<"open" | "completed">("open");
   const [newMaintenanceNotes, setNewMaintenanceNotes] = useState("");
   
-  // Email notification state
-  const [notifyReason, setNotifyReason] = useState<"Maintenance" | "Behavior" | "Other">("Maintenance");
-  const [notifyListIds, setNotifyListIds] = useState<number[]>([]);
-  const [notifySubject, setNotifySubject] = useState("");
-  const [notifyMessage, setNotifyMessage] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [sendResult, setSendResult] = useState<string | null>(null);
-  const [showNotifSettings, setShowNotifSettings] = useState(false);
-  const [showRulesModal, setShowRulesModal] = useState(false);
+  // Email modal state
   const [showEmailModal, setShowEmailModal] = useState(false);
-  
-  // Notification history type
-  interface NotificationHistoryItem {
-    id: number;
-    reason: string;
-    subject: string;
-    createdAt: string;
-    simulated: boolean;
-    recipientCount: number;
-  }
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -165,85 +145,6 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     enabled: !!clubId && !!dateString,
   });
 
-  // Check if email notifications are configured
-  const { data: emailStatus } = useQuery<{ configured: boolean }>({
-    queryKey: ['/api/notifications/status'],
-    queryFn: async () => {
-      const response = await fetch(`${apiBaseUrl}/api/notifications/status`);
-      if (!response.ok) return { configured: false };
-      return response.json();
-    },
-  });
-
-  const isEmailConfigured = emailStatus?.configured ?? false;
-
-  // Notification list type
-  interface NotificationList {
-    id: number;
-    clubId: string;
-    name: string;
-    description: string | null;
-    isDefault: boolean;
-    recipientCount: number;
-  }
-
-  // Fetch notification lists (always fetch so notification section works even in simulation mode)
-  const { data: notificationLists } = useQuery<NotificationList[]>({
-    queryKey: ['/api/notifications/lists', clubId],
-    queryFn: async () => {
-      const response = await fetch(`${apiBaseUrl}/api/notifications/lists?clubId=${clubId}`);
-      if (!response.ok) return [];
-      return response.json();
-    },
-  });
-
-  // Fetch notification history for this log
-  const { data: notificationHistory, refetch: refetchHistory } = useQuery<NotificationHistoryItem[]>({
-    queryKey: ['/api/logs', existingLogId, 'notifications'],
-    queryFn: async () => {
-      const response = await fetch(`${apiBaseUrl}/api/logs/${existingLogId}/notifications`);
-      if (!response.ok) return [];
-      return response.json();
-    },
-    enabled: !!existingLogId,
-  });
-
-  // Notification list selection toggle
-  const handleToggleList = (listId: number) => {
-    setNotifyListIds(prev => 
-      prev.includes(listId) 
-        ? prev.filter(id => id !== listId)
-        : [...prev, listId]
-    );
-  };
-
-  // Initialize default notification lists when data loads
-  useEffect(() => {
-    if (notificationLists && notificationLists.length && notifyListIds.length === 0) {
-      // Auto-select default(s), fallback to first list if none marked default
-      const defaultIds = notificationLists
-        .filter((l) => l.isDefault)
-        .map((l) => l.id);
-      setNotifyListIds(defaultIds.length ? defaultIds : [notificationLists[0].id]);
-    }
-  }, [notificationLists]);
-
-  // Update default subject and message when form data changes
-  useEffect(() => {
-    const formattedDate = format(date, 'MMMM d, yyyy');
-    const managerSummary = [amManagerName, pmManagerName, kitchenManagerName].filter(Boolean).join(', ') || 'Not specified';
-    setNotifySubject(`[Club] ${formattedDate} - Urgent ${notifyReason.toLowerCase()}`);
-    setNotifyMessage(`Date: ${formattedDate}
-Manager(s): ${managerSummary}
-
-Summary:
-- Sales notes: ${salesNotes || 'N/A'}
-- Daily notes: ${dailyNotes || 'N/A'}
-
-Details:
-[Add any extra details here...]`);
-  }, [date, amManagerName, pmManagerName, kitchenManagerName, salesNotes, dailyNotes, notifyReason]);
-
   // Ensure a log exists for this date, creating if needed
   const ensureLogId = async (): Promise<number> => {
     if (existingLogId) return existingLogId;
@@ -259,68 +160,12 @@ Details:
     });
 
     if (!res.ok) {
-      throw new Error("Could not create daily log for notification.");
+      throw new Error("Could not create daily log.");
     }
 
     const data = await res.json();
     setExistingLogId(data.logId);
     return data.logId;
-  };
-
-  // Send notification email
-  const sendNotificationEmail = async (logId: number) => {
-    if (notifyListIds.length === 0) return;
-    
-    setIsSending(true);
-    setSendResult(null);
-    
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/logs/${logId}/notify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reason: notifyReason,
-          listIds: notifyListIds,
-          subject: notifySubject,
-          message: notifyMessage,
-          clubId,
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok || !data.success) {
-        setSendResult(data.error || "Failed to process notification.");
-        toast({
-          title: "Notification Failed",
-          description: data.error || "Failed to send notification.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      const modeText = data.simulated
-        ? " (simulation only – email server not configured yet)"
-        : "";
-      
-      setSendResult(`Notification saved for ${data.sentTo} recipient(s)${modeText}.`);
-      toast({
-        title: data.simulated ? "Notification Saved" : "Notification Sent",
-        description: `Saved for ${data.sentTo} recipient(s)${modeText}`,
-      });
-      
-      // Reload history after sending
-      refetchHistory();
-    } catch (error) {
-      setSendResult("Failed to process notification.");
-      toast({
-        title: "Notification Error",
-        description: "Failed to send notification email.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSending(false);
-    }
   };
 
   useEffect(() => {
@@ -689,7 +534,7 @@ Details:
             data-testid="button-email-log"
           >
             <Mail className="h-4 w-4 mr-1" />
-            Email
+            Email Log
           </Button>
         </div>
         {isPastLog && (
@@ -1025,235 +870,6 @@ Details:
           </button>
         </div>
       )}
-
-      {/* Notify Core Team Section */}
-      <Card>
-          <CardHeader className="flex flex-row justify-between items-center gap-2">
-            <div className="flex items-center gap-2">
-              <CardTitle className="mb-0">📧 Email Core Team</CardTitle>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
-                For urgent maintenance or operational issues
-              </Badge>
-
-              <button
-                type="button"
-                className="inline-flex items-center px-2 py-1 text-xs font-medium border border-emerald-600 text-emerald-700 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
-                onClick={() => setShowRulesModal(true)}
-                data-testid="button-escalation-rules"
-              >
-                ⚡ Rules
-              </button>
-            </div>
-          </CardHeader>
-          
-          <CardContent className="pt-0">
-            <div className="space-y-4">
-              {/* Reason - Radio buttons */}
-              <div className="space-y-2">
-                <Label>Reason</Label>
-                <div className="flex flex-wrap gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="notifyReason"
-                      value="Maintenance"
-                      checked={notifyReason === "Maintenance"}
-                      onChange={() => setNotifyReason("Maintenance")}
-                      className="w-4 h-4 text-primary"
-                      data-testid="radio-reason-maintenance"
-                    />
-                    <span className="text-sm">Maintenance issue</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="notifyReason"
-                      value="Behavior"
-                      checked={notifyReason === "Behavior"}
-                      onChange={() => setNotifyReason("Behavior")}
-                      className="w-4 h-4 text-primary"
-                      data-testid="radio-reason-behavior"
-                    />
-                    <span className="text-sm">Operational Issue</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="notifyReason"
-                      value="Other"
-                      checked={notifyReason === "Other"}
-                      onChange={() => setNotifyReason("Other")}
-                      className="w-4 h-4 text-primary"
-                      data-testid="radio-reason-other"
-                    />
-                    <span className="text-sm">Other urgent item</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Send to - Multi-select */}
-              <div className="space-y-2">
-                <Label htmlFor="notify-lists">Send to</Label>
-                <select
-                  id="notify-lists"
-                  multiple
-                  value={notifyListIds.map(String)}
-                  onChange={(e) => {
-                    const values = Array.from(e.target.selectedOptions).map((o) =>
-                      Number(o.value)
-                    );
-                    setNotifyListIds(values);
-                  }}
-                  className="w-full min-h-[80px] p-2 border rounded-md bg-background"
-                  data-testid="select-notify-lists"
-                >
-                  {notificationLists?.map((list) => (
-                    <option key={list.id} value={list.id}>
-                      {list.name} ({list.recipientCount} recipients)
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground">
-                  Hold Ctrl (Cmd on Mac) to select multiple groups.
-                </p>
-                <div className="text-right mt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowNotifSettings(true)}
-                    className="inline-flex items-center px-2 py-1 text-xs font-medium border border-emerald-600 text-emerald-700 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
-                    data-testid="button-manage-lists"
-                  >
-                    Manage notification lists & contacts
-                  </button>
-                </div>
-
-                {showNotifSettings && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                    <div className="bg-background rounded-xl shadow-xl max-w-4xl w-full mx-4 p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold">Notification Settings</h2>
-                        <button
-                          type="button"
-                          className="text-sm text-muted-foreground hover:text-foreground"
-                          onClick={() => setShowNotifSettings(false)}
-                          data-testid="button-close-notif-settings"
-                        >
-                          Close
-                        </button>
-                      </div>
-                      <NotificationSettingsPanel
-                        clubId={clubId}
-                        onChanged={() => {
-                          queryClient.invalidateQueries({ queryKey: ['/api/notifications/lists', clubId] });
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Subject */}
-              <div className="space-y-2">
-                <Label htmlFor="notification-subject">Email subject</Label>
-                <Input
-                  id="notification-subject"
-                  value={notifySubject}
-                  onChange={(e) => setNotifySubject(e.target.value)}
-                  placeholder="Email subject line"
-                  data-testid="input-notification-subject"
-                />
-              </div>
-
-              {/* Message */}
-              <div className="space-y-2">
-                <Label htmlFor="notification-message">Message</Label>
-                <Textarea
-                  id="notification-message"
-                  value={notifyMessage}
-                  onChange={(e) => setNotifyMessage(e.target.value)}
-                  placeholder="Add details to include with the notification..."
-                  className="min-h-[100px]"
-                  data-testid="textarea-notification-message"
-                />
-                <p className="text-xs text-muted-foreground">
-                  A link to this log entry will be included automatically.
-                </p>
-              </div>
-
-              {/* Send button + feedback */}
-              <div className="flex items-center gap-4">
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={isSending || notifyListIds.length === 0}
-                  onClick={async () => {
-                    try {
-                      const logId = await ensureLogId();
-                      await sendNotificationEmail(logId);
-                    } catch (error) {
-                      toast({
-                        title: "Error",
-                        description: "Could not create daily log for notification.",
-                        variant: "destructive"
-                      });
-                    }
-                  }}
-                  data-testid="button-send-notification"
-                >
-                  {isSending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending…
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="mr-2 h-4 w-4" />
-                      Send Urgent Email
-                    </>
-                  )}
-                </Button>
-
-                {sendResult && (
-                  <p className={`text-sm ${sendResult.includes('Error') || sendResult.includes('Failed') ? 'text-destructive' : 'text-muted-foreground'}`}>
-                    {sendResult}
-                  </p>
-                )}
-              </div>
-
-              {/* Notification History */}
-              {notificationHistory && notificationHistory.length > 0 && (
-                <div className="mt-4 pt-4 border-t">
-                  <p className="text-sm font-semibold mb-2">Recent notifications</p>
-                  <ul className="space-y-2 list-none p-0 m-0">
-                    {notificationHistory.map((n) => (
-                      <li key={n.id} className="text-sm text-muted-foreground">
-                        <span className="font-medium text-foreground">{n.reason}</span> – {n.subject}
-                        <br />
-                        Sent to {n.recipientCount} recipient{n.recipientCount !== 1 ? 's' : ''} on{' '}
-                        {new Date(n.createdAt).toLocaleString()}
-                        {n.simulated && ' (simulation only – email server not configured yet)'}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Escalation Rules Modal */}
-        {showRulesModal && (
-          <EscalationRulesModal
-            clubId={clubId}
-            onClose={() => setShowRulesModal(false)}
-            onRulesChanged={() => {
-              queryClient.invalidateQueries({ queryKey: ['/api/notifications/lists', clubId] });
-            }}
-          />
-        )}
 
         {/* Email Log Modal */}
         <EmailLogModal

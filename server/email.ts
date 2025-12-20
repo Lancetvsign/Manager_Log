@@ -20,6 +20,23 @@ const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
 const FROM_EMAIL = process.env.FROM_EMAIL || SMTP_USER;
 
 /**
+ * Log SMTP configuration status at startup
+ */
+export function logEmailConfigStatus(): void {
+  const missing: string[] = [];
+  if (!SMTP_HOST) missing.push('SMTP_HOST');
+  if (!SMTP_USER) missing.push('SMTP_USER');
+  if (!SMTP_PASSWORD) missing.push('SMTP_PASSWORD');
+
+  if (missing.length > 0) {
+    console.log(`[Email] SMTP not configured. Missing: ${missing.join(', ')}`);
+    console.log('[Email] Notifications will be logged but not sent until SMTP is configured.');
+  } else {
+    console.log(`[Email] SMTP configured - Host: ${SMTP_HOST}, Port: ${SMTP_PORT}, From: ${FROM_EMAIL}`);
+  }
+}
+
+/**
  * Creates a configured nodemailer transporter for sending emails.
  */
 function createTransporter() {

@@ -115,7 +115,7 @@ The UI features a dark header with a teal background, leveraging `shadcn/ui` com
 - **Running Maintenance List**: Standalone club-scoped maintenance tracking (separate from daily logs). Accessible via dedicated Maintenance tab. Features add/complete/reopen functionality. **Daily Reset Behavior**: Items use `resolvedAt` timestamp instead of permanent status changes. On any given day, the list shows all open items plus only items completed on that specific day (greyed out with strikethrough). Items completed on previous days are hidden but remain in the database. This creates a "daily reset" where tasks reappear each day until completed.
 - **Weather Integration**: Displays current and historical weather data with year-over-year comparisons.
 - **Insights & Analytics**: Summary cards, sales trend charts (daily, weekly, monthly granularity), period-over-period comparison, sales heatmap, sales by weekday, to-do status, sales breakdown pie charts, top performing days table, date range filtering, and export (CSV, PNG/PDF). Includes **Maintenance Insights** section showing open items count, completed items in date range, average days to complete, and a table of oldest open items with color-coded urgency badges.
-- **Email Notifications**: Managers can send professional HTML emails with log summaries to specified recipients.
+- **Email Notifications**: Managers can send professional HTML emails with log summaries to specified recipients via the "Email Log" button. The system supports configurable notification lists and sends to multiple recipients.
 - **Escalation Rules / Smart Automations**: Allows configuration of automated notifications based on triggers using preset-based models (e.g., Maintenance Alerts, Sales Drop Warning).
 - **Tomorrow's Prep Checklist**: Manages daily prep tasks with rollover tracking and status updates.
 
@@ -126,6 +126,23 @@ The UI features a dark header with a teal background, leveraging `shadcn/ui` com
 
 ### Database
 - **Neon Serverless PostgreSQL**: Cloud-hosted relational database.
+
+### Email/SMTP Configuration
+To enable email notifications, configure the following environment secrets:
+
+| Secret | Required | Description |
+|--------|----------|-------------|
+| `SMTP_HOST` | Yes | SMTP server hostname (e.g., `smtp.gmail.com`) |
+| `SMTP_PORT` | No | SMTP port (default: 587, use 465 for SSL) |
+| `SMTP_USER` | Yes | SMTP authentication username |
+| `SMTP_PASSWORD` | Yes | SMTP authentication password or app password |
+| `FROM_EMAIL` | No | Sender email address (defaults to SMTP_USER) |
+
+**Notes:**
+- Without SMTP configured, notifications are logged but not sent (simulation mode)
+- The server logs SMTP configuration status at startup
+- For Gmail, use an "App Password" instead of your regular password
+- Email endpoints have rate limiting to prevent abuse
 
 ### Third-Party Libraries
 - **Radix UI**: Accessible component primitives for `shadcn/ui`.
