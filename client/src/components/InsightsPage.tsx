@@ -80,9 +80,8 @@ import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
-  SalesTrendChart,
+  SalesChart,
   ToDoStatusPieChart,
-  SalesBreakdownChart,
   SalesHeatmapCalendar,
   WeekdaySalesChart,
   CollapsibleSection,
@@ -819,11 +818,11 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
         <>
           <CollapsibleSection
             id="salesTrend"
-            title="Sales Trend"
+            title="Sales"
             icon={<TrendingUp className="h-5 w-5" />}
             defaultExpanded={true}
           >
-            <SalesTrendChart
+            <SalesChart
               data={metrics.dailySales}
               comparisonData={comparisonMetrics?.dailySales}
               chartType={chartType}
@@ -832,9 +831,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               clubName={clubName}
               onChartTypeChange={setChartType}
             />
-            <div className="mt-6">
-              <SalesBreakdownChart salesByCategory={metrics.salesByCategory} />
-            </div>
             <div className="mt-6">
               <SalesHeatmapCalendar
                 data={metrics.dailySales}

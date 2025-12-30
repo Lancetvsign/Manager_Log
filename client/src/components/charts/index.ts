@@ -13,6 +13,7 @@
  */
 
 export { default as SalesTrendChart } from './SalesTrendChart';
+export { default as SalesChart } from './SalesChart';
 export { default as ToDoStatusPieChart } from './ToDoStatusPieChart';
 export { default as SalesBreakdownChart } from './SalesBreakdownChart';
 export { default as SalesHeatmapCalendar } from './SalesHeatmapCalendar';
