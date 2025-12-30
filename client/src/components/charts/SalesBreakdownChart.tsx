@@ -108,8 +108,8 @@ export default function SalesBreakdownChart({ salesByCategory }: SalesBreakdownC
             Sales Breakdown
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="h-[150px] flex items-center justify-center text-muted-foreground">
+        <CardContent className="pt-2">
+          <div className="h-[160px] flex items-center justify-center text-muted-foreground">
             No categorized sales data in this period
           </div>
         </CardContent>
@@ -125,16 +125,16 @@ export default function SalesBreakdownChart({ salesByCategory }: SalesBreakdownC
           Sales Breakdown
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="h-[150px]">
+      <CardContent className="pt-2">
+        <div className="h-[160px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={50}
-                outerRadius={80}
+                innerRadius={40}
+                outerRadius={65}
                 paddingAngle={2}
                 dataKey="value"
                 labelLine={false}
@@ -147,14 +147,14 @@ export default function SalesBreakdownChart({ salesByCategory }: SalesBreakdownC
               <Tooltip content={<CustomTooltip />} />
               <Legend
                 verticalAlign="bottom"
-                height={36}
+                height={28}
                 formatter={(value) => <span className="text-sm">{value}</span>}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 mt-4">
+        <div className="grid grid-cols-3 gap-2 mt-2">
           {[
             { label: "Food", value: salesByCategory.food, icon: Utensils, color: "text-primary" },
             { label: "Bar", value: salesByCategory.bar, icon: Wine, color: "text-blue-500" },

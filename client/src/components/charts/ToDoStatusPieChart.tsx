@@ -94,8 +94,8 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
             Maintenance List Status
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="h-[150px] flex items-center justify-center text-muted-foreground">
+        <CardContent className="pt-2">
+          <div className="h-[160px] flex items-center justify-center text-muted-foreground">
             No maintenance items in this period
           </div>
         </CardContent>
@@ -111,16 +111,16 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
           Maintenance List Status
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="h-[150px]">
+      <CardContent className="pt-2">
+        <div className="h-[160px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={50}
-                outerRadius={80}
+                innerRadius={40}
+                outerRadius={65}
                 paddingAngle={2}
                 dataKey="value"
                 labelLine={false}
@@ -133,14 +133,14 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
               <Tooltip content={<CustomTooltip />} />
               <Legend
                 verticalAlign="bottom"
-                height={36}
+                height={28}
                 formatter={(value) => <span className="text-sm">{value}</span>}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="flex items-center justify-center gap-6 mt-2">
+        <div className="flex items-center justify-center gap-6 mt-1">
           <div className="flex items-center gap-2" data-testid="text-todo-open">
             <AlertCircle className="h-4 w-4 text-destructive" />
             <span className="text-sm font-medium">{status.open} Open</span>
