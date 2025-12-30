@@ -1,0 +1,70 @@
+Got you. This is just layout + Tailwind spacing.
+
+1) Make Sales Breakdown (SB) + Maintenance List Status (MLS) smaller
+
+Wrap them in a 2-col grid and reduce padding + height. Use a “compact card” class.
+
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  {/* Sales Breakdown */}
+  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+    <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+      <span className="opacity-80">🕘</span> Sales Breakdown
+    </h3>
+
+    <div className="h-56 flex items-center justify-center">
+      {/* your donut chart */}
+    </div>
+
+    {/* custom legend (see #2) */}
+  </div>
+
+  {/* Maintenance List Status */}
+  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+    <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+      <span className="opacity-80">📊</span> Maintenance List Status
+    </h3>
+
+    <div className="h-56 flex items-center justify-center text-sm text-white/60">
+      No maintenance items in this period
+    </div>
+  </div>
+</div>
+
+
+What changed
+
+p-4 (was likely p-6)
+
+chart area fixed to h-56 so the cards don’t balloon
+
+2) Fix the donut legend spacing (key directly under chart)
+
+Don’t rely on the chart library’s legend here—make your own under the chart with tight spacing.
+
+<div className="mt-2 flex items-center justify-center gap-6 text-xs text-white/70">
+  <div className="flex items-center gap-2">
+    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+    Food
+  </div>
+  <div className="flex items-center gap-2">
+    <span className="h-2 w-2 rounded-full bg-sky-400" />
+    Bar
+  </div>
+  <div className="flex items-center gap-2">
+    <span className="h-2 w-2 rounded-full bg-fuchsia-400" />
+    Gaming
+  </div>
+</div>
+
+
+If your donut currently renders a built-in legend under it, turn that off (depends on lib). Example patterns:
+
+Recharts: remove <Legend />
+
+Chart.js: plugins: { legend: { display: false } }
+
+Optional: even tighter “compact” look
+
+Swap h-56 → h-48 and gap-4 → gap-3.
+
+If you tell me which chart library you’re using (Recharts vs Chart.js), I’ll paste the exact “disable built-in legend” snippet for it.
