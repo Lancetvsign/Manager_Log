@@ -609,7 +609,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
           icon={<BarChart3 className="h-5 w-5" />}
           defaultExpanded={true}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <Card data-testid="card-days-logged">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
                 <CardTitle className="text-sm font-medium">Days Logged</CardTitle>
@@ -680,6 +680,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               </CardContent>
             </Card>
           </div>
+          <SalesBreakdownChart salesByCategory={metrics.salesByCategory} />
         </CollapsibleSection>
       )}
 
@@ -965,9 +966,8 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div className="mb-6">
               <ToDoStatusPieChart status={metrics.toDoStatus} />
-              <SalesBreakdownChart salesByCategory={metrics.salesByCategory} />
             </div>
 
             {maintenanceInsights?.topOldestOpen && maintenanceInsights.topOldestOpen.length > 0 && (
