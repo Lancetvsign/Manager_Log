@@ -23,10 +23,9 @@ import {
   Pie,
   Cell,
   Tooltip,
-  Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, CheckCircle, AlertCircle } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import type { ToDoStatus } from "@shared/schema";
 
 const COLORS = {
@@ -95,7 +94,7 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-2">
-          <div className="h-[160px] flex items-center justify-center text-muted-foreground">
+          <div className="h-36 flex items-center justify-center text-muted-foreground">
             No maintenance items in this period
           </div>
         </CardContent>
@@ -112,7 +111,7 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-2">
-        <div className="h-[160px]">
+        <div className="h-36">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -131,26 +130,21 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
                 ))}
               </Pie>
               <Tooltip content={<CustomTooltip />} />
-              <Legend
-                verticalAlign="bottom"
-                height={28}
-                formatter={(value) => <span className="text-sm">{value}</span>}
-              />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="flex items-center justify-center gap-6 mt-1">
+        <div className="mt-2 flex items-center justify-center gap-6 text-xs text-muted-foreground">
           <div className="flex items-center gap-2" data-testid="text-todo-open">
-            <AlertCircle className="h-4 w-4 text-destructive" />
-            <span className="text-sm font-medium">{status.open} Open</span>
+            <span className="h-2 w-2 rounded-full bg-destructive" />
+            {status.open} Open
           </div>
           <div className="flex items-center gap-2" data-testid="text-todo-completed">
-            <CheckCircle className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">{status.completed} Completed</span>
+            <span className="h-2 w-2 rounded-full bg-primary" />
+            {status.completed} Completed
           </div>
         </div>
-        <p className="text-center text-sm text-muted-foreground mt-2" data-testid="text-completion-rate">
+        <p className="text-center text-xs text-muted-foreground mt-1" data-testid="text-completion-rate">
           {completionRate}% completion rate
         </p>
       </CardContent>

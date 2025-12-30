@@ -25,10 +25,9 @@ import {
   Pie,
   Cell,
   Tooltip,
-  Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart as PieChartIcon, Utensils, Wine, Gamepad2 } from "lucide-react";
+import { PieChart as PieChartIcon } from "lucide-react";
 import type { SalesByCategory } from "@shared/schema";
 
 const COLORS = {
@@ -45,9 +44,9 @@ export default function SalesBreakdownChart({ salesByCategory }: SalesBreakdownC
   const total = salesByCategory.total;
 
   const data = [
-    { name: "Food", value: salesByCategory.food, color: COLORS.food, icon: Utensils },
-    { name: "Bar", value: salesByCategory.bar, color: COLORS.bar, icon: Wine },
-    { name: "Gaming", value: salesByCategory.gaming, color: COLORS.gaming, icon: Gamepad2 },
+    { name: "Food", value: salesByCategory.food, color: COLORS.food },
+    { name: "Bar", value: salesByCategory.bar, color: COLORS.bar },
+    { name: "Gaming", value: salesByCategory.gaming, color: COLORS.gaming },
   ].filter((item) => item.value > 0);
 
   const formatCurrency = (value: number) => {
@@ -109,7 +108,7 @@ export default function SalesBreakdownChart({ salesByCategory }: SalesBreakdownC
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-2">
-          <div className="h-[160px] flex items-center justify-center text-muted-foreground">
+          <div className="h-36 flex items-center justify-center text-muted-foreground">
             No categorized sales data in this period
           </div>
         </CardContent>
@@ -126,7 +125,7 @@ export default function SalesBreakdownChart({ salesByCategory }: SalesBreakdownC
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-2">
-        <div className="h-[160px]">
+        <div className="h-36">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -145,29 +144,26 @@ export default function SalesBreakdownChart({ salesByCategory }: SalesBreakdownC
                 ))}
               </Pie>
               <Tooltip content={<CustomTooltip />} />
-              <Legend
-                verticalAlign="bottom"
-                height={28}
-                formatter={(value) => <span className="text-sm">{value}</span>}
-              />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 mt-2">
-          {[
-            { label: "Food", value: salesByCategory.food, icon: Utensils, color: "text-primary" },
-            { label: "Bar", value: salesByCategory.bar, icon: Wine, color: "text-blue-500" },
-            { label: "Gaming", value: salesByCategory.gaming, icon: Gamepad2, color: "text-purple-500" },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="text-center" data-testid={`text-sales-${label.toLowerCase()}`}>
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <Icon className={`h-4 w-4 ${color}`} />
-                <span className="text-sm font-medium">{label}</span>
-              </div>
-              <p className="text-sm text-muted-foreground">{formatCurrency(value)}</p>
-            </div>
-          ))}
+        <div className="mt-2 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5" data-testid="text-sales-food">
+            <span className="h-2 w-2 rounded-full bg-primary" />
+            <span>Food</span>
+            <span className="font-medium text-foreground">{formatCurrency(salesByCategory.food)}</span>
+          </div>
+          <div className="flex items-center gap-1.5" data-testid="text-sales-bar">
+            <span className="h-2 w-2 rounded-full bg-blue-500" />
+            <span>Bar</span>
+            <span className="font-medium text-foreground">{formatCurrency(salesByCategory.bar)}</span>
+          </div>
+          <div className="flex items-center gap-1.5" data-testid="text-sales-gaming">
+            <span className="h-2 w-2 rounded-full bg-purple-500" />
+            <span>Gaming</span>
+            <span className="font-medium text-foreground">{formatCurrency(salesByCategory.gaming)}</span>
+          </div>
         </div>
       </CardContent>
     </Card>
