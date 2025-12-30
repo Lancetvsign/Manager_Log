@@ -680,7 +680,10 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               </CardContent>
             </Card>
           </div>
-          <SalesBreakdownChart salesByCategory={metrics.salesByCategory} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SalesBreakdownChart salesByCategory={metrics.salesByCategory} />
+            <ToDoStatusPieChart status={metrics.toDoStatus} />
+          </div>
         </CollapsibleSection>
       )}
 
@@ -964,10 +967,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                   <p className="text-xs text-muted-foreground">average days to complete</p>
                 </CardContent>
               </Card>
-            </div>
-
-            <div className="mb-6">
-              <ToDoStatusPieChart status={metrics.toDoStatus} />
             </div>
 
             {maintenanceInsights?.topOldestOpen && maintenanceInsights.topOldestOpen.length > 0 && (

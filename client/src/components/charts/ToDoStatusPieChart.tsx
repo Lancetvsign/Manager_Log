@@ -95,7 +95,7 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+          <div className="h-[150px] flex items-center justify-center text-muted-foreground">
             No maintenance items in this period
           </div>
         </CardContent>
@@ -112,7 +112,7 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-[200px]">
+        <div className="h-[150px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
