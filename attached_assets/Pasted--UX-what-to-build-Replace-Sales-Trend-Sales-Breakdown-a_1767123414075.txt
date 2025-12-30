@@ -1,0 +1,133 @@
+✅ UX: what to build
+
+Replace “Sales Trend” + “Sales Breakdown” as separate cards with:
+
+Card header
+
+Title: Sales
+
+Toggle chips: Total Food Bar Gaming (multi-select)
+
+View chips: Line Bar Area
+
+(Optional) “Stacked” toggle for bar view
+
+Card body
+
+One chart that plots only the selected series
+
+Legend becomes redundant because the chips are the legend
+
+✅ React state (series toggles)
+
+Drop this into the Sales chart component:
+
+const [visible, setVisible] = useState({
+  total: true,
+  food: true,
+  bar: true,
+  gaming: true,
+});
+
+function toggleSeries(key: keyof typeof visible) {
+  setVisible((v) => ({ ...v, [key]: !v[key] }));
+}
+
+UI chips (Tailwind)
+const chipBase =
+  "px-3 py-1 rounded-md text-xs font-medium border transition";
+const onChip =
+  "bg-emerald-500/15 border-emerald-400/40 text-emerald-200";
+const offChip =
+  "bg-white/5 border-white/10 text-white/60 hover:bg-white/10";
+
+<div className="flex flex-wrap gap-2">
+  {(["total","food","bar","gaming"] as const).map((k) => (
+    <button
+      key={k}
+      type="button"
+      onClick={() => toggleSeries(k)}
+      className={`${chipBase} ${visible[k] ? onChip : offChip}`}
+    >
+      {k.toUpperCase()}
+    </button>
+  ))}
+</div>
+
+✅ Data format you need (one row per day)
+
+Your chart should use data like:
+
+type SalesPoint = {
+  date: string; // "2025-12-18"
+  total: number;
+  food: number;
+  bar: number;
+  gaming: number;
+};
+
+
+If you already have this for the donut + trend, great — just pass the same dataset to one chart.
+
+OPTION A — Recharts implementation (recommended)
+Main chart that respects toggles
+import {
+  ResponsiveContainer,
+  LineChart, Line,
+  AreaChart, Area,
+  BarChart, Bar,
+  XAxis, YAxis, Tooltip, CartesianGrid,
+} from "recharts";
+
+function SalesChart({ data, chartType }: { data: SalesPoint[]; chartType: "line"|"bar"|"area" }) {
+  const series = [
+    { key: "total", label: "Total" },
+    { key: "food", label: "Food" },
+    { key: "bar", label: "Bar" },
+    { key: "gaming", label: "Gaming" },
+  ] as const;
+
+  const common = (
+    <>
+      <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+      <XAxis dataKey="date" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 12 }} />
+      <YAxis tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 12 }} />
+      <Tooltip />
+    </>
+  );
+
+  return (
+    <div className="h-72 w-full">
+      <ResponsiveContainer>
+        {chartType === "line" ? (
+          <LineChart data={data}>
+            {common}
+            {visible.total && <Line dataKey="total" dot={false} />}
+            {visible.food && <Line dataKey="food" dot={false} />}
+            {visible.bar && <Line dataKey="bar" dot={false} />}
+            {visible.gaming && <Line dataKey="gaming" dot={false} />}
+          </LineChart>
+        ) : chartType === "area" ? (
+          <AreaChart data={data}>
+            {common}
+            {visible.total && <Area dataKey="total" fillOpacity={0.15} />}
+            {visible.food && <Area dataKey="food" fillOpacity={0.15} />}
+            {visible.bar && <Area dataKey="bar" fillOpacity={0.15} />}
+            {visible.gaming && <Area dataKey="gaming" fillOpacity={0.15} />}
+          </AreaChart>
+        ) : (
+          <BarChart data={data}>
+            {common}
+            {visible.total && <Bar dataKey="total" />}
+            {visible.food && <Bar dataKey="food" />}
+            {visible.bar && <Bar dataKey="bar" />}
+            {visible.gaming && <Bar dataKey="gaming" />}
+          </BarChart>
+        )}
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+
+Note: I didn’t specify explicit colors since you didn’t ask; Recharts will auto-color or use defaults. If you want consistent Food/Bar/Gaming colors, tell me and I’ll map them.
