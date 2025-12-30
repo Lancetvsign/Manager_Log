@@ -7,7 +7,7 @@
  * Features:
  * - Multi-select series toggles (Total, Food, Bar, Gaming)
  * - Chart type switching (Line, Bar, Area)
- * - Comparison mode with dashed overlay lines
+ * - Comparison mode with dashed overlay lines (merged by label)
  * - Granularity support (daily, weekly, monthly aggregation)
  * - Export to PNG/PDF
  */
@@ -16,9 +16,6 @@ import { useMemo, useRef, useState } from "react";
 import { format, startOfWeek, startOfMonth, parseISO } from "date-fns";
 import {
   ResponsiveContainer,
-  LineChart,
-  BarChart,
-  AreaChart,
   ComposedChart,
   Line,
   Bar,
@@ -54,17 +51,24 @@ interface SalesChartProps {
   onChartTypeChange: (type: ChartType) => void;
 }
 
-interface AggregatedDataPoint {
-  date: string;
+interface AggregatedPoint {
   label: string;
   total: number;
   food: number;
   bar: number;
   gaming: number;
-  comparisonTotal?: number;
-  comparisonFood?: number;
-  comparisonBar?: number;
-  comparisonGaming?: number;
+}
+
+interface MergedSalesPoint {
+  label: string;
+  current_total: number;
+  current_food: number;
+  current_bar: number;
+  current_gaming: number;
+  compare_total?: number;
+  compare_food?: number;
+  compare_bar?: number;
+  compare_gaming?: number;
 }
 
 type SeriesKey = "total" | "food" | "bar" | "gaming";
@@ -82,6 +86,82 @@ const SERIES_LABELS: Record<SeriesKey, string> = {
   bar: "Bar",
   gaming: "Gaming",
 };
+
+function aggregateByGranularity(
+  salesData: DailySalesData[],
+  gran: GranularityType
+): AggregatedPoint[] {
+  const grouped = new Map<string, AggregatedPoint>();
+
+  salesData.forEach((d) => {
+    const dateObj = parseISO(d.date);
+    let label: string;
+
+    if (gran === "daily") {
+      label = format(dateObj, "MMM d");
+    } else if (gran === "weekly") {
+      const weekStart = startOfWeek(dateObj, { weekStartsOn: 0 });
+      label = `Wk ${format(weekStart, "MMM d")}`;
+    } else {
+      const monthStart = startOfMonth(dateObj);
+      label = format(monthStart, "MMM yyyy");
+    }
+
+    const existing = grouped.get(label) || {
+      label,
+      total: 0,
+      food: 0,
+      bar: 0,
+      gaming: 0,
+    };
+
+    grouped.set(label, {
+      ...existing,
+      total: existing.total + d.totalSales,
+      food: existing.food + d.foodSales,
+      bar: existing.bar + d.barSales,
+      gaming: existing.gaming + d.gamingSales,
+    });
+  });
+
+  return Array.from(grouped.values());
+}
+
+function mergeSalesSeries(
+  current: AggregatedPoint[],
+  compare?: AggregatedPoint[]
+): MergedSalesPoint[] {
+  const map = new Map<string, MergedSalesPoint>();
+
+  for (const p of current) {
+    map.set(p.label, {
+      label: p.label,
+      current_total: p.total ?? 0,
+      current_food: p.food ?? 0,
+      current_bar: p.bar ?? 0,
+      current_gaming: p.gaming ?? 0,
+    });
+  }
+
+  if (compare) {
+    for (let i = 0; i < compare.length && i < current.length; i++) {
+      const compPoint = compare[i];
+      const currentLabel = current[i].label;
+      const existing = map.get(currentLabel);
+      if (existing) {
+        map.set(currentLabel, {
+          ...existing,
+          compare_total: compPoint.total ?? 0,
+          compare_food: compPoint.food ?? 0,
+          compare_bar: compPoint.bar ?? 0,
+          compare_gaming: compPoint.gaming ?? 0,
+        });
+      }
+    }
+  }
+
+  return current.map((p) => map.get(p.label)!).filter(Boolean);
+}
 
 export default function SalesChart({
   data,
@@ -107,79 +187,23 @@ export default function SalesChart({
     setVisible((v) => ({ ...v, [key]: !v[key] }));
   }
 
-  const aggregateData = (
-    salesData: DailySalesData[],
-    gran: GranularityType
-  ): Map<string, AggregatedDataPoint> => {
-    const grouped = new Map<string, AggregatedDataPoint>();
-
-    salesData.forEach((d) => {
-      const dateObj = parseISO(d.date);
-      let key: string;
-      let label: string;
-
-      if (gran === "daily") {
-        key = d.date;
-        label = format(dateObj, "MMM d");
-      } else if (gran === "weekly") {
-        const weekStart = startOfWeek(dateObj, { weekStartsOn: 0 });
-        key = format(weekStart, "yyyy-MM-dd");
-        label = `Week of ${format(weekStart, "MMM d")}`;
-      } else {
-        const monthStart = startOfMonth(dateObj);
-        key = format(monthStart, "yyyy-MM");
-        label = format(monthStart, "MMM yyyy");
-      }
-
-      const existing = grouped.get(key) || {
-        date: key,
-        label,
-        total: 0,
-        food: 0,
-        bar: 0,
-        gaming: 0,
-      };
-
-      grouped.set(key, {
-        ...existing,
-        total: existing.total + d.totalSales,
-        food: existing.food + d.foodSales,
-        bar: existing.bar + d.barSales,
-        gaming: existing.gaming + d.gamingSales,
-      });
-    });
-
-    return grouped;
-  };
-
-  const aggregatedData = useMemo((): AggregatedDataPoint[] => {
-    const mainData = aggregateData(data, granularity);
-    const compDataMap = comparisonData ? aggregateData(comparisonData, granularity) : null;
-
-    const result = Array.from(mainData.values()).sort((a, b) =>
-      a.date.localeCompare(b.date)
-    );
-
-    if (compDataMap && result.length > 0) {
-      const compValues = Array.from(compDataMap.values()).sort((a, b) =>
-        a.date.localeCompare(b.date)
-      );
-      result.forEach((point, index) => {
-        if (index < compValues.length) {
-          point.comparisonTotal = compValues[index].total;
-          point.comparisonFood = compValues[index].food;
-          point.comparisonBar = compValues[index].bar;
-          point.comparisonGaming = compValues[index].gaming;
-        }
-      });
-    }
-
-    return result;
+  const mergedData = useMemo((): MergedSalesPoint[] => {
+    const currentAggregated = aggregateByGranularity(data, granularity);
+    const compareAggregated = comparisonData
+      ? aggregateByGranularity(comparisonData, granularity)
+      : undefined;
+    return mergeSalesSeries(currentAggregated, compareAggregated);
   }, [data, comparisonData, granularity]);
 
-  const hasComparisonData = aggregatedData.some(
-    (d) => d.comparisonTotal !== undefined || d.comparisonFood !== undefined || d.comparisonBar !== undefined || d.comparisonGaming !== undefined
-  );
+  const hasCompare = useMemo(() => {
+    return mergedData.some(
+      (p) =>
+        p.compare_total !== undefined ||
+        p.compare_food !== undefined ||
+        p.compare_bar !== undefined ||
+        p.compare_gaming !== undefined
+    );
+  }, [mergedData]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -199,16 +223,40 @@ export default function SalesChart({
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const dataPoint = aggregatedData.find((d) => d.label === label);
+      const currentItems = payload.filter((p: any) => p.dataKey?.startsWith("current_"));
+      const compareItems = payload.filter((p: any) => p.dataKey?.startsWith("compare_"));
+
       return (
-        <div className="bg-card border rounded-lg p-3 shadow-lg">
-          <p className="font-medium mb-2">{dataPoint?.label || label}</p>
-          {payload.map((entry: any, index: number) => (
-            <p key={index} className="text-sm" style={{ color: entry.color }}>
-              <span className="font-medium">{entry.name}:</span>{" "}
-              {formatCurrency(entry.value || 0)}
-            </p>
-          ))}
+        <div className="bg-card border rounded-lg p-3 shadow-lg min-w-[180px]">
+          <p className="font-medium mb-2 border-b pb-1">{label}</p>
+          {currentItems.length > 0 && (
+            <div className="mb-2">
+              <p className="text-xs text-muted-foreground mb-1">Current Period</p>
+              {currentItems.map((entry: any, index: number) => {
+                const seriesKey = entry.dataKey.replace("current_", "") as SeriesKey;
+                return (
+                  <p key={index} className="text-sm" style={{ color: SERIES_COLORS[seriesKey]?.hex || entry.color }}>
+                    <span className="font-medium">{SERIES_LABELS[seriesKey] || entry.name}:</span>{" "}
+                    {formatCurrency(entry.value || 0)}
+                  </p>
+                );
+              })}
+            </div>
+          )}
+          {compareItems.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Comparison Period</p>
+              {compareItems.map((entry: any, index: number) => {
+                const seriesKey = entry.dataKey.replace("compare_", "") as SeriesKey;
+                return (
+                  <p key={index} className="text-sm opacity-70" style={{ color: SERIES_COLORS[seriesKey]?.hex || entry.color }}>
+                    <span className="font-medium">{SERIES_LABELS[seriesKey] || entry.name}:</span>{" "}
+                    {formatCurrency(entry.value || 0)}
+                  </p>
+                );
+              })}
+            </div>
+          )}
         </div>
       );
     }
@@ -229,172 +277,136 @@ export default function SalesChart({
     className: "text-muted-foreground",
   };
 
-  const hasComparison = comparisonData && comparisonData.length > 0;
+  const renderLineOrArea = (key: SeriesKey) => {
+    if (!visible[key]) return null;
 
-  const renderSeries = () => {
-    const series: SeriesKey[] = ["total", "food", "bar", "gaming"];
-    const comparisonKeys: Record<SeriesKey, keyof AggregatedDataPoint> = {
-      total: "comparisonTotal",
-      bar: "comparisonBar",
-      food: "comparisonFood",
-      gaming: "comparisonGaming",
-    };
-
-    if (chartType === "line") {
-      return series.map(
-        (key) =>
-          visible[key] && (
-            <Line
-              key={key}
-              type={lineType}
-              dataKey={key}
-              name={SERIES_LABELS[key]}
-              stroke={SERIES_COLORS[key].hsl}
-              strokeWidth={2}
-              dot={{ fill: SERIES_COLORS[key].hsl, strokeWidth: 2, r: aggregatedData.length <= 10 ? 4 : 2 }}
-              activeDot={{ r: 6 }}
-              isAnimationActive={enableAnimations}
-            >
-              {showDataLabels && (
-                <LabelList
-                  dataKey={key}
-                  position="top"
-                  formatter={formatShortCurrency}
-                  fontSize={10}
-                />
-              )}
-            </Line>
-          )
-      );
-    }
+    const currentKey = `current_${key}` as const;
+    const compareKey = `compare_${key}` as const;
+    const color = SERIES_COLORS[key].hsl;
 
     if (chartType === "area") {
-      return series.map(
-        (key) =>
-          visible[key] && (
-            <Area
-              key={key}
-              type={lineType}
-              dataKey={key}
-              name={SERIES_LABELS[key]}
-              stroke={SERIES_COLORS[key].hsl}
-              fill={SERIES_COLORS[key].hsl}
-              fillOpacity={0.15}
-              isAnimationActive={enableAnimations}
-            >
-              {showDataLabels && (
-                <LabelList
-                  dataKey={key}
-                  position="top"
-                  formatter={formatShortCurrency}
-                  fontSize={10}
-                />
-              )}
-            </Area>
-          )
-      );
-    }
-
-    return series.map(
-      (key) =>
-        visible[key] && (
-          <Bar
-            key={key}
-            dataKey={key}
+      return (
+        <>
+          <Area
+            key={currentKey}
+            type={lineType}
+            dataKey={currentKey}
             name={SERIES_LABELS[key]}
-            fill={SERIES_COLORS[key].hsl}
-            radius={barRadius}
+            stroke={color}
+            fill={color}
+            fillOpacity={0.15}
             isAnimationActive={enableAnimations}
           >
             {showDataLabels && (
               <LabelList
-                dataKey={key}
+                dataKey={currentKey}
                 position="top"
                 formatter={formatShortCurrency}
                 fontSize={10}
               />
             )}
-          </Bar>
-        )
+          </Area>
+          {hasCompare && (
+            <Line
+              key={compareKey}
+              type={lineType}
+              dataKey={compareKey}
+              name={`${SERIES_LABELS[key]} (Prev)`}
+              stroke={color}
+              strokeWidth={2}
+              strokeDasharray="6 6"
+              opacity={0.6}
+              dot={false}
+              isAnimationActive={enableAnimations}
+            />
+          )}
+        </>
+      );
+    }
+
+    return (
+      <>
+        <Line
+          key={currentKey}
+          type={lineType}
+          dataKey={currentKey}
+          name={SERIES_LABELS[key]}
+          stroke={color}
+          strokeWidth={2}
+          dot={{ fill: color, strokeWidth: 2, r: mergedData.length <= 10 ? 4 : 2 }}
+          activeDot={{ r: 6 }}
+          isAnimationActive={enableAnimations}
+        >
+          {showDataLabels && (
+            <LabelList
+              dataKey={currentKey}
+              position="top"
+              formatter={formatShortCurrency}
+              fontSize={10}
+            />
+          )}
+        </Line>
+        {hasCompare && (
+          <Line
+            key={compareKey}
+            type={lineType}
+            dataKey={compareKey}
+            name={`${SERIES_LABELS[key]} (Prev)`}
+            stroke={color}
+            strokeWidth={2}
+            strokeDasharray="6 6"
+            opacity={0.6}
+            dot={false}
+            isAnimationActive={enableAnimations}
+          />
+        )}
+      </>
     );
   };
 
-  const renderComparisonSeries = () => {
-    if (!hasComparisonData) return null;
+  const renderBars = (key: SeriesKey) => {
+    if (!visible[key]) return null;
 
-    const series: SeriesKey[] = ["total", "food", "bar", "gaming"];
-    const comparisonKeys: Record<SeriesKey, string> = {
-      total: "comparisonTotal",
-      food: "comparisonFood",
-      bar: "comparisonBar",
-      gaming: "comparisonGaming",
-    };
+    const currentKey = `current_${key}` as const;
+    const compareKey = `compare_${key}` as const;
+    const color = SERIES_COLORS[key].hsl;
 
-    if (chartType === "line") {
-      return series.map(
-        (key) =>
-          visible[key] && (
-            <Line
-              key={`comp-${key}`}
-              type={lineType}
-              dataKey={comparisonKeys[key]}
-              name={`${SERIES_LABELS[key]} (Prev)`}
-              stroke={SERIES_COLORS[key].hsl}
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              strokeOpacity={0.5}
-              dot={false}
-              isAnimationActive={enableAnimations}
+    return (
+      <>
+        <Bar
+          key={currentKey}
+          dataKey={currentKey}
+          name={SERIES_LABELS[key]}
+          fill={color}
+          radius={barRadius}
+          isAnimationActive={enableAnimations}
+        >
+          {showDataLabels && (
+            <LabelList
+              dataKey={currentKey}
+              position="top"
+              formatter={formatShortCurrency}
+              fontSize={10}
             />
-          )
-      );
-    }
-
-    if (chartType === "area") {
-      return series.map(
-        (key) =>
-          visible[key] && (
-            <Area
-              key={`comp-${key}`}
-              type={lineType}
-              dataKey={comparisonKeys[key]}
-              name={`${SERIES_LABELS[key]} (Prev)`}
-              stroke={SERIES_COLORS[key].hsl}
-              fill={SERIES_COLORS[key].hsl}
-              fillOpacity={0.05}
-              strokeDasharray="5 5"
-              strokeOpacity={0.5}
-              isAnimationActive={enableAnimations}
-            />
-          )
-      );
-    }
-
-    if (chartType === "bar") {
-      return series.map(
-        (key) =>
-          visible[key] && (
-            <Line
-              key={`comp-${key}`}
-              type={lineType}
-              dataKey={comparisonKeys[key]}
-              name={`${SERIES_LABELS[key]} (Prev)`}
-              stroke={SERIES_COLORS[key].hsl}
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              strokeOpacity={0.6}
-              dot={false}
-              isAnimationActive={enableAnimations}
-            />
-          )
-      );
-    }
-
-    return null;
+          )}
+        </Bar>
+        {hasCompare && (
+          <Bar
+            key={compareKey}
+            dataKey={compareKey}
+            name={`${SERIES_LABELS[key]} (Prev)`}
+            fill={color}
+            opacity={0.35}
+            radius={barRadius}
+            isAnimationActive={enableAnimations}
+          />
+        )}
+      </>
+    );
   };
 
   const renderChart = () => {
-    if (aggregatedData.length === 0) {
+    if (mergedData.length === 0) {
       return (
         <div className="h-[280px] flex items-center justify-center text-muted-foreground">
           No sales data available for this period
@@ -402,32 +414,37 @@ export default function SalesChart({
       );
     }
 
-    const commonChildren = (
-      <>
-        {showGridlines && (
-          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.15} />
-        )}
-        <XAxis dataKey="label" {...commonAxisProps} />
-        <YAxis
-          tickFormatter={(value) => `$${value.toLocaleString()}`}
-          {...commonAxisProps}
-          width={70}
-        />
-        <Tooltip content={<CustomTooltip />} />
-      </>
-    );
-
-    const ChartComponent =
-      chartType === "line" ? LineChart : chartType === "area" ? AreaChart : ComposedChart;
-
     return (
       <div className="h-[280px]">
         <ResponsiveContainer width="100%" height="100%">
-          <ChartComponent data={aggregatedData}>
-            {commonChildren}
-            {renderSeries()}
-            {renderComparisonSeries()}
-          </ChartComponent>
+          <ComposedChart data={mergedData}>
+            {showGridlines && (
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.15} />
+            )}
+            <XAxis dataKey="label" {...commonAxisProps} />
+            <YAxis
+              tickFormatter={(value) => `$${value.toLocaleString()}`}
+              {...commonAxisProps}
+              width={70}
+            />
+            <Tooltip content={<CustomTooltip />} />
+
+            {chartType === "bar" ? (
+              <>
+                {renderBars("total")}
+                {renderBars("food")}
+                {renderBars("bar")}
+                {renderBars("gaming")}
+              </>
+            ) : (
+              <>
+                {renderLineOrArea("total")}
+                {renderLineOrArea("food")}
+                {renderLineOrArea("bar")}
+                {renderLineOrArea("gaming")}
+              </>
+            )}
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     );
@@ -549,6 +566,11 @@ export default function SalesChart({
               </button>
             ))}
           </div>
+          {hasCompare && (
+            <div className="text-xs text-muted-foreground">
+              Solid = Current Period | Dashed/Lighter = Comparison Period
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent ref={chartRef}>{renderChart()}</CardContent>
