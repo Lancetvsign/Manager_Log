@@ -680,10 +680,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               </CardContent>
             </Card>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <SalesBreakdownChart salesByCategory={metrics.salesByCategory} />
-            <ToDoStatusPieChart status={metrics.toDoStatus} />
-          </div>
         </CollapsibleSection>
       )}
 
@@ -837,6 +833,9 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               onChartTypeChange={setChartType}
             />
             <div className="mt-6">
+              <SalesBreakdownChart salesByCategory={metrics.salesByCategory} />
+            </div>
+            <div className="mt-6">
               <SalesHeatmapCalendar
                 data={metrics.dailySales}
                 startDate={dateRange.startDate}
@@ -930,7 +929,8 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
             icon={<Wrench className="h-5 w-5" />}
             defaultExpanded={true}
           >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <ToDoStatusPieChart status={metrics.toDoStatus} />
               <Card data-testid="card-maintenance-open">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
                   <CardTitle className="text-sm font-medium">Open Items</CardTitle>
