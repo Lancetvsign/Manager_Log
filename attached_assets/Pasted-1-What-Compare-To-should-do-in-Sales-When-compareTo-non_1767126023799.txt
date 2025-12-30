@@ -1,0 +1,153 @@
+1) What “Compare To” should do in Sales
+When compareTo !== "none":
+
+
+Fetch/build comparisonMetrics for the same “view by” (daily/weekly/monthly)
+
+
+Create an aligned array like:
+
+
+type SalesSeriesPoint = {
+  label: string;          // the x-axis label shown on chart (e.g. "Dec 2" or "Wk 50")
+  current_total: number;
+  current_food: number;
+  current_bar: number;
+  current_gaming: number;
+
+  compare_total?: number;
+  compare_food?: number;
+  compare_bar?: number;
+  compare_gaming?: number;
+};
+
+Then you render:
+
+
+solid lines/bars = current_*
+
+
+dashed lines = compare_* (only if compare enabled)
+
+
+
+2) The #1 reason your dashed lines aren’t showing
+Usually one of these:
+
+
+comparisonData is a different length / different x labels than data
+
+
+You’re rendering compare lines but the keys don’t exist in the same objects as current
+
+
+hasComparisonData check fails because values are 0/undefined
+
+
+So: merge them into one array keyed by a shared “label”.
+
+3) Drop-in helper: merge current + compare by label
+Use this in your Sales component.
+function mergeSalesSeries(
+  current: Array<{ label: string; total: number; food: number; bar: number; gaming: number }>,
+  compare?: Array<{ label: string; total: number; food: number; bar: number; gaming: number }>
+) {
+  const map = new Map<string, any>();
+
+  for (const p of current) {
+    map.set(p.label, {
+      label: p.label,
+      current_total: p.total ?? 0,
+      current_food: p.food ?? 0,
+      current_bar: p.bar ?? 0,
+      current_gaming: p.gaming ?? 0,
+    });
+  }
+
+  if (compare) {
+    for (const p of compare) {
+      const existing = map.get(p.label) ?? { label: p.label };
+      map.set(p.label, {
+        ...existing,
+        compare_total: p.total ?? 0,
+        compare_food: p.food ?? 0,
+        compare_bar: p.bar ?? 0,
+        compare_gaming: p.gaming ?? 0,
+      });
+    }
+  }
+
+  // keep the same order as current series
+  return current.map((p) => map.get(p.label));
+}
+
+Then:
+const mergedData = useMemo(
+  () => mergeSalesSeries(currentSeries, comparisonSeries),
+  [currentSeries, comparisonSeries]
+);
+
+const hasCompare = useMemo(
+  () => mergedData.some((p: any) => p.compare_total != null),
+  [mergedData]
+);
+
+
+4) Recharts: render solid + dashed in the SAME chart
+Example for line view (works the same for Food/Bar/Gaming toggles):
+{visible.total && (
+  <>
+    <Line dataKey="current_total" dot={false} />
+    {hasCompare && (
+      <Line
+        dataKey="compare_total"
+        dot={false}
+        strokeDasharray="6 6"
+        opacity={0.7}
+      />
+    )}
+  </>
+)}
+
+Do the same pattern for current_food / compare_food, etc.
+For Bar view
+Bars can’t be dashed cleanly; the typical UI is:
+
+
+current = normal bars
+
+
+compare = outlined bars or lighter bars behind
+
+
+Simplest:
+{visible.total && <Bar dataKey="current_total" />}
+{hasCompare && visible.total && <Bar dataKey="compare_total" opacity={0.35} />}
+
+
+5) Where does comparisonSeries come from?
+Whatever your Insights “Compare To” dropdown is doing, your Sales section needs access to the same selection + date range.
+You want this flow:
+Filters & Controls (parent)
+→ computes dateRange, viewBy, compareTo
+→ fetches metrics AND comparisonMetrics
+→ passes both down to <SalesSection metrics={metrics} comparison={comparisonMetrics} />
+If SalesSection is currently fetching by itself, it won’t know about compareTo unless you wire it in.
+
+6) What to tell Replit / Agent to implement (super direct)
+Paste this to your agent:
+“In SalesSection, accept comparisonMetrics and merge current+comparison into one Recharts dataset keyed by the same label (daily/weekly/monthly). Render comparison as a dashed Line (strokeDasharray) for line/area, and as lower-opacity bars for bar view. Use keys current_total/current_food/current_bar/current_gaming + compare_total/... so both series live in the same data array.”
+
+Quick confirmation (so I give the exact file edits)
+Are you using Recharts here (looks like it), and what’s the component name/file for the Sales card? (Often something like client/src/components/Insights/SalesSection.tsx or similar.)
+If you tell me that filename, I’ll rewrite the exact component with:
+
+
+merged dataset
+
+
+dashed comparison
+
+
+series toggles that apply to both current + compare
+
