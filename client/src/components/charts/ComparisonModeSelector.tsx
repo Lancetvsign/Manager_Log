@@ -2,7 +2,10 @@
  * COMPARISON MODE SELECTOR COMPONENT
  * ====================================
  * Simplified comparison toggle for analytics.
- * Three options: Off, Previous Period, Last Year
+ * Three options: Off, Prior [N] Days (dynamic), Last Year
+ * 
+ * The middle option dynamically shows the actual number of days being compared
+ * based on the current date range selection (e.g., "Prior 7 Days", "Prior 30 Days").
  * 
  * @example
  * <ComparisonModeSelector
@@ -25,11 +28,16 @@ interface ComparisonModeSelectorProps {
   currentEndDate: string;
 }
 
-const COMPARISON_OPTIONS: { value: ComparisonPeriod; label: string }[] = [
-  { value: "none", label: "Off" },
-  { value: "previousPeriod", label: "Previous Period" },
-  { value: "previousYear", label: "Last Year" },
-];
+function getDynamicPeriodLabel(startDate: string, endDate: string): string {
+  const start = parseISO(startDate);
+  const end = parseISO(endDate);
+  const days = differenceInDays(end, start) + 1;
+  
+  if (days === 1) return "Prior Day";
+  if (days === 7) return "Prior Week";
+  if (days >= 28 && days <= 31) return "Prior Month";
+  return `Prior ${days} Days`;
+}
 
 /**
  * Calculates the comparison date range based on the selected period
@@ -79,6 +87,14 @@ export default function ComparisonModeSelector({
     currentEndDate
   );
 
+  const dynamicPeriodLabel = getDynamicPeriodLabel(currentStartDate, currentEndDate);
+
+  const comparisonOptions: { value: ComparisonPeriod; label: string }[] = [
+    { value: "none", label: "Off" },
+    { value: "previousPeriod", label: dynamicPeriodLabel },
+    { value: "previousYear", label: "Last Year" },
+  ];
+
   return (
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-2">
@@ -87,7 +103,7 @@ export default function ComparisonModeSelector({
       </div>
       
       <div className="flex gap-1">
-        {COMPARISON_OPTIONS.map((option) => (
+        {comparisonOptions.map((option) => (
           <Button
             key={option.value}
             variant={value === option.value ? "default" : "outline"}
