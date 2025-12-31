@@ -53,6 +53,7 @@ interface SalesChartProps {
 
 interface AggregatedPoint {
   label: string;
+  sortKey: string;
   total: number;
   food: number;
   bar: number;
@@ -61,6 +62,7 @@ interface AggregatedPoint {
 
 interface MergedSalesPoint {
   label: string;
+  sortKey: string;
   current_total: number;
   current_food: number;
   current_bar: number;
@@ -96,26 +98,31 @@ function aggregateByGranularity(
   salesData.forEach((d) => {
     const dateObj = parseISO(d.date);
     let label: string;
+    let sortKey: string;
 
     if (gran === "daily") {
       label = format(dateObj, "MMM d");
+      sortKey = d.date;
     } else if (gran === "weekly") {
       const weekStart = startOfWeek(dateObj, { weekStartsOn: 0 });
       label = `Wk ${format(weekStart, "MMM d")}`;
+      sortKey = format(weekStart, "yyyy-MM-dd");
     } else {
       const monthStart = startOfMonth(dateObj);
       label = format(monthStart, "MMM yyyy");
+      sortKey = format(monthStart, "yyyy-MM-dd");
     }
 
-    const existing = grouped.get(label) || {
+    const existing = grouped.get(sortKey) || {
       label,
+      sortKey,
       total: 0,
       food: 0,
       bar: 0,
       gaming: 0,
     };
 
-    grouped.set(label, {
+    grouped.set(sortKey, {
       ...existing,
       total: existing.total + d.totalSales,
       food: existing.food + d.foodSales,
@@ -124,43 +131,34 @@ function aggregateByGranularity(
     });
   });
 
-  return Array.from(grouped.values());
+  return Array.from(grouped.values()).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 }
 
 function mergeSalesSeries(
   current: AggregatedPoint[],
   compare?: AggregatedPoint[]
 ): MergedSalesPoint[] {
-  const map = new Map<string, MergedSalesPoint>();
+  const merged: MergedSalesPoint[] = [];
 
-  for (const p of current) {
-    map.set(p.label, {
+  for (let i = 0; i < current.length; i++) {
+    const p = current[i];
+    const compPoint = compare && i < compare.length ? compare[i] : undefined;
+
+    merged.push({
       label: p.label,
+      sortKey: p.sortKey,
       current_total: p.total ?? 0,
       current_food: p.food ?? 0,
       current_bar: p.bar ?? 0,
       current_gaming: p.gaming ?? 0,
+      compare_total: compPoint?.total,
+      compare_food: compPoint?.food,
+      compare_bar: compPoint?.bar,
+      compare_gaming: compPoint?.gaming,
     });
   }
 
-  if (compare) {
-    for (let i = 0; i < compare.length && i < current.length; i++) {
-      const compPoint = compare[i];
-      const currentLabel = current[i].label;
-      const existing = map.get(currentLabel);
-      if (existing) {
-        map.set(currentLabel, {
-          ...existing,
-          compare_total: compPoint.total ?? 0,
-          compare_food: compPoint.food ?? 0,
-          compare_bar: compPoint.bar ?? 0,
-          compare_gaming: compPoint.gaming ?? 0,
-        });
-      }
-    }
-  }
-
-  return current.map((p) => map.get(p.label)!).filter(Boolean);
+  return merged;
 }
 
 export default function SalesChart({
