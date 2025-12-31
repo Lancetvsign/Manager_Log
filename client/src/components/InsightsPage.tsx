@@ -3,12 +3,11 @@
  * =============================================
  * Comprehensive analytics dashboard for the restaurant manager's log.
  * Provides visual insights with multiple chart types, comparison mode,
- * granularity controls, heatmap visualization, and export capabilities.
+ * heatmap visualization, and export capabilities.
  * 
  * Features:
  * - Date range filtering (Last 7 Days, Last 30 Days, This Month, Custom)
- * - Comparison mode (Previous Period, Previous Month, Previous Year, Custom)
- * - View By selector (Daily, Weekly, Monthly)
+ * - Comparison mode (Off, Previous Period, Last Year)
  * - Chart type switching (Line, Bar, Area)
  * - Chart customization (gridlines, labels, animations, colors)
  * - Sales breakdown by category (Food, Bar, Gaming)
@@ -21,8 +20,7 @@
  * Data Flow:
  * 1. User selects date range and optional comparison period
  * 2. Component fetches from /api/metrics for both ranges
- * 3. Data is aggregated client-side based on granularity setting
- * 4. Results displayed in cards, charts, and tables
+ * 3. Daily sales data displayed in cards, charts, and tables
  * 
  * HOW TO ADD NEW METRICS:
  * 1. Add the metric type in shared/schema.ts
@@ -72,7 +70,6 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type {
   MetricsResponse,
   ChartType,
-  GranularityType,
   ComparisonPeriod,
   ComparisonMetrics,
 } from "@shared/schema";
@@ -106,7 +103,6 @@ interface InsightsPageProps {
 }
 
 const DEFAULT_DATE_PRESET: DateRangePreset = "30days";
-const DEFAULT_GRANULARITY: GranularityType = "daily";
 const DEFAULT_CHART_TYPE: ChartType = "line";
 
 export default function InsightsPage({ onViewLog }: InsightsPageProps) {
@@ -115,7 +111,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
   const [datePreset, setDatePreset] = useState<DateRangePreset>(DEFAULT_DATE_PRESET);
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
-  const [granularity, setGranularity] = useState<GranularityType>(DEFAULT_GRANULARITY);
   const [chartType, setChartType] = useState<ChartType>(DEFAULT_CHART_TYPE);
 
   const [comparisonPeriod, setComparisonPeriod] = useState<ComparisonPeriod>("none");
@@ -310,7 +305,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     setDatePreset(DEFAULT_DATE_PRESET);
     setCustomStartDate(undefined);
     setCustomEndDate(undefined);
-    setGranularity(DEFAULT_GRANULARITY);
     setChartType(DEFAULT_CHART_TYPE);
     setComparisonPeriod("none");
   }, []);
@@ -755,22 +749,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               </div>
             </div>
 
-            <div className="lg:border-l lg:pl-4 space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">View By</p>
-              <div className="flex flex-wrap gap-2">
-                {(["daily", "weekly", "monthly"] as GranularityType[]).map((g) => (
-                  <Button
-                    key={g}
-                    variant={granularity === g ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setGranularity(g)}
-                    data-testid={`button-view-by-${g}`}
-                  >
-                    {g.charAt(0).toUpperCase() + g.slice(1)}
-                  </Button>
-                ))}
-              </div>
-            </div>
           </div>
 
           <div className="border-t pt-4">
@@ -816,7 +794,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               data={metrics.dailySales}
               comparisonData={comparisonMetrics?.dailySales}
               chartType={chartType}
-              granularity={granularity}
+              granularity="daily"
               dateRange={dateRangeDisplay}
               clubName={clubName}
               onChartTypeChange={setChartType}
