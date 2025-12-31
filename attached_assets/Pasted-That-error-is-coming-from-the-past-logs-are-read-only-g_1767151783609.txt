@@ -1,0 +1,70 @@
+That error is coming from the “past logs are read-only” guard you added.
+
+In your screenshot, your log/date is effectively Dec 29, 2025, and (based on today being Dec 30, 2025 in your app) that’s a past date, so the API blocks the save.
+
+Why it’s happening
+
+Your save endpoint likely has logic like:
+
+if selectedDate < today → reject with: “Past logs are read-only…”
+
+So if you’re trying to save yesterday’s log, it will always throw this.
+
+Quick fix (what to do right now)
+
+Click Change Date (top card)
+
+Set it to today’s date
+
+Save again
+
+If you want “yesterday” to still be editable (common in restaurants)
+
+Change the rule to allow a grace window.
+
+Option A: allow editing today + yesterday
+
+Backend guard example (Node/Express-ish):
+
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function daysBetween(a: Date, b: Date) {
+  const ms = startOfDay(a).getTime() - startOfDay(b).getTime();
+  return Math.round(ms / (1000 * 60 * 60 * 24));
+}
+
+// selectedDate = date of the log being saved
+const diffDays = daysBetween(new Date(), new Date(selectedDate));
+
+// diffDays = 0 means today, 1 means yesterday
+if (diffDays > 1) {
+  throw new Error("Past logs are read-only. You cannot create or modify logs for past dates.");
+}
+
+Option B: keep strict read-only, but prevent confusion in UI
+
+Disable Save and show a banner when read-only:
+
+const isReadOnly = selectedDate < startOfToday; // using start-of-day compare
+
+<Button disabled={isReadOnly} onClick={handleSave}>
+  Save Log Entry
+</Button>
+
+{isReadOnly && (
+  <div className="mt-2 rounded bg-yellow-50 p-2 text-sm text-yellow-800">
+    This is a past log and is view-only.
+  </div>
+)}
+
+One more likely gotcha: timezone / “midnight” bug
+
+If your “today” check uses new Date() in UTC but your UI date is local, it can incorrectly mark “today” as past late at night.
+
+Best practice is compare using startOfDay in the same timezone (or store dates as YYYY-MM-DD strings and compare those strings).
+
+If you paste your save endpoint guard (the part that throws this message) and how you compute selectedDate, I’ll tell you exactly which line to change so “today” never gets incorrectly blocked.

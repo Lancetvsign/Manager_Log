@@ -94,16 +94,19 @@ function getClubId(req: { query: { clubId?: string } }): string {
 }
 
 /**
- * Checks if a date string represents a past date (before today)
+ * Checks if a date string is too old to edit (more than 1 day in the past)
+ * Allows editing today AND yesterday (grace window for restaurants)
  * @param dateStr - Date in YYYY-MM-DD format
- * @returns true if the date is before today
+ * @returns true if the date is more than 1 day before today
  */
 function isPastDate(dateStr: string): boolean {
   const today = new Date();
   const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const [y, m, d] = dateStr.split("-").map(Number);
   const logDate = new Date(y, m - 1, d);
-  return logDate < todayOnly;
+  const diffMs = todayOnly.getTime() - logDate.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  return diffDays > 1;
 }
 
 /**
