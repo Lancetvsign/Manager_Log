@@ -119,8 +119,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
   const [chartType, setChartType] = useState<ChartType>(DEFAULT_CHART_TYPE);
 
   const [comparisonPeriod, setComparisonPeriod] = useState<ComparisonPeriod>("none");
-  const [customCompareStart, setCustomCompareStart] = useState<Date | undefined>(undefined);
-  const [customCompareEnd, setCustomCompareEnd] = useState<Date | undefined>(undefined);
 
   const dateRange = useMemo(() => {
     const today = new Date();
@@ -164,11 +162,9 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     return getComparisonDateRange(
       comparisonPeriod,
       dateRange.startDate,
-      dateRange.endDate,
-      customCompareStart,
-      customCompareEnd
+      dateRange.endDate
     );
-  }, [comparisonPeriod, dateRange, customCompareStart, customCompareEnd]);
+  }, [comparisonPeriod, dateRange]);
 
   const { data: metrics, isLoading, isError } = useQuery<MetricsResponse>({
     queryKey: ["/api/metrics", clubId, dateRange.startDate, dateRange.endDate],
@@ -317,8 +313,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     setGranularity(DEFAULT_GRANULARITY);
     setChartType(DEFAULT_CHART_TYPE);
     setComparisonPeriod("none");
-    setCustomCompareStart(undefined);
-    setCustomCompareEnd(undefined);
   }, []);
 
   const exportToCSV = useCallback(() => {
@@ -785,10 +779,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               onChange={setComparisonPeriod}
               currentStartDate={dateRange.startDate}
               currentEndDate={dateRange.endDate}
-              customCompareStart={customCompareStart}
-              customCompareEnd={customCompareEnd}
-              onCustomCompareStartChange={setCustomCompareStart}
-              onCustomCompareEndChange={setCustomCompareEnd}
             />
           </div>
 

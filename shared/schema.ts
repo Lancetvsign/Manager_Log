@@ -862,18 +862,12 @@ export interface ChartOptions {
 }
 
 /**
- * Comparison period presets
+ * Comparison period presets (simplified)
+ * - none: No comparison
  * - previousPeriod: Same number of days before the current range
- * - previousMonth: Same date range in the previous month
  * - previousYear: Same date range in the previous year
- * - custom: User-defined custom date range
- * 
- * HOW TO EXTEND COMPARISON MODE:
- * 1. Add new preset to this type
- * 2. Add date calculation logic in getComparisonDateRange function
- * 3. Update UI selector
  */
-export type ComparisonPeriod = "none" | "previousPeriod" | "previousMonth" | "previousYear" | "custom";
+export type ComparisonPeriod = "none" | "previousPeriod" | "previousYear";
 
 /**
  * Metrics for comparing two periods
