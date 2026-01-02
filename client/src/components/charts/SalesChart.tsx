@@ -34,7 +34,7 @@ import {
   LineChart as LineChartIcon,
   AreaChart as AreaChartIcon,
 } from "lucide-react";
-import type { DailySalesData, ChartType, GranularityType } from "@shared/schema";
+import type { DailySalesData, ChartType, GranularityType, ComparisonPeriod } from "@shared/schema";
 import ChartExportButton from "./ChartExportButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
@@ -49,6 +49,7 @@ interface SalesChartProps {
   dateRange: string;
   clubName?: string;
   onChartTypeChange: (type: ChartType) => void;
+  comparisonPeriod?: ComparisonPeriod;
 }
 
 interface AggregatedPoint {
@@ -169,6 +170,7 @@ export default function SalesChart({
   dateRange,
   clubName,
   onChartTypeChange,
+  comparisonPeriod,
 }: SalesChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const [showGridlines, setShowGridlines] = useState(true);
@@ -185,13 +187,20 @@ export default function SalesChart({
     setVisible((v) => ({ ...v, [key]: !v[key] }));
   }
 
+  const effectiveGranularity: GranularityType = useMemo(() => {
+    if (comparisonPeriod === "previousYear" && data.length >= 60) {
+      return "monthly";
+    }
+    return granularity;
+  }, [comparisonPeriod, data.length, granularity]);
+
   const mergedData = useMemo((): MergedSalesPoint[] => {
-    const currentAggregated = aggregateByGranularity(data, granularity);
+    const currentAggregated = aggregateByGranularity(data, effectiveGranularity);
     const compareAggregated = comparisonData
-      ? aggregateByGranularity(comparisonData, granularity)
+      ? aggregateByGranularity(comparisonData, effectiveGranularity)
       : undefined;
     return mergeSalesSeries(currentAggregated, compareAggregated);
-  }, [data, comparisonData, granularity]);
+  }, [data, comparisonData, effectiveGranularity]);
 
   const hasCompare = useMemo(() => {
     return mergedData.some(
