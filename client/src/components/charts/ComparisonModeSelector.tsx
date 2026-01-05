@@ -1,19 +1,11 @@
 /**
  * COMPARISON MODE SELECTOR COMPONENT
  * ====================================
- * Simplified comparison toggle for analytics.
- * Three options: Off, Prior [N] Days (dynamic), Last Year
+ * Comparison toggle for analytics with preset week functionality.
+ * Three options: Off, This Week vs Last Week, TWVSLY (This Week vs Last Year)
  * 
- * The middle option dynamically shows the actual number of days being compared
- * based on the current date range selection (e.g., "Prior 7 Days", "Prior 30 Days").
- * 
- * @example
- * <ComparisonModeSelector
- *   value="previousPeriod"
- *   onChange={setComparisonPeriod}
- *   currentStartDate="2025-12-01"
- *   currentEndDate="2025-12-31"
- * />
+ * When clicking comparison buttons, they automatically set the date range
+ * to the current week and compare to the corresponding period.
  */
 
 import { format, subDays, subYears, differenceInDays, parseISO } from "date-fns";
@@ -26,17 +18,7 @@ interface ComparisonModeSelectorProps {
   onChange: (value: ComparisonPeriod) => void;
   currentStartDate: string;
   currentEndDate: string;
-}
-
-function getDynamicPeriodLabel(startDate: string, endDate: string): string {
-  const start = parseISO(startDate);
-  const end = parseISO(endDate);
-  const days = differenceInDays(end, start) + 1;
-  
-  if (days === 1) return "Prior Day";
-  if (days === 7) return "Prior Week";
-  if (days >= 28 && days <= 31) return "Prior Month";
-  return `Prior ${days} Days`;
+  onPresetWeek?: () => void;
 }
 
 /**
@@ -80,6 +62,7 @@ export default function ComparisonModeSelector({
   onChange,
   currentStartDate,
   currentEndDate,
+  onPresetWeek,
 }: ComparisonModeSelectorProps) {
   const comparisonRange = getComparisonDateRange(
     value,
@@ -87,13 +70,19 @@ export default function ComparisonModeSelector({
     currentEndDate
   );
 
-  const dynamicPeriodLabel = getDynamicPeriodLabel(currentStartDate, currentEndDate);
+  const handlePreviousPeriodClick = () => {
+    if (onPresetWeek) {
+      onPresetWeek();
+    }
+    onChange("previousPeriod");
+  };
 
-  const comparisonOptions: { value: ComparisonPeriod; label: string }[] = [
-    { value: "none", label: "Off" },
-    { value: "previousPeriod", label: dynamicPeriodLabel },
-    { value: "previousYear", label: "Last Year" },
-  ];
+  const handlePreviousYearClick = () => {
+    if (onPresetWeek) {
+      onPresetWeek();
+    }
+    onChange("previousYear");
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -103,17 +92,30 @@ export default function ComparisonModeSelector({
       </div>
       
       <div className="flex gap-1">
-        {comparisonOptions.map((option) => (
-          <Button
-            key={option.value}
-            variant={value === option.value ? "default" : "outline"}
-            size="sm"
-            onClick={() => onChange(option.value)}
-            data-testid={`button-compare-${option.value}`}
-          >
-            {option.label}
-          </Button>
-        ))}
+        <Button
+          variant={value === "none" ? "default" : "outline"}
+          size="sm"
+          onClick={() => onChange("none")}
+          data-testid="button-compare-none"
+        >
+          Off
+        </Button>
+        <Button
+          variant={value === "previousPeriod" ? "default" : "outline"}
+          size="sm"
+          onClick={handlePreviousPeriodClick}
+          data-testid="button-compare-previousPeriod"
+        >
+          This Week vs Last Week
+        </Button>
+        <Button
+          variant={value === "previousYear" ? "default" : "outline"}
+          size="sm"
+          onClick={handlePreviousYearClick}
+          data-testid="button-compare-previousYear"
+        >
+          TWVSLY
+        </Button>
       </div>
 
       {comparisonRange && value !== "none" && (

@@ -757,45 +757,15 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               onChange={setComparisonPeriod}
               currentStartDate={dateRange.startDate}
               currentEndDate={dateRange.endDate}
+              onPresetWeek={() => {
+                const today = new Date();
+                const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
+                const thisWeekEnd = endOfWeek(today, { weekStartsOn: 0 });
+                setCustomStartDate(thisWeekStart);
+                setCustomEndDate(thisWeekEnd);
+                setDatePreset("custom");
+              }}
             />
-          </div>
-
-          <div className="border-t pt-4 space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">Quick Comparisons</p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const today = new Date();
-                  const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
-                  const thisWeekEnd = endOfWeek(today, { weekStartsOn: 0 });
-                  setCustomStartDate(thisWeekStart);
-                  setCustomEndDate(thisWeekEnd);
-                  setDatePreset("custom");
-                  setComparisonPeriod("previousPeriod");
-                }}
-                data-testid="button-preset-week-vs-last"
-              >
-                This Week vs Last Week
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const today = new Date();
-                  const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
-                  const thisWeekEnd = endOfWeek(today, { weekStartsOn: 0 });
-                  setCustomStartDate(thisWeekStart);
-                  setCustomEndDate(thisWeekEnd);
-                  setDatePreset("custom");
-                  setComparisonPeriod("previousYear");
-                }}
-                data-testid="button-preset-week-vs-lastyear"
-              >
-                This Week vs Last Year
-              </Button>
-            </div>
           </div>
 
           {datePreset === "custom" && customStartDate && customEndDate && (
