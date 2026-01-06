@@ -55,8 +55,6 @@ import {
   Download,
   RotateCcw,
   TrendingUp,
-  TrendingDown,
-  Minus,
   BarChart3,
   CalendarDays,
   CalendarRange,
@@ -508,31 +506,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
 
   const dateRangeDisplay = `${format(parseISO(dateRange.startDate), "MMM d")} - ${format(parseISO(dateRange.endDate), "MMM d, yyyy")}`;
 
-  const ChangeIndicator = ({ value, inverted = false }: { value: number; inverted?: boolean }) => {
-    const isPositive = inverted ? value < 0 : value > 0;
-    const isNegative = inverted ? value > 0 : value < 0;
-
-    if (value === 0) {
-      return (
-        <span className="text-muted-foreground text-xs flex items-center gap-1">
-          <Minus className="h-3 w-3" /> 0%
-        </span>
-      );
-    }
-
-    return (
-      <span
-        className={`text-xs flex items-center gap-1 ${
-          isPositive ? "text-green-600" : isNegative ? "text-red-600" : "text-muted-foreground"
-        }`}
-      >
-        {value > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-        {value > 0 ? "+" : ""}
-        {value}%
-      </span>
-    );
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -726,12 +699,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{displaySummary?.daysWithLogs || 0}</div>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">entries in selected range</p>
-                  {comparisonChanges && (
-                    <ChangeIndicator value={comparisonChanges.daysWithLogsChange} />
-                  )}
-                </div>
+                <p className="text-xs text-muted-foreground">entries in selected range</p>
               </CardContent>
             </Card>
 
@@ -744,12 +712,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                 <div className="text-2xl font-bold">
                   {formatCurrency(displaySummary?.totalSales || 0)}
                 </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">combined sales</p>
-                  {comparisonChanges && (
-                    <ChangeIndicator value={comparisonChanges.totalSalesChange} />
-                  )}
-                </div>
+                <p className="text-xs text-muted-foreground">combined sales</p>
               </CardContent>
             </Card>
 
@@ -762,12 +725,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                 <div className="text-2xl font-bold">
                   {formatCurrency(displaySummary?.averageDailySales || 0)}
                 </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">per logged day</p>
-                  {comparisonChanges && (
-                    <ChangeIndicator value={comparisonChanges.averageDailySalesChange} />
-                  )}
-                </div>
+                <p className="text-xs text-muted-foreground">per logged day</p>
               </CardContent>
             </Card>
 
@@ -778,14 +736,9 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{displaySummary?.openToDo || 0} Open</div>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">
-                    {displaySummary?.completedToDo || 0} completed ({completionRate}% rate)
-                  </p>
-                  {comparisonChanges && (
-                    <ChangeIndicator value={comparisonChanges.openToDoChange} inverted />
-                  )}
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  {displaySummary?.completedToDo || 0} completed ({completionRate}% rate)
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -871,23 +824,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               </div>
             </div>
 
-          </div>
-
-          <div className="border-t pt-4">
-            <ComparisonModeSelector
-              value={comparisonPeriod}
-              onChange={setComparisonPeriod}
-              currentStartDate={dateRange.startDate}
-              currentEndDate={dateRange.endDate}
-              onPresetWeek={() => {
-                const today = new Date();
-                const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
-                const thisWeekEnd = endOfWeek(today, { weekStartsOn: 0 });
-                setCustomStartDate(thisWeekStart);
-                setCustomEndDate(thisWeekEnd);
-                setDatePreset("custom");
-              }}
-            />
           </div>
 
           {datePreset === "custom" && customStartDate && customEndDate && (
@@ -1058,6 +994,22 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
             icon={<TrendingUp className="h-5 w-5" />}
             defaultExpanded={true}
           >
+            <div className="mb-4">
+              <ComparisonModeSelector
+                value={comparisonPeriod}
+                onChange={setComparisonPeriod}
+                currentStartDate={dateRange.startDate}
+                currentEndDate={dateRange.endDate}
+                onPresetWeek={() => {
+                  const today = new Date();
+                  const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
+                  const thisWeekEnd = endOfWeek(today, { weekStartsOn: 0 });
+                  setCustomStartDate(thisWeekStart);
+                  setCustomEndDate(thisWeekEnd);
+                  setDatePreset("custom");
+                }}
+              />
+            </div>
             <SalesChart
               data={displayDailySales}
               comparisonData={displayComparisonDailySales}
