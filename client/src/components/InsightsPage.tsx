@@ -42,7 +42,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { format, subDays, startOfMonth, endOfMonth, parseISO, startOfWeek, endOfWeek } from "date-fns";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { format, subDays, subYears, startOfMonth, endOfMonth, parseISO, startOfWeek, endOfWeek, addDays } from "date-fns";
 import {
   Calendar,
   DollarSign,
@@ -64,6 +66,8 @@ import {
   AlertTriangle,
   Sparkles,
   RefreshCw,
+  FlaskConical,
+  Plus,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -114,6 +118,12 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
   const [chartType, setChartType] = useState<ChartType>(DEFAULT_CHART_TYPE);
 
   const [comparisonPeriod, setComparisonPeriod] = useState<ComparisonPeriod>("none");
+  const [demoMode, setDemoMode] = useState(false);
+  const [historicalDataOpen, setHistoricalDataOpen] = useState(false);
+  const [historicalDate, setHistoricalDate] = useState<Date | undefined>(undefined);
+  const [historicalFood, setHistoricalFood] = useState("");
+  const [historicalBar, setHistoricalBar] = useState("");
+  const [historicalGaming, setHistoricalGaming] = useState("");
 
   const dateRange = useMemo(() => {
     const today = new Date();
@@ -269,13 +279,121 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     },
   });
 
-  const comparisonChanges = useMemo((): ComparisonMetrics | null => {
-    if (!metrics || !comparisonMetrics) return null;
+  const saveHistoricalMutation = useMutation({
+    mutationFn: async (data: { date: string; foodSales: number; barSales: number; gamingSales: number }) => {
+      const url = buildApiUrl("/api/manager-logs/historical", clubId, apiBaseUrl);
+      const dateObj = new Date(data.date);
+      const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+      const response = await apiRequest("POST", url, {
+        logDate: data.date,
+        dayOfWeek,
+        foodSales: data.foodSales,
+        barSales: data.barSales,
+        gamingSales: data.gamingSales,
+        clubId: clubId,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/manager-logs"] });
+      setHistoricalDataOpen(false);
+      setHistoricalDate(undefined);
+      setHistoricalFood("");
+      setHistoricalBar("");
+      setHistoricalGaming("");
+    },
+  });
 
+  const generateDemoData = useCallback(() => {
+    const today = new Date();
+    const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    
+    const demoCurrentData = [];
+    const demoComparisonData = [];
+    
+    for (let i = 0; i < 7; i++) {
+      const currentDate = addDays(thisWeekStart, i);
+      const comparisonDate = subDays(currentDate, 7);
+      
+      const foodSales = Math.round(800 + Math.random() * 400);
+      const barSales = Math.round(400 + Math.random() * 300);
+      const gamingSales = Math.round(200 + Math.random() * 200);
+      
+      demoCurrentData.push({
+        date: format(currentDate, "yyyy-MM-dd"),
+        dayOfWeek: dayNames[i],
+        foodSales,
+        barSales,
+        gamingSales,
+        totalSales: foodSales + barSales + gamingSales,
+      });
+      
+      const compFoodSales = Math.round(700 + Math.random() * 350);
+      const compBarSales = Math.round(350 + Math.random() * 250);
+      const compGamingSales = Math.round(150 + Math.random() * 180);
+      
+      demoComparisonData.push({
+        date: format(comparisonDate, "yyyy-MM-dd"),
+        dayOfWeek: dayNames[i],
+        foodSales: compFoodSales,
+        barSales: compBarSales,
+        gamingSales: compGamingSales,
+        totalSales: compFoodSales + compBarSales + compGamingSales,
+      });
+    }
+    
+    return { current: demoCurrentData, comparison: demoComparisonData };
+  }, []);
+
+  const demoData = useMemo(() => {
+    if (!demoMode) return null;
+    const salesData = generateDemoData();
+    
+    const currentTotal = salesData.current.reduce((sum, d) => sum + d.totalSales, 0);
+    const comparisonTotal = salesData.comparison.reduce((sum, d) => sum + d.totalSales, 0);
+    
+    const demoSummary = {
+      daysWithLogs: 7,
+      totalSales: currentTotal,
+      averageDailySales: Math.round(currentTotal / 7),
+      openToDo: 3,
+      completedToDo: 5,
+    };
+    
+    const demoComparisonSummary = {
+      daysWithLogs: 7,
+      totalSales: comparisonTotal,
+      averageDailySales: Math.round(comparisonTotal / 7),
+      openToDo: 4,
+      completedToDo: 4,
+    };
+    
+    return { 
+      ...salesData, 
+      summary: demoSummary,
+      comparisonSummary: demoComparisonSummary,
+    };
+  }, [demoMode, generateDemoData]);
+
+  const comparisonChanges = useMemo((): ComparisonMetrics | null => {
     const calculateChange = (current: number, previous: number): number => {
       if (previous === 0) return current > 0 ? 100 : 0;
       return Math.round(((current - previous) / previous) * 100);
     };
+
+    if (demoMode && demoData) {
+      return {
+        totalSalesChange: calculateChange(demoData.summary.totalSales, demoData.comparisonSummary.totalSales),
+        averageDailySalesChange: calculateChange(demoData.summary.averageDailySales, demoData.comparisonSummary.averageDailySales),
+        openToDoChange: calculateChange(demoData.summary.openToDo, demoData.comparisonSummary.openToDo),
+        completedToDoChange: calculateChange(demoData.summary.completedToDo, demoData.comparisonSummary.completedToDo),
+        daysWithLogsChange: calculateChange(demoData.summary.daysWithLogs, demoData.comparisonSummary.daysWithLogs),
+      };
+    }
+
+    if (!metrics || !comparisonMetrics) return null;
 
     return {
       totalSalesChange: calculateChange(
@@ -299,7 +417,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
         comparisonMetrics.summary.daysWithLogs
       ),
     };
-  }, [metrics, comparisonMetrics]);
+  }, [metrics, comparisonMetrics, demoMode, demoData]);
 
   const resetFilters = useCallback(() => {
     setDatePreset(DEFAULT_DATE_PRESET);
@@ -390,12 +508,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
 
   const dateRangeDisplay = `${format(parseISO(dateRange.startDate), "MMM d")} - ${format(parseISO(dateRange.endDate), "MMM d, yyyy")}`;
 
-  const totalToDoItems = (metrics?.toDoStatus.open || 0) + (metrics?.toDoStatus.completed || 0);
-  const completionRate =
-    totalToDoItems > 0
-      ? Math.round(((metrics?.toDoStatus.completed || 0) / totalToDoItems) * 100)
-      : 0;
-
   const ChangeIndicator = ({ value, inverted = false }: { value: number; inverted?: boolean }) => {
     const isPositive = inverted ? value < 0 : value > 0;
     const isNegative = inverted ? value > 0 : value < 0;
@@ -446,7 +558,17 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     );
   }
 
-  const hasData = metrics && metrics.summary.daysWithLogs > 0;
+  const hasData = metrics && (metrics.summary.daysWithLogs > 0 || comparisonPeriod !== "none" || demoMode);
+
+  const displaySummary = demoMode && demoData ? demoData.summary : metrics?.summary;
+  const displayDailySales = demoMode && demoData ? demoData.current : metrics?.dailySales || [];
+  const displayComparisonDailySales = demoMode && demoData ? demoData.comparison : comparisonMetrics?.dailySales;
+
+  const completionRate = displaySummary 
+    ? Math.round(
+        (displaySummary.completedToDo / (displaySummary.openToDo + displaySummary.completedToDo || 1)) * 100
+      )
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -603,7 +725,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{metrics.summary.daysWithLogs}</div>
+                <div className="text-2xl font-bold">{displaySummary?.daysWithLogs || 0}</div>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">entries in selected range</p>
                   {comparisonChanges && (
@@ -620,7 +742,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(metrics.summary.totalSales)}
+                  {formatCurrency(displaySummary?.totalSales || 0)}
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">combined sales</p>
@@ -638,7 +760,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(metrics.summary.averageDailySales)}
+                  {formatCurrency(displaySummary?.averageDailySales || 0)}
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">per logged day</p>
@@ -655,10 +777,10 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                 <CheckCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{metrics.summary.openToDo} Open</div>
+                <div className="text-2xl font-bold">{displaySummary?.openToDo || 0} Open</div>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">
-                    {metrics.summary.completedToDo} completed ({completionRate}% rate)
+                    {displaySummary?.completedToDo || 0} completed ({completionRate}% rate)
                   </p>
                   {comparisonChanges && (
                     <ChangeIndicator value={comparisonChanges.openToDoChange} inverted />
@@ -774,6 +896,144 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               {format(customEndDate, "MMM d, yyyy")}
             </p>
           )}
+
+          <div className="border-t pt-4 flex flex-wrap gap-2">
+            <Button
+              variant={demoMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setDemoMode(!demoMode);
+                if (!demoMode) {
+                  const today = new Date();
+                  const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
+                  const thisWeekEnd = endOfWeek(today, { weekStartsOn: 0 });
+                  setCustomStartDate(thisWeekStart);
+                  setCustomEndDate(thisWeekEnd);
+                  setDatePreset("custom");
+                  setComparisonPeriod("previousPeriod");
+                }
+              }}
+              className="gap-1"
+              data-testid="button-demo-mode"
+            >
+              <FlaskConical className="h-4 w-4" />
+              {demoMode ? "Exit Demo" : "Demo Mode"}
+            </Button>
+            
+            <Dialog open={historicalDataOpen} onOpenChange={setHistoricalDataOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  data-testid="button-add-historical"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Historical Data
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Historical Sales Data</DialogTitle>
+                  <DialogDescription>
+                    Enter sales data for a past date to enable comparison features.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label>Select Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          {historicalDate ? format(historicalDate, "MMMM d, yyyy") : "Pick a date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={historicalDate}
+                          onSelect={setHistoricalDate}
+                          disabled={(date) => date > new Date()}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="food-sales">Food Sales</Label>
+                      <Input
+                        id="food-sales"
+                        type="number"
+                        placeholder="0.00"
+                        value={historicalFood}
+                        onChange={(e) => setHistoricalFood(e.target.value)}
+                        data-testid="input-historical-food"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="bar-sales">Bar Sales</Label>
+                      <Input
+                        id="bar-sales"
+                        type="number"
+                        placeholder="0.00"
+                        value={historicalBar}
+                        onChange={(e) => setHistoricalBar(e.target.value)}
+                        data-testid="input-historical-bar"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="gaming-sales">Gaming Sales</Label>
+                      <Input
+                        id="gaming-sales"
+                        type="number"
+                        placeholder="0.00"
+                        value={historicalGaming}
+                        onChange={(e) => setHistoricalGaming(e.target.value)}
+                        data-testid="input-historical-gaming"
+                      />
+                    </div>
+                  </div>
+                  
+                  <Button
+                    className="w-full"
+                    disabled={!historicalDate || saveHistoricalMutation.isPending}
+                    onClick={() => {
+                      if (historicalDate) {
+                        saveHistoricalMutation.mutate({
+                          date: format(historicalDate, "yyyy-MM-dd"),
+                          foodSales: parseFloat(historicalFood) || 0,
+                          barSales: parseFloat(historicalBar) || 0,
+                          gamingSales: parseFloat(historicalGaming) || 0,
+                        });
+                      }
+                    }}
+                    data-testid="button-save-historical"
+                  >
+                    {saveHistoricalMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Historical Data"
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {demoMode && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mt-4">
+              <p className="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-2">
+                <FlaskConical className="h-4 w-4" />
+                <span><strong>Demo Mode Active</strong> - Showing sample comparison data. Click "Exit Demo" to return to real data.</span>
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -799,8 +1059,8 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
             defaultExpanded={true}
           >
             <SalesChart
-              data={metrics.dailySales}
-              comparisonData={comparisonMetrics?.dailySales}
+              data={displayDailySales}
+              comparisonData={displayComparisonDailySales}
               chartType={chartType}
               granularity="daily"
               dateRange={dateRangeDisplay}
@@ -810,7 +1070,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
             />
             <div className="mt-6">
               <SalesHeatmapCalendar
-                data={metrics.dailySales}
+                data={displayDailySales}
                 startDate={dateRange.startDate}
                 endDate={dateRange.endDate}
                 dateRange={dateRangeDisplay}
@@ -832,7 +1092,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
             defaultExpanded={true}
           >
             <WeekdaySalesChart
-              data={metrics.dailySales}
+              data={displayDailySales}
               dateRange={dateRangeDisplay}
               clubName={clubName}
             />

@@ -426,6 +426,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
+   * POST /api/manager-logs/historical
+   * Creates or updates a historical log entry for comparison/insights purposes.
+   * This endpoint bypasses the "past logs are read-only" constraint specifically
+   * for populating historical data needed for comparison visualizations.
+   * Requires clubId in the request body.
+   */
+  app.post("/api/manager-logs/historical", async (req, res) => {
+    try {
+      const validatedData = insertManagerLogSchema.parse(req.body);
+      
+      const log = await storage.upsertManagerLog(validatedData);
+      
+      // Capture maintenance snapshot for this log
+      await captureMaintenanceSnapshot(log.id, validatedData.clubId);
+      await snapshotRunningMaintenanceForLog(validatedData.clubId, log.id);
+      
+      res.status(201).json(log);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          error: "Validation failed", 
+          details: error.errors 
+        });
+      }
+      console.error("Error creating/updating historical log:", error);
+      res.status(500).json({ error: "Failed to save historical manager log" });
+    }
+  });
+
+  /**
    * POST /api/logs/ensure
    * Ensures a log entry exists for a given club+date.
    * If it exists, returns the logId. If not, creates a minimal log and returns the new logId.
