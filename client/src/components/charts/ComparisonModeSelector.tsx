@@ -2,7 +2,7 @@
  * COMPARISON MODE SELECTOR COMPONENT
  * ====================================
  * Comparison toggle for analytics with preset week functionality.
- * Three options: Off, This Week vs Last Week, TWVSLY (This Week vs Last Year)
+ * Three options: Off, This Week vs Last Week, This Week vs Last Year
  * 
  * When clicking comparison buttons, they automatically set the date range
  * to the current week and compare to the corresponding period.
@@ -114,7 +114,7 @@ export default function ComparisonModeSelector({
           onClick={handlePreviousYearClick}
           data-testid="button-compare-previousYear"
         >
-          TWVSLY
+          This Week vs Last Year
         </Button>
       </div>
 
