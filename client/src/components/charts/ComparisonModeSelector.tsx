@@ -8,7 +8,7 @@
  * to the current week and compare to the corresponding period.
  */
 
-import { format, subDays, subYears, differenceInDays, parseISO } from "date-fns";
+import { format, subDays, differenceInDays, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { GitCompare } from "lucide-react";
 import type { ComparisonPeriod } from "@shared/schema";
@@ -47,9 +47,11 @@ export function getComparisonDateRange(
       };
 
     case "previousYear":
+      // Use 364 days (52 weeks) to preserve weekday alignment
+      // Friday stays Friday, Saturday stays Saturday, etc.
       return {
-        startDate: format(subYears(start, 1), "yyyy-MM-dd"),
-        endDate: format(subYears(end, 1), "yyyy-MM-dd"),
+        startDate: format(subDays(start, 364), "yyyy-MM-dd"),
+        endDate: format(subDays(end, 364), "yyyy-MM-dd"),
       };
 
     default:

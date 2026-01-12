@@ -139,6 +139,62 @@ export function makeDemoSalesSeries(
   return generateDemoSalesSeries(labels, { seed });
 }
 
+export type ComparisonModeType = "none" | "previousPeriod" | "previousYear";
+
+export interface CompareFromCurrentOptions {
+  scale?: number;
+  volatility?: number;
+  seed?: number;
+  shiftSpike?: boolean;
+  mode?: ComparisonModeType;
+}
+
+/**
+ * Create comparison data from current data with mode-specific transformations.
+ * - previousPeriod (last week): slightly down, more gaming (+10%), less food (-8%)
+ * - previousYear (same week last year): different category mix (higher bar +18%, lower food -12%)
+ */
+export function makeComparisonForMode(
+  current: SalesPoint[],
+  mode: ComparisonModeType = "previousPeriod"
+): SalesPoint[] {
+  if (mode === "none" || !current || current.length === 0) {
+    return [];
+  }
+
+  // Use different seeds per mode for clearly distinct data
+  const seed = mode === "previousPeriod" ? 777 : 2026;
+  
+  // Generate base comparison with spike shift
+  const base = makeCompareFromCurrent(current, {
+    scale: mode === "previousPeriod" ? 0.92 : 0.88,
+    volatility: mode === "previousPeriod" ? 0.15 : 0.12,
+    seed,
+    shiftSpike: true,
+  });
+
+  // Apply mode-specific category transformations
+  if (mode === "previousPeriod") {
+    // Last week: slightly down overall, more volatility
+    // -8% food, -5% bar, +10% gaming
+    return base.map((p) => {
+      const food = Math.round(p.food * 0.92);
+      const bar = Math.round(p.bar * 0.95);
+      const gaming = Math.round(p.gaming * 1.10);
+      return { ...p, food, bar, gaming, total: food + bar + gaming };
+    });
+  } else {
+    // Last year same week: different category mix (more bar culture, less food)
+    // -12% food, +18% bar, +5% gaming
+    return base.map((p) => {
+      const food = Math.round(p.food * 0.88);
+      const bar = Math.round(p.bar * 1.18);
+      const gaming = Math.round(p.gaming * 1.05);
+      return { ...p, food, bar, gaming, total: food + bar + gaming };
+    });
+  }
+}
+
 export function makeDemoSummary(dailySales: SalesPoint[], seed = 7) {
   const daysWithLogs = dailySales.length;
   const totalSales = dailySales.reduce((sum, d) => sum + d.total, 0);

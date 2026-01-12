@@ -44,7 +44,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { format, subDays, subYears, startOfMonth, endOfMonth, parseISO, startOfWeek, endOfWeek, addDays, addWeeks, addMonths } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, parseISO, startOfWeek, endOfWeek, addDays, addWeeks, addMonths } from "date-fns";
 import {
   Calendar,
   DollarSign,
@@ -88,6 +88,7 @@ import {
   getComparisonDateRange,
   makeCompareFromCurrent,
   makeDemoSalesSeries,
+  makeComparisonForMode,
   makeDemoSummary,
 } from "@/components/charts";
 import type { SalesPoint } from "@/components/charts";
@@ -347,8 +348,9 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     if (!hasCurrent) {
       const labels = buildSalesLabels(rangeStart, rangeEnd, "daily");
       demoCurrent = makeDemoSalesSeries(labels, 7);
+      // Use mode-specific comparison generation for visibly different data
       demoCompare = comparisonPeriod !== "none" 
-        ? makeCompareFromCurrent(demoCurrent, { scale: 0.92, volatility: 0.12, seed: 99 })
+        ? makeComparisonForMode(demoCurrent, comparisonPeriod)
         : [];
     } else if (hasCurrent && !hasCompare && comparisonPeriod !== "none") {
       demoCurrent = currentData.map((d: { date: string; dayOfWeek: string; totalSales: number; foodSales: number; barSales: number; gamingSales: number }) => ({
@@ -359,7 +361,8 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
         bar: d.barSales,
         gaming: d.gamingSales,
       }));
-      demoCompare = makeCompareFromCurrent(demoCurrent, { scale: 0.92, volatility: 0.12, seed: 99 });
+      // Use mode-specific comparison generation for visibly different data
+      demoCompare = makeComparisonForMode(demoCurrent, comparisonPeriod);
     } else {
       demoCurrent = currentData.map((d: { date: string; dayOfWeek: string; totalSales: number; foodSales: number; barSales: number; gamingSales: number }) => ({
         label: format(parseISO(d.date), "MMM d"),
