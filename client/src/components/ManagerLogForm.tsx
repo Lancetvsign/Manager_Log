@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ManagerLog, MaintenanceItem } from "@shared/schema";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
+import { useLocationPermission } from "@/lib/useLocation";
 
 interface ManagerLogFormProps {
   onSubmit: (data: any) => void;
@@ -70,6 +71,9 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Get user's location for weather data
+  const { lat, lon, loading: locationLoading, error: locationError } = useLocationPermission();
 
   const dateString = format(date, 'yyyy-MM-dd');
   
@@ -240,8 +244,15 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   }, [existingLog, comparisonLog, lastWeekLog, dateString]);
 
   useEffect(() => {
+    // Wait for location to be available (or error out)
+    if (locationLoading) {
+      setIsLoadingWeather(true);
+      return;
+    }
+    
     /**
      * Fetches weather data with fallback strategy for historical weather.
+     * Uses browser geolocation for accurate location-based weather.
      * 
      * FALLBACK LOGIC FOR HISTORICAL WEATHER:
      * 1. First attempt: Try fetching weather from 52 weeks (364 days) ago - same day of week
@@ -253,6 +264,21 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
      */
     const fetchWeatherData = async () => {
       setIsLoadingWeather(true);
+      
+      // Helper to build URL with optional location params
+      const buildUrl = (base: string, params?: Record<string, string>): string => {
+        const url = new URL(base, window.location.origin);
+        if (params) {
+          Object.entries(params).forEach(([key, value]) => {
+            if (value) url.searchParams.set(key, value);
+          });
+        }
+        if (lat && lon) {
+          url.searchParams.set('lat', lat.toString());
+          url.searchParams.set('lon', lon.toString());
+        }
+        return url.toString();
+      };
       
       // Helper function to fetch and parse weather response
       const fetchWeather = async (url: string): Promise<WeatherData | null> => {
@@ -276,11 +302,13 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       };
 
       try {
-        // Fetch current weather
-        const currentWeather = await fetchWeather(`${apiBaseUrl}/api/weather/current`);
+        // Fetch current weather (with location if available)
+        const currentUrl = buildUrl(`${apiBaseUrl}/api/weather/current`);
+        const currentWeather = await fetchWeather(currentUrl);
 
         // STEP 1: Try historical weather for 52 weeks ago (same day of week)
-        let historicalWeather = await fetchWeather(`${apiBaseUrl}/api/weather/historical?date=${dateString}`);
+        const historicalUrl = buildUrl(`${apiBaseUrl}/api/weather/historical`, { date: dateString });
+        let historicalWeather = await fetchWeather(historicalUrl);
         let fallbackNote: string | null = null;
 
         // STEP 2: If first attempt returned server fallback, try 365 days ago (1 day before 52 weeks)
@@ -291,7 +319,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           fallbackDate.setDate(fallbackDate.getDate() - 365); // 364 - 1 = 365 days back
           const fallbackDateString = format(fallbackDate, 'yyyy-MM-dd');
           
-          const previousDayWeather = await fetchWeather(`${apiBaseUrl}/api/weather/historical?date=${fallbackDateString}`);
+          const fallbackUrl = buildUrl(`${apiBaseUrl}/api/weather/historical`, { date: fallbackDateString });
+          const previousDayWeather = await fetchWeather(fallbackUrl);
           
           if (!isServerFallback(previousDayWeather)) {
             // Successfully got real data from the previous day
@@ -324,7 +353,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     };
 
     fetchWeatherData();
-  }, [dateString, toast, apiBaseUrl]);
+  }, [dateString, toast, apiBaseUrl, lat, lon, locationLoading]);
 
   const saveLogMutation = useMutation({
     mutationFn: async (logData: any) => {
@@ -595,7 +624,14 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           {/* Column 2: Weather */}
           <div className="h-[164px] rounded-xl border border-border bg-card p-4" data-testid="card-weather">
             <div className="flex h-full flex-col">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Weather</div>
+              <div className="flex items-center justify-between">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Weather</div>
+                {locationError && (
+                  <div className="text-[9px] text-yellow-600 dark:text-yellow-500" title={locationError}>
+                    (Default location)
+                  </div>
+                )}
+              </div>
               <div className="mt-3 h-[107px] rounded-xl border border-border/10 bg-muted/30 px-4">
                 <div className="grid h-full content-center gap-3">
                   <WeatherWide
