@@ -44,7 +44,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { format, subDays, startOfMonth, endOfMonth, startOfYear, parseISO, startOfWeek, endOfWeek, addDays, addWeeks, addMonths } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, parseISO, startOfWeek, endOfWeek, addDays, addWeeks, addMonths } from "date-fns";
 import {
   Calendar,
   DollarSign,
@@ -343,8 +343,14 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
   const demoData = useMemo(() => {
     if (!demoMode) return null;
     
-    const rangeStart = parseISO(dateRange.startDate);
-    const rangeEnd = parseISO(dateRange.endDate);
+    let rangeStart = parseISO(dateRange.startDate);
+    let rangeEnd = parseISO(dateRange.endDate);
+    
+    // For "This Year" with monthly granularity in demo mode, extend to full year
+    // so the chart shows 12 months of sample data instead of just 1 month
+    if (datePreset === "thisYear" && granularity === "monthly") {
+      rangeEnd = endOfYear(rangeStart);
+    }
     
     // In demo mode, always generate complete synthetic data for the full date range
     // This ensures connected lines regardless of sparse real data
@@ -381,7 +387,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       summary: demoSummary,
       comparisonSummary: demoComparisonSummary,
     };
-  }, [demoMode, dateRange, comparisonPeriod, granularity]);
+  }, [demoMode, dateRange, datePreset, comparisonPeriod, granularity]);
 
   const comparisonChanges = useMemo((): ComparisonMetrics | null => {
     const calculateChange = (current: number, previous: number): number => {
