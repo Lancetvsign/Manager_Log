@@ -84,7 +84,6 @@ import {
   SalesHeatmapCalendar,
   WeekdaySalesChart,
   CollapsibleSection,
-  ComparisonModeSelector,
   getComparisonDateRange,
   makeCompareFromCurrent,
   makeDemoSalesSeries,
@@ -869,6 +868,46 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
             </p>
           )}
 
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground">Compare To</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={comparisonPeriod === "none" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setComparisonPeriod("none")}
+                data-testid="button-compare-off"
+              >
+                Off
+              </Button>
+              <Button
+                variant={comparisonPeriod === "previousPeriod" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setComparisonPeriod("previousPeriod");
+                }}
+                data-testid="button-compare-lastweek"
+              >
+                Last Week
+              </Button>
+              <Button
+                variant={comparisonPeriod === "previousYear" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setComparisonPeriod("previousYear");
+                }}
+                data-testid="button-compare-lastyear"
+              >
+                Same Week Last Year
+              </Button>
+            </div>
+            {comparisonPeriod !== "none" && comparisonDateRange && (
+              <p className="text-sm text-muted-foreground">
+                Comparing to: {format(parseISO(comparisonDateRange.startDate), "MMM d")} –{" "}
+                {format(parseISO(comparisonDateRange.endDate), "MMM d, yyyy")}
+              </p>
+            )}
+          </div>
+
           <div className="border-t pt-4 flex flex-wrap gap-2">
             <Button
               variant={demoMode ? "default" : "outline"}
@@ -1030,22 +1069,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
             icon={<TrendingUp className="h-5 w-5" />}
             defaultExpanded={true}
           >
-            <div className="mb-4">
-              <ComparisonModeSelector
-                value={comparisonPeriod}
-                onChange={setComparisonPeriod}
-                currentStartDate={dateRange.startDate}
-                currentEndDate={dateRange.endDate}
-                onPresetWeek={() => {
-                  const today = new Date();
-                  const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
-                  const thisWeekEnd = endOfWeek(today, { weekStartsOn: 0 });
-                  setCustomStartDate(thisWeekStart);
-                  setCustomEndDate(thisWeekEnd);
-                  setDatePreset("custom");
-                }}
-              />
-            </div>
             <SalesChart
               data={displayDailySales}
               comparisonData={displayComparisonDailySales}
