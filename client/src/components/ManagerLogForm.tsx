@@ -329,10 +329,10 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           }
         }
 
-        // STEP 3: If both historical attempts returned server fallback, use current weather
-        if (isServerFallback(historicalWeather) && currentWeather && !isServerFallback(currentWeather)) {
-          historicalWeather = currentWeather;
-          fallbackNote = "Using current weather as fallback";
+        // STEP 3: If both historical attempts returned server fallback, show unavailable (no fake data)
+        if (isServerFallback(historicalWeather)) {
+          historicalWeather = null;
+          fallbackNote = "Historical data unavailable";
         }
 
         setWeatherData({
@@ -643,7 +643,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
                     compact
                   />
                   <WeatherWide
-                    title="Last Year"
+                    title={weatherData.historicalFallbackNote ? `Last Year (${weatherData.historicalFallbackNote})` : "Last Year"}
                     temp={weatherData.historical?.temperature ?? "—"}
                     condition={weatherData.historical?.condition ?? "—"}
                     wind={weatherData.historical?.windSpeed ?? "—"}
