@@ -243,7 +243,7 @@ async function getCurrentWeather(lat: number = 40.7128, lon: number = -74.0060) 
 
 async function getHistoricalWeather(date: string, lat: number = 40.7128, lon: number = -74.0060) {
   try {
-    const url = `https://api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${date}&end_date=${date}&daily=temperature_2m_max,relative_humidity_2m_mean,wind_speed_10m_max,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph`;
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${date}&end_date=${date}&daily=temperature_2m_max,relative_humidity_2m_mean,wind_speed_10m_max,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph`;
     
     const response = await fetch(url);
     if (!response.ok) {

@@ -1,0 +1,86 @@
+Yep — the missing piece is a real historical weather data source (not “today’s weather reused”), plus a date-mapping rule that keeps weekday-to-weekday comparisons.
+
+Best “accurate last year weather” option (easy to ship)
+✅ Open-Meteo Historical / Archive API (ERA5 reanalysis)
+
+Works by lat/lon + date (no station selection).
+
+No API key needed.
+
+Gives you hourly/daily historical values (temp, wind, weathercode, etc.).
+
+This is the cleanest for your app because you already have (or can request) user location, and you don’t want to manage weather stations.
+
+Alternative (more “observed station” accurate, more work)
+NOAA Climate Data Online (CDO) API
+
+Real station observations, but:
+
+you must pick a station id
+
+coverage varies by station
+
+requires token + rate limits
+
+If you want “closest airport station” precision later, NOAA can be phase 2.
+
+The weekday-to-weekday rule you want
+
+If you want Friday compared to Friday, don’t do “minus 365 days”.
+
+Do minus 364 days (52 weeks):
+
+364 days = 52 weeks → same weekday every time.
+
+(Leap years get tricky if you must compare “same calendar date”, but your requirement is weekday alignment.)
+
+So for “Last Year” in your UI, call it:
+“52 weeks ago (same weekday)” (or just “Last Year (weekday matched)”).
+
+Copy/paste: Replit prompt to implement this correctly
+
+Paste this into Replit (agent) as-is:
+
+Goal: Implement real historical weather data for the “Last Year” weather card.
+
+Requirements:
+1) Current weather uses Open-Meteo forecast endpoint (or current endpoint) with lat/lon.
+2) Historical “Last Year” weather MUST be same weekday (Friday-to-Friday):
+   - compute compareDate = selectedDate - 364 days (52 weeks)
+3) Fetch historical data from Open-Meteo Archive API for compareDate using same lat/lon.
+4) UI should show:
+   - Today: temp, conditions (weathercode mapping), wind
+   - 52-weeks-ago: temp, conditions, wind
+5) Ask browser for geolocation permission on first load.
+   - If allowed: save lat/lon in localStorage and use it.
+   - If denied/unavailable: gracefully fall back to club-saved lat/lon (from backend settings).
+6) Add caching to avoid hammering API:
+   - Create table weather_cache(date TEXT, lat REAL, lon REAL, kind TEXT, payload TEXT, updated_at TEXT)
+   - Cache per (date, rounded lat/lon, kind=current|historical)
+7) If historical data not available for that date/location, show “Unavailable” (do NOT substitute today’s data).
+
+Deliverables:
+- Backend route: GET /api/weather?date=YYYY-MM-DD
+  returns { current: {...}, historical: {...}, historicalDate: YYYY-MM-DD, source: "open-meteo" }
+- Frontend: update Weather card to call that route and display both sections.
+
+If you want a ready-to-copy URL shape (Open-Meteo)
+Historical (Archive) request (daily)
+
+Use start_date = end_date = the computed compareDate:
+
+https://archive-api.open-meteo.com/v1/archive?latitude=LAT&longitude=LON&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&daily=temperature_2m_max,temperature_2m_min,weathercode,windspeed_10m_max&timezone=auto
+
+Current / recent (Forecast) request (daily)
+https://api.open-meteo.com/v1/forecast?latitude=LAT&longitude=LON&daily=temperature_2m_max,temperature_2m_min,weathercode,windspeed_10m_max&timezone=auto
+
+
+(Endpoints + parameters are from Open-Meteo’s docs.)
+
+Quick sanity check on your question
+
+“the issue isnt the logic its that actual data from last year”
+
+Correct — your UI/logic can be perfect, but if the provider can’t return historical values for that date/coords, it’ll show unavailable. Using Open-Meteo Archive solves that for most locations/dates because it’s reanalysis-based and designed for historical lookups.
+
+If you want, paste your current weather route/component names (just filenames + function names) and I’ll give you a more exact “drop-in” patch structure for your repo.
