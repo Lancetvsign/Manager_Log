@@ -22,5 +22,5 @@ export { default as ChartOptionsPopover, DEFAULT_CHART_OPTIONS, CHART_COLOR_THEM
 export { default as ChartExportButton } from './ChartExportButton';
 export { default as CollapsibleSection } from './CollapsibleSection';
 export { default as ComparisonModeSelector, getComparisonDateRange } from './ComparisonModeSelector';
-export { makeCompareFromCurrent, makeDemoSalesSeries, makeDemoSummary } from './salesDemo';
-export type { SalesPoint } from './salesDemo';
+export { makeCompareFromCurrent, makeDemoSalesSeries, makeDemoSummary, generateDemoSalesSeries } from './salesDemo';
+export type { SalesPoint, DemoSeriesOptions } from './salesDemo';
