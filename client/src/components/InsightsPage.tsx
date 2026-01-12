@@ -44,7 +44,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { format, subDays, startOfMonth, endOfMonth, parseISO, startOfWeek, endOfWeek, addDays, addWeeks, addMonths } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, startOfYear, parseISO, startOfWeek, endOfWeek, addDays, addWeeks, addMonths } from "date-fns";
 import {
   Calendar,
   DollarSign,
@@ -92,7 +92,7 @@ import {
 } from "@/components/charts";
 import type { SalesPoint } from "@/components/charts";
 
-type DateRangePreset = "7days" | "30days" | "thisMonth" | "custom";
+type DateRangePreset = "7days" | "30days" | "thisMonth" | "thisYear" | "custom";
 
 interface MaintenanceInsights {
   openNow: number;
@@ -167,7 +167,12 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       case "thisMonth":
         return {
           startDate: format(startOfMonth(today), "yyyy-MM-dd"),
-          endDate: format(endOfMonth(today), "yyyy-MM-dd"),
+          endDate: format(today, "yyyy-MM-dd"),
+        };
+      case "thisYear":
+        return {
+          startDate: format(startOfYear(today), "yyyy-MM-dd"),
+          endDate: format(today, "yyyy-MM-dd"),
         };
       case "custom":
         if (customStartDate && customEndDate) {
@@ -195,6 +200,11 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       dateRange.endDate
     );
   }, [comparisonPeriod, dateRange]);
+
+  // Use monthly granularity for year views, daily for everything else
+  const granularity = useMemo(() => {
+    return datePreset === "thisYear" ? "monthly" : "daily";
+  }, [datePreset]) as "daily" | "weekly" | "monthly";
 
   const { data: metrics, isLoading, isError } = useQuery<MetricsResponse>({
     queryKey: ["/api/metrics", clubId, dateRange.startDate, dateRange.endDate],
@@ -345,15 +355,17 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     let demoCompare: SalesPoint[];
     
     if (!hasCurrent) {
-      const labels = buildSalesLabels(rangeStart, rangeEnd, "daily");
+      const labels = buildSalesLabels(rangeStart, rangeEnd, granularity);
       demoCurrent = makeDemoSalesSeries(labels, 7);
       // Use mode-specific comparison generation for visibly different data
       demoCompare = comparisonPeriod !== "none" 
         ? makeComparisonForMode(demoCurrent, comparisonPeriod)
         : [];
     } else if (hasCurrent && !hasCompare && comparisonPeriod !== "none") {
+      // Use appropriate label format based on granularity
+      const labelFormat = granularity === "monthly" ? "MMM yyyy" : "MMM d";
       demoCurrent = currentData.map((d: { date: string; dayOfWeek: string; totalSales: number; foodSales: number; barSales: number; gamingSales: number }) => ({
-        label: format(parseISO(d.date), "MMM d"),
+        label: format(parseISO(d.date), labelFormat),
         dateKey: d.date,
         total: d.totalSales,
         food: d.foodSales,
@@ -363,8 +375,10 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       // Use mode-specific comparison generation for visibly different data
       demoCompare = makeComparisonForMode(demoCurrent, comparisonPeriod);
     } else {
+      // Use appropriate label format based on granularity
+      const labelFormat = granularity === "monthly" ? "MMM yyyy" : "MMM d";
       demoCurrent = currentData.map((d: { date: string; dayOfWeek: string; totalSales: number; foodSales: number; barSales: number; gamingSales: number }) => ({
-        label: format(parseISO(d.date), "MMM d"),
+        label: format(parseISO(d.date), labelFormat),
         dateKey: d.date,
         total: d.totalSales,
         food: d.foodSales,
@@ -372,7 +386,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
         gaming: d.gamingSales,
       }));
       demoCompare = compareData.map((d: { date: string; dayOfWeek: string; totalSales: number; foodSales: number; barSales: number; gamingSales: number }) => ({
-        label: format(parseISO(d.date), "MMM d"),
+        label: format(parseISO(d.date), labelFormat),
         dateKey: d.date,
         total: d.totalSales,
         food: d.foodSales,
@@ -408,7 +422,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       summary: demoSummary,
       comparisonSummary: demoComparisonSummary,
     };
-  }, [demoMode, dateRange, metrics?.dailySales, comparisonMetrics?.dailySales, comparisonPeriod]);
+  }, [demoMode, dateRange, metrics?.dailySales, comparisonMetrics?.dailySales, comparisonPeriod, granularity]);
 
   const comparisonChanges = useMemo((): ComparisonMetrics | null => {
     const calculateChange = (current: number, previous: number): number => {
@@ -816,6 +830,14 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                 >
                   This Month
                 </Button>
+                <Button
+                  variant={datePreset === "thisYear" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDatePreset("thisYear")}
+                  data-testid="button-thisYear"
+                >
+                  This Year
+                </Button>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -1073,7 +1095,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               data={displayDailySales}
               comparisonData={displayComparisonDailySales}
               chartType={chartType}
-              granularity="daily"
+              granularity={granularity}
               dateRange={dateRangeDisplay}
               clubName={clubName}
               onChartTypeChange={setChartType}
