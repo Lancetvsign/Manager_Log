@@ -1,0 +1,38 @@
+Update Demo Mode sales comparison data generation to look more realistic and show clear differences between Current Period vs Comparison Period.
+
+GOAL
+- Add noticeable but believable variation day-to-day so the comparison feature is visually obvious.
+- Current period should have:
+  - weekend lift (Fri/Sat highest, Sun medium)
+  - mid-week dip (Mon/Tue lower)
+  - random noise (±8–15%)
+  - occasional spike day (one day +30–45%)
+- Comparison period should be correlated with current period but not identical:
+  - start from current values, then apply a different random factor (±6–12%)
+  - optionally shift the “spike day” to a different day
+  - keep same general shape but visibly different
+
+DATA REQUIREMENTS
+- Works for Daily view (7 days) and also for longer ranges (30 days).
+- Generate series for Total, Food, Bar, Gaming.
+- Total should always equal Food + Bar + Gaming.
+- Keep values non-negative, round to nearest dollar.
+
+IMPLEMENTATION
+- Put logic in a shared helper function like generateDemoSalesSeries({ startDate, days, seed, mode })
+- Use a deterministic seeded RNG so the same date range always generates the same demo results (seed based on startDate + compareMode).
+- If compareMode is "lastYearSameWeekday", generate comparison range using “same weekday alignment” (364 days back) NOT calendar date.
+- Return a merged dataset format:
+  [{ label, current_total, current_food, current_bar, current_gaming, compare_total, compare_food, compare_bar, compare_gaming }]
+
+FILES
+- The chart component is client/src/components/charts/SalesChart.tsx
+- If demo data is built server-side, update the API route that powers insights/sales metrics too.
+- Ensure the dashed series uses compare_* keys and solid uses current_* keys.
+
+ACCEPTANCE TEST
+- In demo mode with "This Week vs This Week Last Year" selected:
+  - dashed lines are clearly different from solid lines
+  - at least 1 day shows a noticeable gap
+  - weekend lift is obvious
+  - total equals sum of components
