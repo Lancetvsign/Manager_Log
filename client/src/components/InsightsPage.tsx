@@ -44,7 +44,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { format, subDays, subYears, startOfMonth, endOfMonth, parseISO, startOfWeek, endOfWeek, addDays } from "date-fns";
+import { format, subDays, subYears, startOfMonth, endOfMonth, parseISO, startOfWeek, endOfWeek, addDays, addWeeks, addMonths } from "date-fns";
 import {
   Calendar,
   DollarSign,
@@ -86,7 +86,11 @@ import {
   CollapsibleSection,
   ComparisonModeSelector,
   getComparisonDateRange,
+  makeCompareFromCurrent,
+  makeDemoSalesSeries,
+  makeDemoSummary,
 } from "@/components/charts";
+import type { SalesPoint } from "@/components/charts";
 
 type DateRangePreset = "7days" | "30days" | "thisMonth" | "custom";
 
@@ -106,6 +110,29 @@ interface InsightsPageProps {
 
 const DEFAULT_DATE_PRESET: DateRangePreset = "30days";
 const DEFAULT_CHART_TYPE: ChartType = "line";
+
+function buildSalesLabels(start: Date, end: Date, viewBy: "daily" | "weekly" | "monthly" = "daily") {
+  const labels: { label: string; dateKey: string }[] = [];
+  let cursor = new Date(start);
+
+  if (viewBy === "weekly") cursor = startOfWeek(cursor, { weekStartsOn: 1 });
+  if (viewBy === "monthly") cursor = startOfMonth(cursor);
+
+  while (cursor <= end) {
+    if (viewBy === "daily") {
+      labels.push({ label: format(cursor, "MMM d"), dateKey: format(cursor, "yyyy-MM-dd") });
+      cursor = addDays(cursor, 1);
+    } else if (viewBy === "weekly") {
+      labels.push({ label: `Wk ${format(cursor, "II")} ${format(cursor, "yy")}`, dateKey: format(cursor, "yyyy-MM-dd") });
+      cursor = addWeeks(cursor, 1);
+    } else {
+      labels.push({ label: format(cursor, "MMM yyyy"), dateKey: format(cursor, "yyyy-MM-dd") });
+      cursor = addMonths(cursor, 1);
+    }
+  }
+
+  return labels;
+}
 
 export default function InsightsPage({ onViewLog }: InsightsPageProps) {
   const { clubId, clubName, apiBaseUrl } = useManagerLog();
@@ -303,77 +330,83 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     },
   });
 
-  const generateDemoData = useCallback(() => {
-    const today = new Date();
-    const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
-    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    
-    const demoCurrentData = [];
-    const demoComparisonData = [];
-    
-    for (let i = 0; i < 7; i++) {
-      const currentDate = addDays(thisWeekStart, i);
-      const comparisonDate = subDays(currentDate, 7);
-      
-      const foodSales = Math.round(800 + Math.random() * 400);
-      const barSales = Math.round(400 + Math.random() * 300);
-      const gamingSales = Math.round(200 + Math.random() * 200);
-      
-      demoCurrentData.push({
-        date: format(currentDate, "yyyy-MM-dd"),
-        dayOfWeek: dayNames[i],
-        foodSales,
-        barSales,
-        gamingSales,
-        totalSales: foodSales + barSales + gamingSales,
-      });
-      
-      const compFoodSales = Math.round(700 + Math.random() * 350);
-      const compBarSales = Math.round(350 + Math.random() * 250);
-      const compGamingSales = Math.round(150 + Math.random() * 180);
-      
-      demoComparisonData.push({
-        date: format(comparisonDate, "yyyy-MM-dd"),
-        dayOfWeek: dayNames[i],
-        foodSales: compFoodSales,
-        barSales: compBarSales,
-        gamingSales: compGamingSales,
-        totalSales: compFoodSales + compBarSales + compGamingSales,
-      });
-    }
-    
-    return { current: demoCurrentData, comparison: demoComparisonData };
-  }, []);
-
   const demoData = useMemo(() => {
     if (!demoMode) return null;
-    const salesData = generateDemoData();
     
-    const currentTotal = salesData.current.reduce((sum, d) => sum + d.totalSales, 0);
-    const comparisonTotal = salesData.comparison.reduce((sum, d) => sum + d.totalSales, 0);
+    const rangeStart = parseISO(dateRange.startDate);
+    const rangeEnd = parseISO(dateRange.endDate);
+    const currentData = metrics?.dailySales ?? [];
+    const compareData = comparisonMetrics?.dailySales ?? [];
     
-    const demoSummary = {
-      daysWithLogs: 7,
-      totalSales: currentTotal,
-      averageDailySales: Math.round(currentTotal / 7),
-      openToDo: 3,
-      completedToDo: 5,
-    };
+    const hasCurrent = Array.isArray(currentData) && currentData.length > 0;
+    const hasCompare = Array.isArray(compareData) && compareData.length > 0;
     
-    const demoComparisonSummary = {
-      daysWithLogs: 7,
-      totalSales: comparisonTotal,
-      averageDailySales: Math.round(comparisonTotal / 7),
-      openToDo: 4,
-      completedToDo: 4,
-    };
+    let demoCurrent: SalesPoint[];
+    let demoCompare: SalesPoint[];
+    
+    if (!hasCurrent) {
+      const labels = buildSalesLabels(rangeStart, rangeEnd, "daily");
+      demoCurrent = makeDemoSalesSeries(labels, 7);
+      demoCompare = comparisonPeriod !== "none" 
+        ? makeCompareFromCurrent(demoCurrent, { scale: 0.92, volatility: 0.12, seed: 99 })
+        : [];
+    } else if (hasCurrent && !hasCompare && comparisonPeriod !== "none") {
+      demoCurrent = currentData.map((d: { date: string; dayOfWeek: string; totalSales: number; foodSales: number; barSales: number; gamingSales: number }) => ({
+        label: format(parseISO(d.date), "MMM d"),
+        dateKey: d.date,
+        total: d.totalSales,
+        food: d.foodSales,
+        bar: d.barSales,
+        gaming: d.gamingSales,
+      }));
+      demoCompare = makeCompareFromCurrent(demoCurrent, { scale: 0.92, volatility: 0.12, seed: 99 });
+    } else {
+      demoCurrent = currentData.map((d: { date: string; dayOfWeek: string; totalSales: number; foodSales: number; barSales: number; gamingSales: number }) => ({
+        label: format(parseISO(d.date), "MMM d"),
+        dateKey: d.date,
+        total: d.totalSales,
+        food: d.foodSales,
+        bar: d.barSales,
+        gaming: d.gamingSales,
+      }));
+      demoCompare = compareData.map((d: { date: string; dayOfWeek: string; totalSales: number; foodSales: number; barSales: number; gamingSales: number }) => ({
+        label: format(parseISO(d.date), "MMM d"),
+        dateKey: d.date,
+        total: d.totalSales,
+        food: d.foodSales,
+        bar: d.barSales,
+        gaming: d.gamingSales,
+      }));
+    }
+    
+    const demoSummary = makeDemoSummary(demoCurrent, 7);
+    const demoComparisonSummary = makeDemoSummary(demoCompare, 42);
+    
+    const currentForLogs = demoCurrent.map((d) => ({
+      date: d.dateKey,
+      dayOfWeek: format(parseISO(d.dateKey), "EEEE"),
+      totalSales: d.total,
+      foodSales: d.food,
+      barSales: d.bar,
+      gamingSales: d.gaming,
+    }));
+    
+    const comparisonForLogs = demoCompare.map((d) => ({
+      date: d.dateKey,
+      dayOfWeek: format(parseISO(d.dateKey), "EEEE"),
+      totalSales: d.total,
+      foodSales: d.food,
+      barSales: d.bar,
+      gamingSales: d.gaming,
+    }));
     
     return { 
-      ...salesData, 
+      current: currentForLogs,
+      comparison: comparisonForLogs,
       summary: demoSummary,
       comparisonSummary: demoComparisonSummary,
     };
-  }, [demoMode, generateDemoData]);
+  }, [demoMode, dateRange, metrics?.dailySales, comparisonMetrics?.dailySales, comparisonPeriod]);
 
   const comparisonChanges = useMemo((): ComparisonMetrics | null => {
     const calculateChange = (current: number, previous: number): number => {
