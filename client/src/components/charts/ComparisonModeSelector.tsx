@@ -1,11 +1,11 @@
 /**
  * COMPARISON MODE SELECTOR COMPONENT
  * ====================================
- * Comparison toggle for analytics with preset week functionality.
- * Three options: Off, This Week vs Last Week, This Week vs This Week Last Year
+ * Comparison toggle for analytics with universal period comparisons.
+ * Three options: Off, Previous Period, Same Period Last Year
  * 
- * When clicking comparison buttons, they automatically set the date range
- * to the current week and compare to the corresponding period.
+ * Previous Period: Compares to the same-length period immediately before
+ * Same Period Last Year: Compares to the same dates 52 weeks (364 days) ago
  */
 
 import { format, subDays, differenceInDays, parseISO } from "date-fns";
@@ -108,7 +108,7 @@ export default function ComparisonModeSelector({
           onClick={handlePreviousPeriodClick}
           data-testid="button-compare-previousPeriod"
         >
-          This Week vs Last Week
+          Previous Period
         </Button>
         <Button
           variant={value === "previousYear" ? "default" : "outline"}
@@ -116,7 +116,7 @@ export default function ComparisonModeSelector({
           onClick={handlePreviousYearClick}
           data-testid="button-compare-previousYear"
         >
-          This Week vs This Week Last Year
+          Same Period Last Year
         </Button>
       </div>
 

@@ -885,9 +885,9 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                 onClick={() => {
                   setComparisonPeriod("previousPeriod");
                 }}
-                data-testid="button-compare-lastweek"
+                data-testid="button-compare-previous"
               >
-                Last Week
+                Previous Period
               </Button>
               <Button
                 variant={comparisonPeriod === "previousYear" ? "default" : "outline"}
@@ -897,7 +897,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                 }}
                 data-testid="button-compare-lastyear"
               >
-                Same Week Last Year
+                Same Period Last Year
               </Button>
             </div>
             {comparisonPeriod !== "none" && comparisonDateRange && (
