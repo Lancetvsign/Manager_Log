@@ -866,8 +866,8 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                       Custom Range
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-4" align="start">
-                    <div className="space-y-4">
+                  <PopoverContent className="w-auto p-4 max-h-[80vh] overflow-y-auto" align="start" side="bottom" sideOffset={8} collisionPadding={16}>
+                    <div className="flex flex-col gap-4 md:flex-row md:gap-6">
                       <div className="space-y-2">
                         <p className="text-sm font-medium">Start Date</p>
                         <CalendarComponent
