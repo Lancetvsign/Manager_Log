@@ -345,55 +345,14 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     
     const rangeStart = parseISO(dateRange.startDate);
     const rangeEnd = parseISO(dateRange.endDate);
-    const currentData = metrics?.dailySales ?? [];
-    const compareData = comparisonMetrics?.dailySales ?? [];
     
-    const hasCurrent = Array.isArray(currentData) && currentData.length > 0;
-    const hasCompare = Array.isArray(compareData) && compareData.length > 0;
-    
-    let demoCurrent: SalesPoint[];
-    let demoCompare: SalesPoint[];
-    
-    if (!hasCurrent) {
-      const labels = buildSalesLabels(rangeStart, rangeEnd, granularity);
-      demoCurrent = makeDemoSalesSeries(labels, 7);
-      // Use mode-specific comparison generation for visibly different data
-      demoCompare = comparisonPeriod !== "none" 
-        ? makeComparisonForMode(demoCurrent, comparisonPeriod)
-        : [];
-    } else if (hasCurrent && !hasCompare && comparisonPeriod !== "none") {
-      // Use appropriate label format based on granularity
-      const labelFormat = granularity === "monthly" ? "MMM yyyy" : "MMM d";
-      demoCurrent = currentData.map((d: { date: string; dayOfWeek: string; totalSales: number; foodSales: number; barSales: number; gamingSales: number }) => ({
-        label: format(parseISO(d.date), labelFormat),
-        dateKey: d.date,
-        total: d.totalSales,
-        food: d.foodSales,
-        bar: d.barSales,
-        gaming: d.gamingSales,
-      }));
-      // Use mode-specific comparison generation for visibly different data
-      demoCompare = makeComparisonForMode(demoCurrent, comparisonPeriod);
-    } else {
-      // Use appropriate label format based on granularity
-      const labelFormat = granularity === "monthly" ? "MMM yyyy" : "MMM d";
-      demoCurrent = currentData.map((d: { date: string; dayOfWeek: string; totalSales: number; foodSales: number; barSales: number; gamingSales: number }) => ({
-        label: format(parseISO(d.date), labelFormat),
-        dateKey: d.date,
-        total: d.totalSales,
-        food: d.foodSales,
-        bar: d.barSales,
-        gaming: d.gamingSales,
-      }));
-      demoCompare = compareData.map((d: { date: string; dayOfWeek: string; totalSales: number; foodSales: number; barSales: number; gamingSales: number }) => ({
-        label: format(parseISO(d.date), labelFormat),
-        dateKey: d.date,
-        total: d.totalSales,
-        food: d.foodSales,
-        bar: d.barSales,
-        gaming: d.gamingSales,
-      }));
-    }
+    // In demo mode, always generate complete synthetic data for the full date range
+    // This ensures connected lines regardless of sparse real data
+    const labels = buildSalesLabels(rangeStart, rangeEnd, granularity);
+    const demoCurrent = makeDemoSalesSeries(labels, 7);
+    const demoCompare = comparisonPeriod !== "none" 
+      ? makeComparisonForMode(demoCurrent, comparisonPeriod)
+      : [];
     
     const demoSummary = makeDemoSummary(demoCurrent, 7);
     const demoComparisonSummary = makeDemoSummary(demoCompare, 42);
@@ -422,7 +381,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       summary: demoSummary,
       comparisonSummary: demoComparisonSummary,
     };
-  }, [demoMode, dateRange, metrics?.dailySales, comparisonMetrics?.dailySales, comparisonPeriod, granularity]);
+  }, [demoMode, dateRange, comparisonPeriod, granularity]);
 
   const comparisonChanges = useMemo((): ComparisonMetrics | null => {
     const calculateChange = (current: number, previous: number): number => {
