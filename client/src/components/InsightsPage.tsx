@@ -55,6 +55,7 @@ import {
   Download,
   RotateCcw,
   TrendingUp,
+  TrendingDown,
   BarChart3,
   CalendarDays,
   CalendarRange,
@@ -390,12 +391,15 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
   }, [demoMode, dateRange, datePreset, comparisonPeriod, granularity]);
 
   const comparisonChanges = useMemo((): ComparisonMetrics | null => {
+    // Only calculate comparison changes when a comparison period is selected
+    if (comparisonPeriod === "none") return null;
+    
     const calculateChange = (current: number, previous: number): number => {
       if (previous === 0) return current > 0 ? 100 : 0;
       return Math.round(((current - previous) / previous) * 100);
     };
 
-    if (demoMode && demoData) {
+    if (demoMode && demoData && demoData.comparison.length > 0) {
       return {
         totalSalesChange: calculateChange(demoData.summary.totalSales, demoData.comparisonSummary.totalSales),
         averageDailySalesChange: calculateChange(demoData.summary.averageDailySales, demoData.comparisonSummary.averageDailySales),
@@ -429,7 +433,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
         comparisonMetrics.summary.daysWithLogs
       ),
     };
-  }, [metrics, comparisonMetrics, demoMode, demoData]);
+  }, [metrics, comparisonMetrics, demoMode, demoData, comparisonPeriod]);
 
   const resetFilters = useCallback(() => {
     setDatePreset(DEFAULT_DATE_PRESET);
@@ -516,6 +520,30 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       currency: "USD",
       minimumFractionDigits: 2,
     }).format(value);
+  };
+
+  const renderComparisonIndicator = (change: number | undefined, invertColors: boolean = false) => {
+    if (change === undefined || comparisonPeriod === "none") return null;
+    
+    const isPositive = change > 0;
+    const isNegative = change < 0;
+    const isNeutral = change === 0;
+    
+    // For some metrics like "Open To-Do Items", lower is better
+    const colorClass = invertColors
+      ? isPositive ? "text-red-500" : isNegative ? "text-green-500" : "text-muted-foreground"
+      : isPositive ? "text-green-500" : isNegative ? "text-red-500" : "text-muted-foreground";
+    
+    const Icon = isPositive ? TrendingUp : isNegative ? TrendingDown : null;
+    const sign = isPositive ? "+" : "";
+    
+    return (
+      <div className={`flex items-center gap-1 text-xs font-medium ${colorClass}`}>
+        {Icon && <Icon className="h-3 w-3" />}
+        <span>{sign}{change}%</span>
+        <span className="text-muted-foreground font-normal">vs {comparisonPeriod === "previousPeriod" ? "prev" : "last yr"}</span>
+      </div>
+    );
   };
 
   const dateRangeDisplay = `${format(parseISO(dateRange.startDate), "MMM d")} - ${format(parseISO(dateRange.endDate), "MMM d, yyyy")}`;
@@ -714,6 +742,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               <CardContent>
                 <div className="text-2xl font-bold">{displaySummary?.daysWithLogs || 0}</div>
                 <p className="text-xs text-muted-foreground">entries in selected range</p>
+                {renderComparisonIndicator(comparisonChanges?.daysWithLogsChange)}
               </CardContent>
             </Card>
 
@@ -727,6 +756,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                   {formatCurrency(displaySummary?.totalSales || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">combined sales</p>
+                {renderComparisonIndicator(comparisonChanges?.totalSalesChange)}
               </CardContent>
             </Card>
 
@@ -740,6 +770,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                   {formatCurrency(displaySummary?.averageDailySales || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">per logged day</p>
+                {renderComparisonIndicator(comparisonChanges?.averageDailySalesChange)}
               </CardContent>
             </Card>
 
@@ -753,6 +784,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                 <p className="text-xs text-muted-foreground">
                   {displaySummary?.completedToDo || 0} completed ({completionRate}% rate)
                 </p>
+                {renderComparisonIndicator(comparisonChanges?.completedToDoChange)}
               </CardContent>
             </Card>
           </div>
