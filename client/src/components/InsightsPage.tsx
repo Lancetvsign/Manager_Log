@@ -600,6 +600,27 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
             <RotateCcw className="h-4 w-4" />
             Reset
           </Button>
+          <Button
+            variant={demoMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setDemoMode(!demoMode);
+              if (!demoMode) {
+                const today = new Date();
+                const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
+                const thisWeekEnd = endOfWeek(today, { weekStartsOn: 0 });
+                setCustomStartDate(thisWeekStart);
+                setCustomEndDate(thisWeekEnd);
+                setDatePreset("custom");
+                setComparisonPeriod("previousPeriod");
+              }
+            }}
+            className="gap-1"
+            data-testid="button-demo-mode"
+          >
+            <FlaskConical className="h-4 w-4" />
+            {demoMode ? "Exit Demo" : "Demo Mode"}
+          </Button>
           {hasData && (
             <>
               <Button
@@ -928,28 +949,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
           </div>
 
           <div className="border-t pt-4 flex flex-wrap gap-2">
-            <Button
-              variant={demoMode ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setDemoMode(!demoMode);
-                if (!demoMode) {
-                  const today = new Date();
-                  const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
-                  const thisWeekEnd = endOfWeek(today, { weekStartsOn: 0 });
-                  setCustomStartDate(thisWeekStart);
-                  setCustomEndDate(thisWeekEnd);
-                  setDatePreset("custom");
-                  setComparisonPeriod("previousPeriod");
-                }
-              }}
-              className="gap-1"
-              data-testid="button-demo-mode"
-            >
-              <FlaskConical className="h-4 w-4" />
-              {demoMode ? "Exit Demo" : "Demo Mode"}
-            </Button>
-            
             <Dialog open={historicalDataOpen} onOpenChange={setHistoricalDataOpen}>
               <DialogTrigger asChild>
                 <Button
