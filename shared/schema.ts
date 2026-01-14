@@ -571,6 +571,7 @@ export const insertManagerLogSchema = createInsertSchema(managerLogs).omit({
 }).extend({
   clubId: z.string().min(1, "Club ID is required"),
   logDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  managerName: z.string().optional().default("Historical Import"), // Optional for historical imports
   foodSales: z.string().optional().nullable(),
   barSales: z.string().optional().nullable(),
   gamingSales: z.string().optional().nullable(),

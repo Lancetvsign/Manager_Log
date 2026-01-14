@@ -67,7 +67,10 @@ import {
   RefreshCw,
   FlaskConical,
   Plus,
+  Upload,
+  AlertCircle,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type {
@@ -150,6 +153,23 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
   const [historicalFood, setHistoricalFood] = useState("");
   const [historicalBar, setHistoricalBar] = useState("");
   const [historicalGaming, setHistoricalGaming] = useState("");
+  
+  // Bulk import state
+  const [bulkImportMode, setBulkImportMode] = useState<"single" | "bulk">("single");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvPreviewData, setCsvPreviewData] = useState<Array<{
+    date: string;
+    foodSales: number;
+    barSales: number;
+    gamingSales: number;
+    error?: string;
+  }>>([]);
+  const [csvParseError, setCsvParseError] = useState<string | null>(null);
+  const [bulkImportResult, setBulkImportResult] = useState<{
+    success: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
 
   const dateRange = useMemo(() => {
     const today = new Date();
@@ -338,6 +358,130 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       setHistoricalFood("");
       setHistoricalBar("");
       setHistoricalGaming("");
+    },
+  });
+
+  // CSV parsing function for bulk import
+  const parseCSV = useCallback((text: string) => {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) {
+      setCsvParseError("CSV file must have a header row and at least one data row");
+      setCsvPreviewData([]);
+      return;
+    }
+
+    // Parse header to identify columns
+    const header = lines[0].toLowerCase().split(',').map(h => h.trim());
+    const dateIdx = header.findIndex(h => h === 'date' || h === 'log_date' || h === 'logdate');
+    const foodIdx = header.findIndex(h => h === 'food_sales' || h === 'foodsales' || h === 'food');
+    const barIdx = header.findIndex(h => h === 'bar_sales' || h === 'barsales' || h === 'bar');
+    const gamingIdx = header.findIndex(h => h === 'gaming_sales' || h === 'gamingsales' || h === 'gaming');
+
+    if (dateIdx === -1) {
+      setCsvParseError("CSV must have a 'date' column");
+      setCsvPreviewData([]);
+      return;
+    }
+
+    const parsedRows: typeof csvPreviewData = [];
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      const values = line.split(',').map(v => v.trim());
+      const dateStr = values[dateIdx] || '';
+      
+      // Validate date format
+      let error: string | undefined;
+      if (!dateRegex.test(dateStr)) {
+        error = "Invalid date format (use YYYY-MM-DD)";
+      }
+      
+      const foodVal = foodIdx >= 0 ? parseFloat(values[foodIdx]) || 0 : 0;
+      const barVal = barIdx >= 0 ? parseFloat(values[barIdx]) || 0 : 0;
+      const gamingVal = gamingIdx >= 0 ? parseFloat(values[gamingIdx]) || 0 : 0;
+
+      parsedRows.push({
+        date: dateStr,
+        foodSales: foodVal,
+        barSales: barVal,
+        gamingSales: gamingVal,
+        error,
+      });
+    }
+
+    if (parsedRows.length === 0) {
+      setCsvParseError("No valid data rows found in CSV");
+      setCsvPreviewData([]);
+      return;
+    }
+
+    setCsvParseError(null);
+    setCsvPreviewData(parsedRows);
+  }, []);
+
+  // Handle CSV file upload
+  const handleCsvFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setCsvFile(file);
+    setBulkImportResult(null);
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      parseCSV(text);
+    };
+    reader.onerror = () => {
+      setCsvParseError("Failed to read file");
+      setCsvPreviewData([]);
+    };
+    reader.readAsText(file);
+  }, [parseCSV]);
+
+  // Clear bulk import state
+  const clearBulkImport = useCallback(() => {
+    setCsvFile(null);
+    setCsvPreviewData([]);
+    setCsvParseError(null);
+    setBulkImportResult(null);
+  }, []);
+
+  // Bulk import mutation
+  const bulkImportMutation = useMutation({
+    mutationFn: async (rows: Array<{ date: string; foodSales: number; barSales: number; gamingSales: number }>) => {
+      const url = buildApiUrl("/api/manager-logs/bulk-historical", clubId, apiBaseUrl);
+      const response = await apiRequest("POST", url, {
+        entries: rows.map(row => {
+          const dateObj = new Date(row.date);
+          const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+          return {
+            logDate: row.date,
+            dayOfWeek,
+            foodSales: row.foodSales.toString(),
+            barSales: row.barSales.toString(),
+            gamingSales: row.gamingSales.toString(),
+            clubId: clubId,
+          };
+        }),
+      });
+      return response.json();
+    },
+    onSuccess: (result: { success: number; failed: number; errors: string[] }) => {
+      setBulkImportResult(result);
+      queryClient.invalidateQueries({ queryKey: ["/api/metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/manager-logs"] });
+      if (result.failed === 0) {
+        // All succeeded, auto-close after short delay
+        setTimeout(() => {
+          setHistoricalDataOpen(false);
+          clearBulkImport();
+          setBulkImportMode("single");
+        }, 2000);
+      }
     },
   });
 
@@ -961,96 +1105,237 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                   Add Historical Data
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle>Add Historical Sales Data</DialogTitle>
                   <DialogDescription>
-                    Enter sales data for a past date to enable comparison features.
+                    Enter sales data for past dates to enable comparison features.
                   </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <Label>Select Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start">
-                          <Calendar className="h-4 w-4 mr-2" />
-                          {historicalDate ? format(historicalDate, "MMMM d, yyyy") : "Pick a date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={historicalDate}
-                          onSelect={setHistoricalDate}
-                          disabled={(date) => date > new Date()}
-                          initialFocus
+                
+                <Tabs value={bulkImportMode} onValueChange={(v) => setBulkImportMode(v as "single" | "bulk")} className="pt-2">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="single">Single Entry</TabsTrigger>
+                    <TabsTrigger value="bulk">Bulk Import</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="single" className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label>Select Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start">
+                            <Calendar className="h-4 w-4 mr-2" />
+                            {historicalDate ? format(historicalDate, "MMMM d, yyyy") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={historicalDate}
+                            onSelect={setHistoricalDate}
+                            disabled={(date) => date > new Date()}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="food-sales">Food Sales</Label>
+                        <Input
+                          id="food-sales"
+                          type="number"
+                          placeholder="0.00"
+                          value={historicalFood}
+                          onChange={(e) => setHistoricalFood(e.target.value)}
+                          data-testid="input-historical-food"
                         />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="bar-sales">Bar Sales</Label>
+                        <Input
+                          id="bar-sales"
+                          type="number"
+                          placeholder="0.00"
+                          value={historicalBar}
+                          onChange={(e) => setHistoricalBar(e.target.value)}
+                          data-testid="input-historical-bar"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="gaming-sales">Gaming Sales</Label>
+                        <Input
+                          id="gaming-sales"
+                          type="number"
+                          placeholder="0.00"
+                          value={historicalGaming}
+                          onChange={(e) => setHistoricalGaming(e.target.value)}
+                          data-testid="input-historical-gaming"
+                        />
+                      </div>
+                    </div>
+                    
+                    <Button
+                      className="w-full"
+                      disabled={!historicalDate || saveHistoricalMutation.isPending}
+                      onClick={() => {
+                        if (historicalDate) {
+                          saveHistoricalMutation.mutate({
+                            date: format(historicalDate, "yyyy-MM-dd"),
+                            foodSales: parseFloat(historicalFood) || 0,
+                            barSales: parseFloat(historicalBar) || 0,
+                            gamingSales: parseFloat(historicalGaming) || 0,
+                          });
+                        }
+                      }}
+                      data-testid="button-save-historical"
+                    >
+                      {saveHistoricalMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save Historical Data"
+                      )}
+                    </Button>
+                  </TabsContent>
                   
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="food-sales">Food Sales</Label>
-                      <Input
-                        id="food-sales"
-                        type="number"
-                        placeholder="0.00"
-                        value={historicalFood}
-                        onChange={(e) => setHistoricalFood(e.target.value)}
-                        data-testid="input-historical-food"
-                      />
+                  <TabsContent value="bulk" className="space-y-4 pt-4">
+                    {/* CSV Format Instructions */}
+                    <div className="bg-muted/50 rounded-lg p-3 text-sm">
+                      <p className="font-medium mb-1">CSV Format:</p>
+                      <code className="text-xs block bg-background p-2 rounded">
+                        date,food_sales,bar_sales,gaming_sales<br/>
+                        2025-01-01,1500.00,2000.00,500.00
+                      </code>
                     </div>
+                    
+                    {/* File Upload */}
                     <div className="space-y-2">
-                      <Label htmlFor="bar-sales">Bar Sales</Label>
-                      <Input
-                        id="bar-sales"
-                        type="number"
-                        placeholder="0.00"
-                        value={historicalBar}
-                        onChange={(e) => setHistoricalBar(e.target.value)}
-                        data-testid="input-historical-bar"
-                      />
+                      <Label>Upload CSV File</Label>
+                      <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
+                        <input
+                          type="file"
+                          accept=".csv,.txt"
+                          onChange={handleCsvFileChange}
+                          className="hidden"
+                          id="csv-upload"
+                          data-testid="input-csv-upload"
+                        />
+                        <label htmlFor="csv-upload" className="cursor-pointer">
+                          <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            {csvFile ? csvFile.name : "Click to upload or drag and drop"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">CSV or TXT file</p>
+                        </label>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="gaming-sales">Gaming Sales</Label>
-                      <Input
-                        id="gaming-sales"
-                        type="number"
-                        placeholder="0.00"
-                        value={historicalGaming}
-                        onChange={(e) => setHistoricalGaming(e.target.value)}
-                        data-testid="input-historical-gaming"
-                      />
-                    </div>
-                  </div>
-                  
-                  <Button
-                    className="w-full"
-                    disabled={!historicalDate || saveHistoricalMutation.isPending}
-                    onClick={() => {
-                      if (historicalDate) {
-                        saveHistoricalMutation.mutate({
-                          date: format(historicalDate, "yyyy-MM-dd"),
-                          foodSales: parseFloat(historicalFood) || 0,
-                          barSales: parseFloat(historicalBar) || 0,
-                          gamingSales: parseFloat(historicalGaming) || 0,
-                        });
-                      }
-                    }}
-                    data-testid="button-save-historical"
-                  >
-                    {saveHistoricalMutation.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save Historical Data"
+                    
+                    {/* Parse Error */}
+                    {csvParseError && (
+                      <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
+                        <p className="text-sm text-destructive">{csvParseError}</p>
+                      </div>
                     )}
-                  </Button>
-                </div>
+                    
+                    {/* Preview Table */}
+                    {csvPreviewData.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Preview ({csvPreviewData.length} rows)</Label>
+                          <Button variant="ghost" size="sm" onClick={clearBulkImport}>
+                            Clear
+                          </Button>
+                        </div>
+                        <div className="max-h-48 overflow-auto border rounded-lg">
+                          <table className="w-full text-sm">
+                            <thead className="bg-muted sticky top-0">
+                              <tr>
+                                <th className="text-left p-2">Date</th>
+                                <th className="text-right p-2">Food</th>
+                                <th className="text-right p-2">Bar</th>
+                                <th className="text-right p-2">Gaming</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {csvPreviewData.map((row, idx) => (
+                                <tr key={idx} className={row.error ? "bg-destructive/10" : ""}>
+                                  <td className="p-2">
+                                    {row.date}
+                                    {row.error && (
+                                      <span className="text-xs text-destructive ml-1">({row.error})</span>
+                                    )}
+                                  </td>
+                                  <td className="text-right p-2">${row.foodSales.toFixed(2)}</td>
+                                  <td className="text-right p-2">${row.barSales.toFixed(2)}</td>
+                                  <td className="text-right p-2">${row.gamingSales.toFixed(2)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Import Result */}
+                    {bulkImportResult && (
+                      <div className={`rounded-lg p-3 flex items-start gap-2 ${
+                        bulkImportResult.failed === 0 
+                          ? "bg-green-500/10 border border-green-500/30" 
+                          : "bg-amber-500/10 border border-amber-500/30"
+                      }`}>
+                        <CheckCircle className={`h-4 w-4 mt-0.5 ${
+                          bulkImportResult.failed === 0 ? "text-green-600" : "text-amber-600"
+                        }`} />
+                        <div className="text-sm">
+                          <p className={bulkImportResult.failed === 0 ? "text-green-600" : "text-amber-600"}>
+                            Imported {bulkImportResult.success} of {bulkImportResult.success + bulkImportResult.failed} records
+                          </p>
+                          {bulkImportResult.errors.length > 0 && (
+                            <ul className="mt-1 text-xs text-muted-foreground">
+                              {bulkImportResult.errors.slice(0, 3).map((err, i) => (
+                                <li key={i}>{err}</li>
+                              ))}
+                              {bulkImportResult.errors.length > 3 && (
+                                <li>...and {bulkImportResult.errors.length - 3} more errors</li>
+                              )}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Import Button */}
+                    <Button
+                      className="w-full"
+                      disabled={csvPreviewData.length === 0 || csvPreviewData.some(r => r.error) || bulkImportMutation.isPending}
+                      onClick={() => {
+                        const validRows = csvPreviewData.filter(r => !r.error);
+                        if (validRows.length > 0) {
+                          bulkImportMutation.mutate(validRows);
+                        }
+                      }}
+                      data-testid="button-bulk-import"
+                    >
+                      {bulkImportMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Import {csvPreviewData.filter(r => !r.error).length} Records
+                        </>
+                      )}
+                    </Button>
+                  </TabsContent>
+                </Tabs>
               </DialogContent>
             </Dialog>
           </div>

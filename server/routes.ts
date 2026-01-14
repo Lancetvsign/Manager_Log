@@ -456,6 +456,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
+   * POST /api/manager-logs/bulk-historical
+   * Bulk imports multiple historical log entries at once.
+   * Accepts an array of entries in the request body.
+   */
+  app.post("/api/manager-logs/bulk-historical", async (req, res) => {
+    try {
+      const { entries } = req.body;
+      
+      if (!Array.isArray(entries) || entries.length === 0) {
+        return res.status(400).json({ 
+          error: "Request must include an 'entries' array with at least one entry" 
+        });
+      }
+
+      if (entries.length > 500) {
+        return res.status(400).json({ 
+          error: "Maximum 500 entries per bulk import" 
+        });
+      }
+
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [] as string[],
+      };
+
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        try {
+          const validatedData = insertManagerLogSchema.parse(entry);
+          const log = await storage.upsertManagerLog(validatedData);
+          
+          // Capture maintenance snapshot for this log
+          await captureMaintenanceSnapshot(log.id, validatedData.clubId);
+          await snapshotRunningMaintenanceForLog(validatedData.clubId, log.id);
+          
+          results.success++;
+        } catch (error) {
+          results.failed++;
+          if (error instanceof z.ZodError) {
+            results.errors.push(`Row ${i + 1} (${entry.logDate || 'unknown date'}): ${error.errors.map(e => e.message).join(', ')}`);
+          } else {
+            results.errors.push(`Row ${i + 1} (${entry.logDate || 'unknown date'}): Failed to save`);
+          }
+        }
+      }
+
+      res.status(200).json(results);
+    } catch (error) {
+      console.error("Error in bulk historical import:", error);
+      res.status(500).json({ error: "Failed to process bulk import" });
+    }
+  });
+
+  /**
    * POST /api/logs/ensure
    * Ensures a log entry exists for a given club+date.
    * If it exists, returns the logId. If not, creates a minimal log and returns the new logId.
