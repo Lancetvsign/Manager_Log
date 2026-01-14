@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Plus, Loader2, Wrench, Clock, Calendar } from "lucide-react";
+import { CheckCircle2, Plus, Loader2, Wrench, Clock, Calendar, Camera, X, Image } from "lucide-react";
 import type { RunningMaintenanceItem } from "@shared/schema";
 
 interface RunningMaintenanceListProps {
@@ -20,6 +20,9 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: items = [], isLoading } = useQuery<RunningMaintenanceItem[]>({
     queryKey: ["/api/running-maintenance", clubId, showCompleted ? "all" : "open"],
@@ -34,17 +37,32 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
   });
 
   const addMutation = useMutation({
-    mutationFn: async (data: { title: string; description?: string }) => {
-      return apiRequest(
-        "POST",
-        buildApiUrl("/api/running-maintenance", clubId, apiBaseUrl),
-        data
-      );
+    mutationFn: async (data: { title: string; description?: string; photo?: File }) => {
+      const formData = new FormData();
+      formData.append("title", data.title);
+      if (data.description) {
+        formData.append("description", data.description);
+      }
+      if (data.photo) {
+        formData.append("photo", data.photo);
+      }
+
+      const url = buildApiUrl("/api/running-maintenance", clubId, apiBaseUrl);
+      const response = await fetch(url, {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        throw new Error("Failed to add maintenance item");
+      }
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance", clubId] });
       setTitle("");
       setDescription("");
+      setPhotoFile(null);
+      setPhotoPreview(null);
       setIsAdding(false);
     },
   });
@@ -75,12 +93,33 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
     },
   });
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearPhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
     addMutation.mutate({
       title: title.trim(),
       description: description.trim() || undefined,
+      photo: photoFile || undefined,
     });
   };
 
@@ -131,6 +170,47 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
                 data-testid="input-maintenance-description"
               />
             </div>
+            <div className="space-y-2">
+              <Label>Photo (optional)</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="hidden"
+                id="maintenance-photo"
+                data-testid="input-maintenance-photo"
+              />
+              {photoPreview ? (
+                <div className="relative inline-block">
+                  <img
+                    src={photoPreview}
+                    alt="Preview"
+                    className="h-20 w-20 object-cover rounded-md border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full"
+                    onClick={clearPhoto}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2"
+                >
+                  <Camera className="h-4 w-4" />
+                  Add Photo
+                </Button>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button
                 type="submit"
@@ -155,6 +235,8 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
                   setIsAdding(false);
                   setTitle("");
                   setDescription("");
+                  setPhotoFile(null);
+                  setPhotoPreview(null);
                 }}
                 data-testid="button-cancel-maintenance"
               >
@@ -193,6 +275,15 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
                 className="flex items-start justify-between gap-3 p-3 border rounded-lg bg-background"
                 data-testid={`maintenance-item-${item.id}`}
               >
+                {item.photoUrl && (
+                  <a href={item.photoUrl} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                    <img
+                      src={item.photoUrl}
+                      alt={item.title}
+                      className="h-16 w-16 object-cover rounded-md border hover:opacity-80 transition-opacity"
+                    />
+                  </a>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm">{item.title}</div>
                   {item.description && (
@@ -209,6 +300,12 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         Log: {item.relatedLogDate}
+                      </span>
+                    )}
+                    {item.photoUrl && (
+                      <span className="flex items-center gap-1">
+                        <Image className="h-3 w-3" />
+                        Has photo
                       </span>
                     )}
                   </div>
@@ -246,6 +343,15 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
                   className="flex items-start justify-between gap-3 p-3 border rounded-lg bg-muted/30 opacity-70"
                   data-testid={`maintenance-item-completed-${item.id}`}
                 >
+                  {item.photoUrl && (
+                    <a href={item.photoUrl} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                      <img
+                        src={item.photoUrl}
+                        alt={item.title}
+                        className="h-12 w-12 object-cover rounded-md border opacity-70"
+                      />
+                    </a>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm line-through">{item.title}</div>
                     {item.description && (

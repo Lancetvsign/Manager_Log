@@ -163,6 +163,7 @@ export const runningMaintenanceList = pgTable("running_maintenance_list", {
   dateCompleted: timestamp("date_completed"),
   createdBy: text("created_by"),
   relatedLogDate: date("related_log_date"),
+  photoUrl: text("photo_url"),
 });
 
 /**

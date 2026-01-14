@@ -2388,14 +2388,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/running-maintenance - Create a new maintenance item
-  app.post("/api/running-maintenance", async (req, res) => {
+  // POST /api/running-maintenance - Create a new maintenance item (with optional photo)
+  app.post("/api/running-maintenance", upload.single("photo"), async (req, res) => {
     try {
       const clubId = getClubId(req);
       const { title, description, relatedLogDate, createdBy } = req.body;
 
       if (!title || title.trim() === "") {
         return res.status(400).json({ error: "Title is required" });
+      }
+
+      // Handle photo upload
+      let photoUrl: string | null = null;
+      if (req.file) {
+        photoUrl = `/uploads/${req.file.filename}`;
       }
 
       const item = await storage.createRunningMaintenanceItem({
@@ -2405,6 +2411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         relatedLogDate: relatedLogDate || null,
         createdBy: createdBy || null,
         status: "open",
+        photoUrl,
       });
 
       res.status(201).json(item);

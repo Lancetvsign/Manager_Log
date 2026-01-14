@@ -1217,7 +1217,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
 
               <Card data-testid="card-maintenance-avg-days">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
-                  <CardTitle className="text-sm font-medium">Avg Days Open</CardTitle>
+                  <CardTitle className="text-sm font-medium">Avg Days Item Open</CardTitle>
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
