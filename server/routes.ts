@@ -1156,28 +1156,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startDate = new Date(start);
       const endDate = new Date(end);
 
-      // 1) OPEN NOW (live)
+      // 1) OPEN NOW (live) - query from maintenanceItems joined with managerLogs for clubId
       const openNowRow = await db
         .select({ c: count() })
-        .from(runningMaintenanceList)
+        .from(maintenanceItems)
+        .innerJoin(managerLogs, eq(maintenanceItems.managerLogId, managerLogs.id))
         .where(
           and(
-            eq(runningMaintenanceList.clubId, clubId),
-            eq(runningMaintenanceList.status, "open")
+            eq(managerLogs.clubId, clubId),
+            eq(maintenanceItems.status, "open")
           )
         );
       const openNow = Number(openNowRow?.[0]?.c ?? 0);
 
-      // 2) COMPLETED IN RANGE (live, based on dateCompleted)
+      // 2) COMPLETED IN RANGE (based on resolvedAt)
       const completedRow = await db
         .select({ c: count() })
-        .from(runningMaintenanceList)
+        .from(maintenanceItems)
+        .innerJoin(managerLogs, eq(maintenanceItems.managerLogId, managerLogs.id))
         .where(
           and(
-            eq(runningMaintenanceList.clubId, clubId),
-            sql`${runningMaintenanceList.dateCompleted} is not null`,
-            gte(runningMaintenanceList.dateCompleted, startDate),
-            lte(runningMaintenanceList.dateCompleted, endDate)
+            eq(managerLogs.clubId, clubId),
+            sql`${maintenanceItems.resolvedAt} is not null`,
+            gte(maintenanceItems.resolvedAt, startDate),
+            lte(maintenanceItems.resolvedAt, endDate)
           )
         );
       const completedInRange = Number(completedRow?.[0]?.c ?? 0);
@@ -1185,13 +1187,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 3) AVG DAYS OPEN (for currently open items)
       const avgDaysOpenRow = await db
         .select({
-          avgDays: sql<number>`avg(extract(epoch from (now() - ${runningMaintenanceList.dateAdded})) / 86400)`,
+          avgDays: sql<number>`avg(extract(epoch from (now() - ${maintenanceItems.createdAt})) / 86400)`,
         })
-        .from(runningMaintenanceList)
+        .from(maintenanceItems)
+        .innerJoin(managerLogs, eq(maintenanceItems.managerLogId, managerLogs.id))
         .where(
           and(
-            eq(runningMaintenanceList.clubId, clubId),
-            eq(runningMaintenanceList.status, "open")
+            eq(managerLogs.clubId, clubId),
+            eq(maintenanceItems.status, "open")
           )
         );
       const avgDaysOpen = Number(avgDaysOpenRow?.[0]?.avgDays ?? 0);
@@ -1214,39 +1217,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .groupBy(managerLogs.logDate)
         .orderBy(managerLogs.logDate);
 
-      // 5) DAILY COMPLETIONS (by dateCompleted date)
+      // 5) DAILY COMPLETIONS (by resolvedAt date)
       const dailyCompletions = await db
         .select({
-          date: sql<string>`date(${runningMaintenanceList.dateCompleted})`,
+          date: sql<string>`date(${maintenanceItems.resolvedAt})`,
           count: count(),
         })
-        .from(runningMaintenanceList)
+        .from(maintenanceItems)
+        .innerJoin(managerLogs, eq(maintenanceItems.managerLogId, managerLogs.id))
         .where(
           and(
-            eq(runningMaintenanceList.clubId, clubId),
-            sql`${runningMaintenanceList.dateCompleted} is not null`,
-            gte(runningMaintenanceList.dateCompleted, startDate),
-            lte(runningMaintenanceList.dateCompleted, endDate)
+            eq(managerLogs.clubId, clubId),
+            sql`${maintenanceItems.resolvedAt} is not null`,
+            gte(maintenanceItems.resolvedAt, startDate),
+            lte(maintenanceItems.resolvedAt, endDate)
           )
         )
-        .groupBy(sql`date(${runningMaintenanceList.dateCompleted})`)
-        .orderBy(sql`date(${runningMaintenanceList.dateCompleted})`);
+        .groupBy(sql`date(${maintenanceItems.resolvedAt})`)
+        .orderBy(sql`date(${maintenanceItems.resolvedAt})`);
 
       // 6) TOP OLDEST OPEN
       const oldestOpen = await db
         .select({
-          id: runningMaintenanceList.id,
-          title: runningMaintenanceList.title,
-          dateAdded: runningMaintenanceList.dateAdded,
+          id: maintenanceItems.id,
+          title: maintenanceItems.description,
+          dateAdded: maintenanceItems.createdAt,
         })
-        .from(runningMaintenanceList)
+        .from(maintenanceItems)
+        .innerJoin(managerLogs, eq(maintenanceItems.managerLogId, managerLogs.id))
         .where(
           and(
-            eq(runningMaintenanceList.clubId, clubId),
-            eq(runningMaintenanceList.status, "open")
+            eq(managerLogs.clubId, clubId),
+            eq(maintenanceItems.status, "open")
           )
         )
-        .orderBy(asc(runningMaintenanceList.dateAdded))
+        .orderBy(asc(maintenanceItems.createdAt))
         .limit(5);
 
       const topOldestOpen = oldestOpen.map((item) => ({
