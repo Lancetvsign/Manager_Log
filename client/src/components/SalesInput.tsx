@@ -3,8 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, Minus, GitCompare } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, GitCompare, Plus } from "lucide-react";
 
 export type ComparisonPeriod = "none" | "last_year" | "last_week";
 
@@ -41,6 +42,7 @@ interface SalesInputProps {
   comparisonDate?: string;
   comparisonPeriod?: ComparisonPeriod;
   onComparisonPeriodChange?: (period: ComparisonPeriod) => void;
+  onAddHistoricalData?: () => void;
 }
 
 const calculateChange = (current: string, lastYear: string) => {
@@ -75,7 +77,8 @@ export default function SalesInput({
   disabled = false, 
   comparisonDate,
   comparisonPeriod: externalPeriod,
-  onComparisonPeriodChange
+  onComparisonPeriodChange,
+  onAddHistoricalData
 }: SalesInputProps) {
   const [localComparisonPeriod, setLocalComparisonPeriod] = useState<ComparisonPeriod>("none");
   const comparisonPeriod = externalPeriod ?? localComparisonPeriod;
@@ -140,6 +143,18 @@ export default function SalesInput({
               <span className="text-xs text-muted-foreground">
                 (vs. {comparisonDate})
               </span>
+            )}
+            {onAddHistoricalData && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onAddHistoricalData}
+                className="h-8 text-xs"
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add Historical Data
+              </Button>
             )}
           </div>
         )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,9 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronDown, Camera, X } from "lucide-react";
+import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronDown, Camera, X, Upload, Download, Info } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
 import WeatherCard from "./WeatherCard";
 import WeatherWide from "./WeatherWide";
 import SalesInput from "./SalesInput";
@@ -71,6 +77,18 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   
   // Collapsible state for maintenance list
   const [maintenanceOpen, setMaintenanceOpen] = useState(true);
+  
+  // Historical data dialog state
+  const [historicalDataOpen, setHistoricalDataOpen] = useState(false);
+  const [historicalDate, setHistoricalDate] = useState<Date | undefined>(undefined);
+  const [historicalFoodSales, setHistoricalFoodSales] = useState("");
+  const [historicalBarSales, setHistoricalBarSales] = useState("");
+  const [historicalGamingSales, setHistoricalGamingSales] = useState("");
+  const [bulkImportMode, setBulkImportMode] = useState<"single" | "bulk">("single");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvPreviewData, setCsvPreviewData] = useState<Array<{ date: string; foodSales: number; barSales: number; gamingSales: number; error?: string }>>([]);
+  const [csvParseError, setCsvParseError] = useState<string | null>(null);
+  const [bulkImportResult, setBulkImportResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -476,6 +494,121 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     }
   });
 
+  // Historical data single entry mutation
+  const saveHistoricalMutation = useMutation({
+    mutationFn: async (data: { logDate: string; dayOfWeek: string; foodSales: string; barSales: string; gamingSales: string }) => {
+      const url = buildApiUrl("/api/manager-logs/historical", clubId, apiBaseUrl);
+      const response = await apiRequest("POST", url, { ...data, clubId });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Historical data saved successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/manager-logs"] });
+      setHistoricalDataOpen(false);
+      setHistoricalDate(undefined);
+      setHistoricalFoodSales("");
+      setHistoricalBarSales("");
+      setHistoricalGamingSales("");
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to save historical data.", variant: "destructive" });
+    }
+  });
+
+  // Bulk import mutation
+  const bulkImportMutation = useMutation({
+    mutationFn: async (rows: Array<{ date: string; foodSales: number; barSales: number; gamingSales: number }>) => {
+      const url = buildApiUrl("/api/manager-logs/bulk-historical", clubId, apiBaseUrl);
+      const response = await apiRequest("POST", url, {
+        entries: rows.map(row => {
+          const dateObj = new Date(row.date);
+          const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+          return {
+            logDate: row.date,
+            dayOfWeek,
+            foodSales: row.foodSales.toString(),
+            barSales: row.barSales.toString(),
+            gamingSales: row.gamingSales.toString(),
+            clubId: clubId,
+          };
+        }),
+      });
+      return response.json();
+    },
+    onSuccess: (result: { success: number; failed: number; errors: string[] }) => {
+      setBulkImportResult(result);
+      queryClient.invalidateQueries({ queryKey: ["/api/manager-logs"] });
+      if (result.failed === 0) {
+        toast({ title: "Success", description: `${result.success} records imported successfully!` });
+        setTimeout(() => {
+          setHistoricalDataOpen(false);
+          clearBulkImport();
+          setBulkImportMode("single");
+        }, 2000);
+      }
+    },
+  });
+
+  // CSV parsing
+  const parseCSV = useCallback((text: string) => {
+    setCsvParseError(null);
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) {
+      setCsvParseError("CSV must have a header row and at least one data row");
+      setCsvPreviewData([]);
+      return;
+    }
+    const header = lines[0].toLowerCase().split(',').map(h => h.trim());
+    const dateIdx = header.findIndex(h => h === 'date');
+    const foodIdx = header.findIndex(h => h.includes('food'));
+    const barIdx = header.findIndex(h => h.includes('bar'));
+    const gamingIdx = header.findIndex(h => h.includes('gaming'));
+    if (dateIdx === -1 || foodIdx === -1 || barIdx === -1 || gamingIdx === -1) {
+      setCsvParseError("CSV must have columns: date, food_sales, bar_sales, gaming_sales");
+      setCsvPreviewData([]);
+      return;
+    }
+    const rows: Array<{ date: string; foodSales: number; barSales: number; gamingSales: number; error?: string }> = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      if (values.length < 4) continue;
+      const dateVal = values[dateIdx];
+      const foodVal = parseFloat(values[foodIdx]) || 0;
+      const barVal = parseFloat(values[barIdx]) || 0;
+      const gamingVal = parseFloat(values[gamingIdx]) || 0;
+      let error: string | undefined;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+        error = "Invalid date format (use YYYY-MM-DD)";
+      }
+      rows.push({ date: dateVal, foodSales: foodVal, barSales: barVal, gamingSales: gamingVal, error });
+    }
+    setCsvPreviewData(rows);
+  }, []);
+
+  const handleCsvFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvFile(file);
+    setBulkImportResult(null);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      parseCSV(text);
+    };
+    reader.onerror = () => {
+      setCsvParseError("Failed to read file");
+      setCsvPreviewData([]);
+    };
+    reader.readAsText(file);
+  }, [parseCSV]);
+
+  const clearBulkImport = useCallback(() => {
+    setCsvFile(null);
+    setCsvPreviewData([]);
+    setCsvParseError(null);
+    setBulkImportResult(null);
+  }, []);
+
   const getDayOfWeek = (date: Date) => {
     return date.toLocaleDateString('en-US', { weekday: 'long' });
   };
@@ -783,6 +916,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         comparisonPeriod={comparisonPeriod}
         onComparisonPeriodChange={setComparisonPeriod}
         comparisonDate={comparisonPeriod === "last_week" ? format(lastWeekDate, 'EEEE, MMM d, yyyy') : format(lastYearDate, 'EEEE, MMM d, yyyy')}
+        onAddHistoricalData={() => setHistoricalDataOpen(true)}
       />
 
 
@@ -1034,6 +1168,209 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           logDateISO={format(date, 'yyyy-MM-dd')}
           managerName={amManagerName || pmManagerName || defaultManagerName}
         />
+        
+        {/* Historical Data Dialog */}
+        <Dialog open={historicalDataOpen} onOpenChange={setHistoricalDataOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Add Historical Sales Data</DialogTitle>
+              <DialogDescription>
+                Enter sales data for past dates to enable comparison features.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Tabs value={bulkImportMode} onValueChange={(v) => setBulkImportMode(v as "single" | "bulk")}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="single">Single Entry</TabsTrigger>
+                <TabsTrigger value="bulk">Bulk Import</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="single" className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !historicalDate && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {historicalDate ? format(historicalDate, "PPP") : "Select date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={historicalDate} onSelect={setHistoricalDate} disabled={(date) => date > new Date()} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label>Food Sales</Label>
+                    <Input type="number" placeholder="0.00" value={historicalFoodSales} onChange={(e) => setHistoricalFoodSales(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Bar Sales</Label>
+                    <Input type="number" placeholder="0.00" value={historicalBarSales} onChange={(e) => setHistoricalBarSales(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Gaming Sales</Label>
+                    <Input type="number" placeholder="0.00" value={historicalGamingSales} onChange={(e) => setHistoricalGamingSales(e.target.value)} />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  className="w-full"
+                  disabled={!historicalDate || saveHistoricalMutation.isPending}
+                  onClick={() => {
+                    if (historicalDate) {
+                      saveHistoricalMutation.mutate({
+                        logDate: format(historicalDate, 'yyyy-MM-dd'),
+                        dayOfWeek: historicalDate.toLocaleDateString('en-US', { weekday: 'long' }),
+                        foodSales: historicalFoodSales || "0",
+                        barSales: historicalBarSales || "0",
+                        gamingSales: historicalGamingSales || "0",
+                      });
+                    }
+                  }}
+                >
+                  {saveHistoricalMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : "Save Historical Data"}
+                </Button>
+              </TabsContent>
+              
+              <TabsContent value="bulk" className="space-y-4 pt-4">
+                {/* CSV Format Instructions */}
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-sm">Required CSV Format</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const sampleCsv = `date,food_sales,bar_sales,gaming_sales
+2025-01-01,1500.00,2000.00,500.00
+2025-01-02,1650.00,2100.00,475.00
+2025-01-03,1400.00,1850.00,525.00`;
+                        const blob = new Blob([sampleCsv], { type: 'text/csv' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'sample_historical_sales.csv';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      Sample CSV
+                    </Button>
+                  </div>
+                  <div className="bg-background rounded border overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Date</th>
+                          <th className="px-3 py-2 text-left font-medium">Food Sales</th>
+                          <th className="px-3 py-2 text-left font-medium">Bar Sales</th>
+                          <th className="px-3 py-2 text-left font-medium">Gaming Sales</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-muted-foreground">
+                        <tr className="border-t border-muted">
+                          <td className="px-3 py-1.5">2025-01-01</td>
+                          <td className="px-3 py-1.5">1500.00</td>
+                          <td className="px-3 py-1.5">2000.00</td>
+                          <td className="px-3 py-1.5">500.00</td>
+                        </tr>
+                        <tr className="border-t border-muted">
+                          <td className="px-3 py-1.5">2025-01-02</td>
+                          <td className="px-3 py-1.5">1650.00</td>
+                          <td className="px-3 py-1.5">2100.00</td>
+                          <td className="px-3 py-1.5">475.00</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Info className="h-3 w-3" />
+                      Date format: YYYY-MM-DD
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Info className="h-3 w-3" />
+                      Numbers only, no $ symbols
+                    </span>
+                  </div>
+                </div>
+                
+                {/* File Upload */}
+                <div className="space-y-2">
+                  <Label>Upload CSV File</Label>
+                  <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
+                    <input type="file" accept=".csv,.txt" onChange={handleCsvFileChange} className="hidden" id="csv-upload-form" />
+                    <label htmlFor="csv-upload-form" className="cursor-pointer">
+                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                      <p className="text-xs text-muted-foreground mt-1">CSV or TXT file</p>
+                    </label>
+                  </div>
+                </div>
+                
+                {csvParseError && (
+                  <div className="flex items-center gap-2 text-destructive text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    {csvParseError}
+                  </div>
+                )}
+                
+                {csvPreviewData.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Preview ({csvPreviewData.length} rows)</Label>
+                      <Button type="button" variant="ghost" size="sm" onClick={clearBulkImport}>Clear</Button>
+                    </div>
+                    <div className="max-h-40 overflow-auto border rounded">
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted sticky top-0">
+                          <tr>
+                            <th className="px-2 py-1 text-left">Date</th>
+                            <th className="px-2 py-1 text-left">Food</th>
+                            <th className="px-2 py-1 text-left">Bar</th>
+                            <th className="px-2 py-1 text-left">Gaming</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {csvPreviewData.slice(0, 10).map((row, i) => (
+                            <tr key={i} className={row.error ? "bg-destructive/10" : ""}>
+                              <td className="px-2 py-1">{row.date}</td>
+                              <td className="px-2 py-1">${row.foodSales.toFixed(2)}</td>
+                              <td className="px-2 py-1">${row.barSales.toFixed(2)}</td>
+                              <td className="px-2 py-1">${row.gamingSales.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                
+                {bulkImportResult && (
+                  <div className={`p-3 rounded-lg text-sm ${bulkImportResult.failed === 0 ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                    <p className="font-medium">{bulkImportResult.success} records imported successfully{bulkImportResult.failed > 0 && `, ${bulkImportResult.failed} failed`}</p>
+                  </div>
+                )}
+                
+                <Button
+                  type="button"
+                  className="w-full"
+                  disabled={csvPreviewData.filter(r => !r.error).length === 0 || bulkImportMutation.isPending}
+                  onClick={() => bulkImportMutation.mutate(csvPreviewData.filter(r => !r.error))}
+                >
+                  {bulkImportMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importing...</> : <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import {csvPreviewData.filter(r => !r.error).length} Records
+                  </>}
+                </Button>
+              </TabsContent>
+            </Tabs>
+          </DialogContent>
+        </Dialog>
     </form>
   );
 }
