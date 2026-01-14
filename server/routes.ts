@@ -1035,22 +1035,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch logs for the date range
       const logs = await storage.getManagerLogsByDateRange(startDateStr, endDateStr, clubId);
       
-      // Fetch ALL running maintenance items to calculate proper counts
-      const allRunningItems = await storage.getRunningMaintenanceItems(clubId);
+      // Query maintenance_items table for accurate counts (joined with manager_logs for clubId filtering)
+      const openToDoRow = await db
+        .select({ c: count() })
+        .from(maintenanceItems)
+        .innerJoin(managerLogs, eq(maintenanceItems.managerLogId, managerLogs.id))
+        .where(
+          and(
+            eq(managerLogs.clubId, clubId),
+            eq(maintenanceItems.status, "open")
+          )
+        );
+      const openToDo = Number(openToDoRow?.[0]?.c ?? 0);
       
-      // Count open items (currently open)
-      const openToDo = allRunningItems.filter(item => item.status === "open").length;
-      
-      // Count items completed within the date range (based on dateCompleted)
+      // Count items completed within the date range (based on resolvedAt)
       const startDateObj = new Date(startDateStr);
       const endDateObj = new Date(endDateStr);
       endDateObj.setHours(23, 59, 59, 999); // Include the full end day
       
-      const completedToDo = allRunningItems.filter(item => {
-        if (item.status !== "completed" || !item.dateCompleted) return false;
-        const completedDate = new Date(item.dateCompleted);
-        return completedDate >= startDateObj && completedDate <= endDateObj;
-      }).length;
+      const completedToDoRow = await db
+        .select({ c: count() })
+        .from(maintenanceItems)
+        .innerJoin(managerLogs, eq(maintenanceItems.managerLogId, managerLogs.id))
+        .where(
+          and(
+            eq(managerLogs.clubId, clubId),
+            sql`${maintenanceItems.resolvedAt} is not null`,
+            gte(maintenanceItems.resolvedAt, startDateObj),
+            lte(maintenanceItems.resolvedAt, endDateObj)
+          )
+        );
+      const completedToDo = Number(completedToDoRow?.[0]?.c ?? 0);
 
       // Calculate summary metrics
       const daysWithLogs = logs.length;
