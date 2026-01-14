@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronDown } from "lucide-react";
+import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronDown, Camera, X } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import WeatherCard from "./WeatherCard";
 import WeatherWide from "./WeatherWide";
@@ -62,6 +62,9 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const [newMaintenanceDescription, setNewMaintenanceDescription] = useState("");
   const [newMaintenanceStatus, setNewMaintenanceStatus] = useState<"open" | "completed">("open");
   const [newMaintenanceNotes, setNewMaintenanceNotes] = useState("");
+  const [newMaintenancePhoto, setNewMaintenancePhoto] = useState<File | null>(null);
+  const [newMaintenancePhotoPreview, setNewMaintenancePhotoPreview] = useState<string | null>(null);
+  const maintenancePhotoInputRef = useRef<HTMLInputElement>(null);
   
   // Email modal state
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -392,11 +395,22 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   });
 
   const addMaintenanceMutation = useMutation({
-    mutationFn: async (itemData: { managerLogId: number; description: string; status: string; notes?: string }) => {
-      const response = await fetch(`${apiBaseUrl}/api/maintenance-items`, {
+    mutationFn: async (itemData: { managerLogId: number; description: string; status: string; notes?: string; photo?: File }) => {
+      const formData = new FormData();
+      formData.append('managerLogId', String(itemData.managerLogId));
+      formData.append('description', itemData.description);
+      formData.append('status', itemData.status);
+      if (itemData.notes) {
+        formData.append('notes', itemData.notes);
+      }
+      if (itemData.photo) {
+        formData.append('photo', itemData.photo);
+      }
+
+      const url = buildApiUrl('/api/maintenance-items', clubId, apiBaseUrl);
+      const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(itemData)
+        body: formData
       });
       
       if (!response.ok) {
@@ -416,6 +430,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       setNewMaintenanceDescription("");
       setNewMaintenanceStatus("open");
       setNewMaintenanceNotes("");
+      setNewMaintenancePhoto(null);
+      setNewMaintenancePhotoPreview(null);
     },
     onError: (error: any) => {
       console.error('Failed to add maintenance item:', error);
@@ -522,6 +538,26 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     saveLogMutation.mutate(logData);
   };
 
+  const handleMaintenancePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setNewMaintenancePhoto(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewMaintenancePhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearMaintenancePhoto = () => {
+    setNewMaintenancePhoto(null);
+    setNewMaintenancePhotoPreview(null);
+    if (maintenancePhotoInputRef.current) {
+      maintenancePhotoInputRef.current.value = "";
+    }
+  };
+
   const handleAddMaintenanceItem = async () => {
     if (!newMaintenanceDescription.trim()) {
       toast({
@@ -539,7 +575,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         managerLogId: logId,
         description: newMaintenanceDescription.trim(),
         status: newMaintenanceStatus,
-        notes: newMaintenanceNotes.trim() || undefined
+        notes: newMaintenanceNotes.trim() || undefined,
+        photo: newMaintenancePhoto || undefined
       });
     } catch (error) {
       toast({
@@ -840,6 +877,62 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
                     className="min-h-[46px] resize-none"
                     data-testid="textarea-maintenance-notes"
                   />
+                </div>
+              </div>
+              <div className="mt-4 space-y-1.5">
+                <Label className="text-sm">Photo (optional)</Label>
+                <input
+                  ref={maintenancePhotoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleMaintenancePhotoChange}
+                  className="hidden"
+                  id="maintenance-photo-input"
+                  data-testid="input-maintenance-photo"
+                />
+                <div className="flex items-center gap-3">
+                  {newMaintenancePhotoPreview ? (
+                    <>
+                      <div className="relative inline-block">
+                        <img
+                          src={newMaintenancePhotoPreview}
+                          alt="Preview"
+                          className="h-16 w-16 object-cover rounded-md border cursor-pointer hover:opacity-80"
+                          onClick={() => maintenancePhotoInputRef.current?.click()}
+                          title="Click to change photo"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-5 w-5 rounded-full"
+                          onClick={clearMaintenancePhoto}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => maintenancePhotoInputRef.current?.click()}
+                        className="text-xs text-muted-foreground"
+                      >
+                        Change
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => maintenancePhotoInputRef.current?.click()}
+                      className="flex items-center gap-2"
+                    >
+                      <Camera className="h-4 w-4" />
+                      Add Photo
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="mt-5">

@@ -695,11 +695,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   /**
    * POST /api/maintenance-items
-   * Creates a new maintenance item linked to a log entry.
+   * Creates a new maintenance item linked to a log entry (with optional photo upload).
    */
-  app.post("/api/maintenance-items", async (req, res) => {
+  app.post("/api/maintenance-items", upload.single("photo"), async (req, res) => {
     try {
-      const validatedData = insertMaintenanceItemSchema.parse(req.body);
+      // Handle photo upload
+      let photoUrl: string | null = null;
+      if (req.file) {
+        photoUrl = `/uploads/${req.file.filename}`;
+      }
+
+      const validatedData = insertMaintenanceItemSchema.parse({
+        ...req.body,
+        photoUrl,
+      });
       const item = await storage.createMaintenanceItem(validatedData);
       
       // Update the maintenance snapshot for the associated log

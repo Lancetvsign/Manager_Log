@@ -589,6 +589,9 @@ export const insertMaintenanceItemSchema = createInsertSchema(maintenanceItems).
   resolvedAt: true, // Set automatically when status changes to completed
 }).extend({
   status: z.enum(["open", "completed"]).default("open"),
+  photoUrl: z.string().optional().nullable(),
+  managerLogId: z.coerce.number(), // Coerce string from form data to number
+  notes: z.string().optional().nullable(), // Optional notes field
 });
 
 // RunningMaintenanceList insert schema
