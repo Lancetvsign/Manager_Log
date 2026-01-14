@@ -69,6 +69,7 @@ import {
   Plus,
   Upload,
   AlertCircle,
+  Info,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -1205,12 +1206,71 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                   
                   <TabsContent value="bulk" className="space-y-4 pt-4">
                     {/* CSV Format Instructions */}
-                    <div className="bg-muted/50 rounded-lg p-3 text-sm">
-                      <p className="font-medium mb-1">CSV Format:</p>
-                      <code className="text-xs block bg-background p-2 rounded">
-                        date,food_sales,bar_sales,gaming_sales<br/>
-                        2025-01-01,1500.00,2000.00,500.00
-                      </code>
+                    <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm">Required CSV Format</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const sampleCsv = `date,food_sales,bar_sales,gaming_sales
+2025-01-01,1500.00,2000.00,500.00
+2025-01-02,1650.00,2100.00,475.00
+2025-01-03,1400.00,1850.00,525.00`;
+                            const blob = new Blob([sampleCsv], { type: 'text/csv' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'sample_historical_sales.csv';
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          Sample CSV
+                        </Button>
+                      </div>
+                      
+                      {/* Visual table showing format */}
+                      <div className="bg-background rounded border overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-medium">Date</th>
+                              <th className="px-3 py-2 text-left font-medium">Food Sales</th>
+                              <th className="px-3 py-2 text-left font-medium">Bar Sales</th>
+                              <th className="px-3 py-2 text-left font-medium">Gaming Sales</th>
+                            </tr>
+                          </thead>
+                          <tbody className="text-muted-foreground">
+                            <tr className="border-t border-muted">
+                              <td className="px-3 py-1.5">2025-01-01</td>
+                              <td className="px-3 py-1.5">1500.00</td>
+                              <td className="px-3 py-1.5">2000.00</td>
+                              <td className="px-3 py-1.5">500.00</td>
+                            </tr>
+                            <tr className="border-t border-muted">
+                              <td className="px-3 py-1.5">2025-01-02</td>
+                              <td className="px-3 py-1.5">1650.00</td>
+                              <td className="px-3 py-1.5">2100.00</td>
+                              <td className="px-3 py-1.5">475.00</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      {/* Tips */}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Info className="h-3 w-3" />
+                          Date format: YYYY-MM-DD
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Info className="h-3 w-3" />
+                          Numbers only, no $ symbols
+                        </span>
+                      </div>
                     </div>
                     
                     {/* File Upload */}
