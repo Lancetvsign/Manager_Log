@@ -242,31 +242,18 @@ export default function ManagerLogList({
           </CardHeader>
         </Card>
 
-        {/* Weather Comparison */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CloudSun className="h-5 w-5" />
-                Weather on This Day
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm">{selectedLog.weather || "No weather data available"}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CloudSun className="h-5 w-5" />
-                Weather 1 Year Prior
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm">{selectedLog.weatherLastYear || "No historical weather data available"}</p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Weather */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CloudSun className="h-5 w-5" />
+              Weather on This Day
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">{selectedLog.weather || "No weather data available"}</p>
+          </CardContent>
+        </Card>
 
         {/* Sales Data */}
         <Card>
