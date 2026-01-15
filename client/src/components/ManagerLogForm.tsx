@@ -19,6 +19,7 @@ import WeatherCard from "./WeatherCard";
 import WeatherWide from "./WeatherWide";
 import SalesInput from "./SalesInput";
 import EmailLogModal from "./EmailLogModal";
+import HistoricalComparisonCard from "./HistoricalComparisonCard";
 import { NotePhotos } from "./NotePhotos";
 import { MaintenanceItemsTable } from "./MaintenanceItemsTable";
 import { useToast } from "@/hooks/use-toast";
@@ -908,6 +909,21 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         </div>
         </CardContent>
       </Card>
+
+      {/* Historical Comparison Status Card */}
+      {!isPastLog && (
+        <HistoricalComparisonCard
+          currentDate={dateString}
+          onAddHistoricalData={() => {
+            setHistoricalDataOpen(true);
+            setBulkImportMode("single");
+          }}
+          onBulkImport={() => {
+            setHistoricalDataOpen(true);
+            setBulkImportMode("bulk");
+          }}
+        />
+      )}
 
       {/* Sales Data */}
       <SalesInput

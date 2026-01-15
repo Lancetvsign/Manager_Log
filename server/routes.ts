@@ -110,6 +110,63 @@ function isPastDate(dateStr: string): boolean {
 }
 
 /**
+ * HISTORICAL COMPARISON HELPERS
+ * =============================
+ * These functions support year-over-year comparison by finding the same
+ * weekday from last year and checking if historical data exists.
+ */
+
+/**
+ * Gets the comparison date for year-over-year analysis.
+ * Uses 364-day offset (52 weeks exactly) to ensure same weekday.
+ * This matches the frontend logic in ManagerLogForm for consistency.
+ * 
+ * @param today - The reference date (typically today)
+ * @returns Date string in YYYY-MM-DD format for comparison
+ */
+function getCompareDate(today: Date): string {
+  // Use 364-day offset (52 weeks exactly) to ensure same weekday
+  // This matches the frontend comparison logic
+  const compareDate = new Date(today);
+  compareDate.setDate(compareDate.getDate() - 364);
+  
+  // Format as YYYY-MM-DD
+  const yyyy = compareDate.getFullYear();
+  const mm = String(compareDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(compareDate.getDate()).padStart(2, '0');
+  
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
+ * Checks if historical data exists for a given date and club.
+ * Returns true if ANY data exists in the manager_logs table for that date.
+ * 
+ * @param compareDate - Date string in YYYY-MM-DD format
+ * @param clubId - Club identifier for data isolation
+ * @returns Promise<boolean> - true if historical data exists
+ */
+async function historicalDataExists(compareDate: string, clubId: string): Promise<boolean> {
+  try {
+    const result = await db
+      .select({ count: count() })
+      .from(managerLogs)
+      .where(
+        and(
+          eq(managerLogs.logDate, compareDate),
+          eq(managerLogs.clubId, clubId)
+        )
+      );
+    
+    return (result[0]?.count ?? 0) > 0;
+  } catch (error) {
+    // Fail gracefully if table doesn't exist yet
+    console.error('Error checking historical data:', error);
+    return false;
+  }
+}
+
+/**
  * Captures a snapshot of all open maintenance items for a log.
  * This ensures Log History shows accurate data even if items are edited later.
  * @param logId - The log ID to capture snapshot for
@@ -1055,6 +1112,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching historical weather:", error);
       res.status(500).json({ error: "Failed to fetch historical weather" });
+    }
+  });
+
+  // ==================
+  // HISTORICAL COMPARISON STATUS
+  // ==================
+  /**
+   * GET /api/historical-status
+   * Returns information about historical data availability for year-over-year comparison.
+   * 
+   * Query Parameters:
+   * - clubId: Required - filters data to a specific club
+   * - date: Optional - the reference date (defaults to today)
+   * 
+   * Response:
+   * - today: The reference date (YYYY-MM-DD)
+   * - compareDate: The comparison date from last year (same weekday)
+   * - hasHistoricalData: Whether a log entry exists for the compare date
+   * - compareDayOfWeek: Human-readable day name for comparison date
+   */
+  app.get("/api/historical-status", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const { date } = req.query;
+      
+      // Parse date safely - handle YYYY-MM-DD format explicitly to avoid timezone issues
+      let referenceDate: Date;
+      if (date && typeof date === 'string') {
+        const [year, month, day] = date.split('-').map(Number);
+        if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+          referenceDate = new Date(year, month - 1, day);
+        } else {
+          referenceDate = new Date();
+        }
+      } else {
+        referenceDate = new Date();
+      }
+      
+      // Validate the date is valid
+      if (isNaN(referenceDate.getTime())) {
+        referenceDate = new Date();
+      }
+      
+      // Get the comparison date (same weekday last year)
+      const compareDate = getCompareDate(referenceDate);
+      
+      // Check if historical data exists
+      const hasHistoricalData = await historicalDataExists(compareDate, clubId);
+      
+      // Get day of week name for display
+      const [cYear, cMonth, cDay] = compareDate.split('-').map(Number);
+      const compareDateObj = new Date(cYear, cMonth - 1, cDay);
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const compareDayOfWeek = dayNames[compareDateObj.getDay()];
+      
+      // Format today's date as YYYY-MM-DD
+      const yyyy = referenceDate.getFullYear();
+      const mm = String(referenceDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(referenceDate.getDate()).padStart(2, '0');
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+      
+      // Debug logging in development
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[Historical Status Debug]', {
+          today: todayStr,
+          compareDate,
+          compareDayOfWeek,
+          clubId,
+          hasHistoricalData
+        });
+      }
+      
+      res.json({
+        today: todayStr,
+        compareDate,
+        compareDayOfWeek,
+        hasHistoricalData
+      });
+    } catch (error) {
+      console.error("Error fetching historical status:", error);
+      res.status(500).json({ error: "Failed to fetch historical status" });
     }
   });
 
