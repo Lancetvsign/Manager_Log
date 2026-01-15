@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, Minus, GitCompare, Plus, Upload } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, GitCompare } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import AddHistoricalDataDialog from "./AddHistoricalDataDialog";
 
 export type ComparisonPeriod = "none" | "last_year" | "last_week";
 
@@ -43,10 +43,10 @@ interface SalesInputProps {
   comparisonDate?: string;
   comparisonPeriod?: ComparisonPeriod;
   onComparisonPeriodChange?: (period: ComparisonPeriod) => void;
-  onAddHistoricalData?: () => void;
-  onBulkImport?: () => void;
   hasHistoricalData?: boolean;
   historicalCompareDate?: string;
+  clubId?: string;
+  apiBaseUrl?: string;
 }
 
 const calculateChange = (current: string, lastYear: string) => {
@@ -82,10 +82,10 @@ export default function SalesInput({
   comparisonDate,
   comparisonPeriod: externalPeriod,
   onComparisonPeriodChange,
-  onAddHistoricalData,
-  onBulkImport,
   hasHistoricalData,
-  historicalCompareDate
+  historicalCompareDate,
+  clubId,
+  apiBaseUrl
 }: SalesInputProps) {
   const [localComparisonPeriod, setLocalComparisonPeriod] = useState<ComparisonPeriod>("none");
   const comparisonPeriod = externalPeriod ?? localComparisonPeriod;
@@ -154,32 +154,13 @@ export default function SalesInput({
                 </SelectContent>
               </Select>
               
-              {/* Historical data action buttons - same row as dropdown */}
-              {hasHistoricalData === false && historicalCompareDate && (
-                <>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={onAddHistoricalData}
-                    data-testid="btn-add-last-year"
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add last year
-                  </Button>
-                  {onBulkImport && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={onBulkImport}
-                      data-testid="btn-bulk-import"
-                    >
-                      <Upload className="h-3 w-3 mr-1" />
-                      Bulk import
-                    </Button>
-                  )}
-                </>
+              {/* Historical data dialog - shown when no historical data for comparison date */}
+              {hasHistoricalData === false && historicalCompareDate && clubId && (
+                <AddHistoricalDataDialog
+                  clubId={clubId}
+                  apiBaseUrl={apiBaseUrl}
+                  defaultDate={historicalCompareDate ? parseISO(historicalCompareDate) : undefined}
+                />
               )}
             </div>
           )}
