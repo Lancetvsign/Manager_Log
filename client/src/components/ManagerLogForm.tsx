@@ -19,7 +19,6 @@ import WeatherCard from "./WeatherCard";
 import WeatherWide from "./WeatherWide";
 import SalesInput from "./SalesInput";
 import EmailLogModal from "./EmailLogModal";
-import HistoricalComparisonCard from "./HistoricalComparisonCard";
 import { NotePhotos } from "./NotePhotos";
 import { MaintenanceItemsTable } from "./MaintenanceItemsTable";
 import { useToast } from "@/hooks/use-toast";
@@ -196,6 +195,27 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       return response.json();
     },
     enabled: !!clubId && !!dateString,
+  });
+
+  // Fetch historical status for year-over-year comparison
+  interface HistoricalStatusResponse {
+    currentDate: string;
+    compareDate: string;
+    hasHistoricalData: boolean;
+  }
+
+  const { data: historicalStatus } = useQuery<HistoricalStatusResponse>({
+    queryKey: ['/api/historical-status', clubId, dateString],
+    queryFn: async () => {
+      const baseUrl = buildApiUrl('/api/historical-status', clubId, apiBaseUrl);
+      const url = `${baseUrl}&date=${dateString}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch historical status');
+      }
+      return response.json();
+    },
+    enabled: !!clubId && !!dateString && !isPastLog,
   });
 
   // Ensure a log exists for this date, creating if needed
@@ -910,21 +930,6 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         </CardContent>
       </Card>
 
-      {/* Historical Comparison Status Card */}
-      {!isPastLog && (
-        <HistoricalComparisonCard
-          currentDate={dateString}
-          onAddHistoricalData={() => {
-            setHistoricalDataOpen(true);
-            setBulkImportMode("single");
-          }}
-          onBulkImport={() => {
-            setHistoricalDataOpen(true);
-            setBulkImportMode("bulk");
-          }}
-        />
-      )}
-
       {/* Sales Data */}
       <SalesInput
         title="Daily Sales"
@@ -935,7 +940,16 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         comparisonPeriod={comparisonPeriod}
         onComparisonPeriodChange={setComparisonPeriod}
         comparisonDate={comparisonPeriod === "last_week" ? format(lastWeekDate, 'EEEE, MMM d, yyyy') : format(lastYearDate, 'EEEE, MMM d, yyyy')}
-        onAddHistoricalData={() => setHistoricalDataOpen(true)}
+        onAddHistoricalData={() => {
+          setHistoricalDataOpen(true);
+          setBulkImportMode("single");
+        }}
+        onBulkImport={() => {
+          setHistoricalDataOpen(true);
+          setBulkImportMode("bulk");
+        }}
+        hasHistoricalData={historicalStatus?.hasHistoricalData}
+        historicalCompareDate={historicalStatus?.compareDate}
       />
 
 

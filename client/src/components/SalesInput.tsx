@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, Minus, GitCompare, Plus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, GitCompare, Plus, Upload } from "lucide-react";
+import { format, parseISO } from "date-fns";
 
 export type ComparisonPeriod = "none" | "last_year" | "last_week";
 
@@ -43,6 +44,9 @@ interface SalesInputProps {
   comparisonPeriod?: ComparisonPeriod;
   onComparisonPeriodChange?: (period: ComparisonPeriod) => void;
   onAddHistoricalData?: () => void;
+  onBulkImport?: () => void;
+  hasHistoricalData?: boolean;
+  historicalCompareDate?: string;
 }
 
 const calculateChange = (current: string, lastYear: string) => {
@@ -78,7 +82,10 @@ export default function SalesInput({
   comparisonDate,
   comparisonPeriod: externalPeriod,
   onComparisonPeriodChange,
-  onAddHistoricalData
+  onAddHistoricalData,
+  onBulkImport,
+  hasHistoricalData,
+  historicalCompareDate
 }: SalesInputProps) {
   const [localComparisonPeriod, setLocalComparisonPeriod] = useState<ComparisonPeriod>("none");
   const comparisonPeriod = externalPeriod ?? localComparisonPeriod;
@@ -110,6 +117,11 @@ export default function SalesInput({
   const diffPercentage = comparisonTotal !== 0 ? (difference / comparisonTotal) * 100 : 0;
 
   const hasComparisonData = comparisonTotal > 0;
+
+  // Format the historical compare date for display
+  const formattedHistoricalDate = historicalCompareDate 
+    ? format(parseISO(historicalCompareDate), 'MMM d, yyyy')
+    : '';
 
   return (
     <Card data-testid="card-sales">
@@ -144,17 +156,36 @@ export default function SalesInput({
                 (vs. {comparisonDate})
               </span>
             )}
-            {onAddHistoricalData && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onAddHistoricalData}
-                className="h-8 text-xs"
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add Historical Data
-              </Button>
+            
+            {/* Subtle historical data notification - only shown when no historical data */}
+            {hasHistoricalData === false && historicalCompareDate && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="hidden sm:inline">
+                  No historical data for {formattedHistoricalDate}.
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onAddHistoricalData}
+                  data-testid="btn-add-last-year"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add last year
+                </Button>
+                {onBulkImport && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onBulkImport}
+                    data-testid="btn-bulk-import"
+                  >
+                    <Upload className="h-3 w-3 mr-1" />
+                    Bulk import
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         )}
