@@ -159,32 +159,36 @@ export default function SalesInput({
             
             {/* Subtle historical data notification - only shown when no historical data */}
             {hasHistoricalData === false && historicalCompareDate && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="hidden sm:inline">
-                  No historical data for {formattedHistoricalDate}.
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={onAddHistoricalData}
-                  data-testid="btn-add-last-year"
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Add last year
-                </Button>
-                {onBulkImport && (
+              <div className="flex flex-col items-end gap-1 text-xs text-muted-foreground">
+                {/* Actions row - buttons on top */}
+                <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={onBulkImport}
-                    data-testid="btn-bulk-import"
+                    onClick={onAddHistoricalData}
+                    data-testid="btn-add-last-year"
                   >
-                    <Upload className="h-3 w-3 mr-1" />
-                    Bulk import
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add last year
                   </Button>
-                )}
+                  {onBulkImport && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={onBulkImport}
+                      data-testid="btn-bulk-import"
+                    >
+                      <Upload className="h-3 w-3 mr-1" />
+                      Bulk import
+                    </Button>
+                  )}
+                </div>
+                {/* Subtext below buttons in smaller muted style */}
+                <div className="text-[11px] text-muted-foreground/70">
+                  No historical data for {formattedHistoricalDate}.
+                </div>
               </div>
             )}
           </div>
