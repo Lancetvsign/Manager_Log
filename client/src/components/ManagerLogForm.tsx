@@ -78,6 +78,9 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   // Collapsible state for maintenance list
   const [maintenanceOpen, setMaintenanceOpen] = useState(true);
   
+  // Photo lightbox state
+  const [photoLightboxSrc, setPhotoLightboxSrc] = useState<string | null>(null);
+  
   // Historical data dialog state
   const [historicalDataOpen, setHistoricalDataOpen] = useState(false);
   const [historicalDate, setHistoricalDate] = useState<Date | undefined>(undefined);
@@ -972,27 +975,29 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
             <CardContent className="space-y-6">
           {/* Add New Maintenance Item Form - only show for today/future */}
           {!isPastLog && (
-            <div className="pb-4 border-b">
-              <h4 className="text-base font-medium mb-4">Add New Maintenance Item</h4>
-              <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                <div className="md:col-span-2 space-y-1.5">
-                  <Label htmlFor="maintenance-description" className="text-sm">Description</Label>
+            <div className="pb-4 border-b space-y-3">
+              {/* TOP ROW: Description, Status, Photo, Add Item */}
+              <div className="flex flex-wrap gap-3 items-end">
+                {/* Description */}
+                <div className="flex-1 min-w-[240px]">
+                  <Label htmlFor="maintenance-description" className="text-xs mb-1 block">Description</Label>
                   <Input
                     id="maintenance-description"
                     value={newMaintenanceDescription}
                     onChange={(e) => setNewMaintenanceDescription(e.target.value)}
                     placeholder="Enter maintenance item description"
-                    className="h-10"
                     data-testid="input-maintenance-description"
                   />
                 </div>
-                <div className="md:col-span-1 space-y-1.5">
-                  <Label htmlFor="maintenance-status" className="text-sm">Status</Label>
+
+                {/* Status */}
+                <div className="w-[160px]">
+                  <Label htmlFor="maintenance-status" className="text-xs mb-1 block">Status</Label>
                   <Select 
                     value={newMaintenanceStatus} 
                     onValueChange={(value: "open" | "completed") => setNewMaintenanceStatus(value)}
                   >
-                    <SelectTrigger className="h-10" data-testid="select-maintenance-status">
+                    <SelectTrigger data-testid="select-maintenance-status">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1001,98 +1006,86 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="md:col-span-3 space-y-1.5">
-                  <Label htmlFor="maintenance-notes" className="text-sm">Notes</Label>
-                  <Textarea
-                    id="maintenance-notes"
-                    value={newMaintenanceNotes}
-                    onChange={(e) => setNewMaintenanceNotes(e.target.value)}
-                    placeholder="Additional notes..."
-                    className="min-h-[46px] resize-none"
-                    data-testid="textarea-maintenance-notes"
+
+                {/* Photo */}
+                <div className="w-[220px]">
+                  <Label className="text-xs mb-1 block">Photo</Label>
+                  <input
+                    ref={maintenancePhotoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleMaintenancePhotoChange}
+                    className="hidden"
+                    id="maintenance-photo-input"
+                    data-testid="input-maintenance-photo"
                   />
-                </div>
-              </div>
-              <div className="mt-4 space-y-1.5">
-                <Label className="text-sm">Photo (optional)</Label>
-                <input
-                  ref={maintenancePhotoInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleMaintenancePhotoChange}
-                  className="hidden"
-                  id="maintenance-photo-input"
-                  data-testid="input-maintenance-photo"
-                />
-                <div className="flex items-center gap-3">
-                  {newMaintenancePhotoPreview ? (
-                    <>
-                      <div className="relative inline-block">
-                        <img
-                          src={newMaintenancePhotoPreview}
-                          alt="Preview"
-                          className="h-16 w-16 object-cover rounded-md border cursor-pointer hover:opacity-80"
-                          onClick={() => maintenancePhotoInputRef.current?.click()}
-                          title="Click to change photo"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute -top-2 -right-2 h-5 w-5 rounded-full"
-                          onClick={clearMaintenancePhoto}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => maintenancePhotoInputRef.current?.click()}
-                        className="text-xs text-muted-foreground"
-                      >
-                        Change
-                      </Button>
-                    </>
-                  ) : (
+                  <div className="flex items-center gap-2">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => maintenancePhotoInputRef.current?.click()}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-1"
                     >
-                      <Camera className="h-4 w-4" />
-                      Add Photo
+                      <Camera className="h-3 w-3" />
+                      {newMaintenancePhotoPreview ? "Change Photo" : "Add Photo"}
                     </Button>
-                  )}
+                    {newMaintenancePhotoPreview && (
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={newMaintenancePhotoPreview}
+                          alt="Preview"
+                          className="h-9 w-9 rounded-md object-cover border cursor-pointer hover:ring-2 hover:ring-primary"
+                          onClick={() => setPhotoLightboxSrc(newMaintenancePhotoPreview)}
+                        />
+                        <button
+                          type="button"
+                          onClick={clearMaintenancePhoto}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Add Item Button */}
+                <div className="w-[140px]">
+                  <Button
+                    type="button"
+                    onClick={handleAddMaintenanceItem}
+                    disabled={addMaintenanceMutation.isPending || !newMaintenanceDescription.trim()}
+                    className="w-full bg-teal-600 hover:bg-teal-700 text-white"
+                    data-testid="button-add-maintenance"
+                  >
+                    {addMaintenanceMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Item
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
-              <div className="mt-5">
-                <Button
-                  type="button"
-                  onClick={handleAddMaintenanceItem}
-                  disabled={addMaintenanceMutation.isPending || !newMaintenanceDescription.trim()}
-                  className="bg-teal-600 hover:bg-teal-700 text-white"
-                  data-testid="button-add-maintenance"
-                >
-                  {addMaintenanceMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Adding...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Item
-                    </>
-                  )}
-                </Button>
+
+              {/* NOTES ROW: full width */}
+              <div>
+                <Label htmlFor="maintenance-notes" className="text-xs mb-1 block">Notes</Label>
+                <Input
+                  id="maintenance-notes"
+                  value={newMaintenanceNotes}
+                  onChange={(e) => setNewMaintenanceNotes(e.target.value)}
+                  placeholder="Additional notes..."
+                  data-testid="input-maintenance-notes"
+                />
               </div>
+
               {/* Hint when no log saved */}
               {!existingLogId && (
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-xs text-muted-foreground">
                   First maintenance item will automatically create today's log entry.
                 </p>
               )}
@@ -1369,6 +1362,19 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
                 </Button>
               </TabsContent>
             </Tabs>
+          </DialogContent>
+        </Dialog>
+
+        {/* Photo Lightbox Modal */}
+        <Dialog open={!!photoLightboxSrc} onOpenChange={(open) => !open && setPhotoLightboxSrc(null)}>
+          <DialogContent className="max-w-3xl p-2 bg-black/90 border-none">
+            {photoLightboxSrc && (
+              <img
+                src={photoLightboxSrc}
+                alt="Full size preview"
+                className="max-h-[85vh] max-w-full mx-auto rounded-lg object-contain"
+              />
+            )}
           </DialogContent>
         </Dialog>
     </form>
