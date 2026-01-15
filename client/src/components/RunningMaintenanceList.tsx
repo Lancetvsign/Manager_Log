@@ -5,10 +5,11 @@ import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Plus, Loader2, Wrench, Clock, Calendar, Camera, X, Image } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { CheckCircle2, Plus, Loader2, Wrench, Clock, Camera, X } from "lucide-react";
 import type { RunningMaintenanceItem } from "@shared/schema";
 
 interface RunningMaintenanceListProps {
@@ -17,11 +18,13 @@ interface RunningMaintenanceListProps {
 
 export default function RunningMaintenanceList({ showCompleted = false }: RunningMaintenanceListProps) {
   const { clubId, apiBaseUrl } = useManagerLog();
-  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [isAdding, setIsAdding] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [status, setStatus] = useState<"open" | "completed">("open");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: items = [], isLoading } = useQuery<RunningMaintenanceItem[]>({
@@ -37,7 +40,7 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
   });
 
   const addMutation = useMutation({
-    mutationFn: async (data: { title: string; description?: string; photo?: File }) => {
+    mutationFn: async (data: { title: string; description?: string; photo?: File; status?: string }) => {
       const formData = new FormData();
       formData.append("title", data.title);
       if (data.description) {
@@ -45,6 +48,9 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
       }
       if (data.photo) {
         formData.append("photo", data.photo);
+      }
+      if (data.status) {
+        formData.append("status", data.status);
       }
 
       const url = buildApiUrl("/api/running-maintenance", clubId, apiBaseUrl);
@@ -59,11 +65,11 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance", clubId] });
-      setTitle("");
       setDescription("");
+      setNotes("");
+      setStatus("open");
       setPhotoFile(null);
       setPhotoPreview(null);
-      setIsAdding(false);
     },
   });
 
@@ -115,12 +121,18 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!description.trim()) return;
     addMutation.mutate({
-      title: title.trim(),
-      description: description.trim() || undefined,
+      title: description.trim(),
+      description: notes.trim() || undefined,
       photo: photoFile || undefined,
+      status: status,
     });
+  };
+
+  const openLightbox = (src: string) => {
+    setLightboxSrc(src);
+    setLightboxOpen(true);
   };
 
   const openItems = items.filter((item) => item.status === "open");
@@ -130,48 +142,55 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
     <Card data-testid="card-running-maintenance">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <CardTitle className="flex items-center gap-2">
-            <Wrench className="h-5 w-5 text-primary" />
-            Running Maintenance List
-          </CardTitle>
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-primary" />
+              Running Maintenance List
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Showing all open items · oldest to newest
+            </p>
+          </div>
           <Badge variant="secondary" className="text-xs">
             {openItems.length} open {openItems.length === 1 ? "item" : "items"}
           </Badge>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Open items sorted oldest to newest
-        </p>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {isAdding ? (
-          <form onSubmit={handleAdd} className="space-y-3 p-3 border rounded-lg bg-muted/30">
-            <div className="space-y-2">
-              <Label htmlFor="maintenance-title">Title</Label>
+        {/* Add Item Form - Horizontal Layout */}
+        <form onSubmit={handleAdd} className="space-y-3">
+          {/* TOP ROW: Description, Status, Photo, Add Item */}
+          <div className="flex flex-wrap gap-3 items-end">
+            {/* Description */}
+            <div className="flex-1 min-w-[240px]">
+              <Label className="text-xs mb-1 block">Description</Label>
               <Input
-                id="maintenance-title"
                 type="text"
-                placeholder="Short maintenance item title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                autoFocus
-                data-testid="input-maintenance-title"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="maintenance-description">Description (optional)</Label>
-              <Textarea
-                id="maintenance-description"
-                placeholder="Optional description or details"
+                placeholder="Enter maintenance item description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-                className="resize-none"
                 data-testid="input-maintenance-description"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Photo (optional)</Label>
+
+            {/* Status */}
+            <div className="w-[160px]">
+              <Label className="text-xs mb-1 block">Status</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as "open" | "completed")}>
+                <SelectTrigger data-testid="select-maintenance-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="open">Open</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Photo */}
+            <div className="w-[220px]">
+              <Label className="text-xs mb-1 block">Photo</Label>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -181,82 +200,71 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
                 id="maintenance-photo"
                 data-testid="input-maintenance-photo"
               />
-              {photoPreview ? (
-                <div className="relative inline-block">
-                  <img
-                    src={photoPreview}
-                    alt="Preview"
-                    className="h-20 w-20 object-cover rounded-md border"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full"
-                    onClick={clearPhoto}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ) : (
+              <div className="flex items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-1"
                 >
-                  <Camera className="h-4 w-4" />
-                  Add Photo
+                  <Camera className="h-3 w-3" />
+                  {photoPreview ? "Change Photo" : "Add Photo"}
                 </Button>
-              )}
+                {photoPreview && (
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={photoPreview}
+                      alt="Preview"
+                      className="h-9 w-9 rounded-md object-cover border cursor-pointer hover:ring-2 hover:ring-primary"
+                      onClick={() => openLightbox(photoPreview)}
+                    />
+                    <button
+                      type="button"
+                      onClick={clearPhoto}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex gap-2">
+
+            {/* Add Item Button */}
+            <div className="w-[140px]">
               <Button
                 type="submit"
-                size="sm"
-                disabled={!title.trim() || addMutation.isPending}
+                className="w-full"
+                disabled={!description.trim() || addMutation.isPending}
                 data-testid="button-add-maintenance-submit"
               >
                 {addMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    Adding...
-                  </>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  "Add Item"
+                  <>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Item
+                  </>
                 )}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIsAdding(false);
-                  setTitle("");
-                  setDescription("");
-                  setPhotoFile(null);
-                  setPhotoPreview(null);
-                }}
-                data-testid="button-cancel-maintenance"
-              >
-                Cancel
-              </Button>
             </div>
-          </form>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsAdding(true)}
-            className="w-full"
-            data-testid="button-add-maintenance"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add Maintenance Item
-          </Button>
-        )}
+          </div>
 
+          {/* NOTES ROW: full width */}
+          <div>
+            <Label className="text-xs mb-1 block">Notes</Label>
+            <Input
+              type="text"
+              placeholder="Additional notes..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              data-testid="input-maintenance-notes"
+            />
+          </div>
+        </form>
+
+        {/* Items List */}
         {isLoading ? (
           <div className="flex items-center justify-center py-6">
             <Loader2 className="h-5 w-5 animate-spin mr-2" />
@@ -276,13 +284,12 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
                 data-testid={`maintenance-item-${item.id}`}
               >
                 {item.photoUrl && (
-                  <a href={item.photoUrl} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
-                    <img
-                      src={item.photoUrl}
-                      alt={item.title}
-                      className="h-16 w-16 object-cover rounded-md border hover:opacity-80 transition-opacity"
-                    />
-                  </a>
+                  <img
+                    src={item.photoUrl}
+                    alt={item.title}
+                    className="h-16 w-16 object-cover rounded-md border cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
+                    onClick={() => openLightbox(item.photoUrl!)}
+                  />
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm">{item.title}</div>
@@ -296,18 +303,6 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
                       <Clock className="h-3 w-3" />
                       Added: {new Date(item.dateAdded).toLocaleDateString()}
                     </span>
-                    {item.relatedLogDate && (
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        Log: {item.relatedLogDate}
-                      </span>
-                    )}
-                    {item.photoUrl && (
-                      <span className="flex items-center gap-1">
-                        <Image className="h-3 w-3" />
-                        Has photo
-                      </span>
-                    )}
                   </div>
                 </div>
                 <Button
@@ -344,13 +339,12 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
                   data-testid={`maintenance-item-completed-${item.id}`}
                 >
                   {item.photoUrl && (
-                    <a href={item.photoUrl} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
-                      <img
-                        src={item.photoUrl}
-                        alt={item.title}
-                        className="h-12 w-12 object-cover rounded-md border opacity-70"
-                      />
-                    </a>
+                    <img
+                      src={item.photoUrl}
+                      alt={item.title}
+                      className="h-12 w-12 object-cover rounded-md border opacity-70 cursor-pointer flex-shrink-0"
+                      onClick={() => openLightbox(item.photoUrl!)}
+                    />
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm line-through">{item.title}</div>
@@ -380,6 +374,19 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
           </div>
         )}
       </CardContent>
+
+      {/* Photo Lightbox Modal */}
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent className="max-w-3xl p-2 bg-black/90 border-none">
+          {lightboxSrc && (
+            <img
+              src={lightboxSrc}
+              alt="Full size preview"
+              className="max-h-[85vh] max-w-full mx-auto rounded-lg object-contain"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
