@@ -1074,12 +1074,13 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
               {/* NOTES ROW: full width */}
               <div>
                 <Label htmlFor="maintenance-notes" className="text-xs mb-1 block">Notes</Label>
-                <Input
+                <Textarea
                   id="maintenance-notes"
                   value={newMaintenanceNotes}
                   onChange={(e) => setNewMaintenanceNotes(e.target.value)}
                   placeholder="Additional notes..."
-                  data-testid="input-maintenance-notes"
+                  className="min-h-24"
+                  data-testid="textarea-maintenance-notes"
                 />
               </div>
 
