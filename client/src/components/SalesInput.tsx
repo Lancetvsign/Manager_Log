@@ -125,43 +125,38 @@ export default function SalesInput({
 
   return (
     <Card data-testid="card-sales">
-      <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
-        <CardTitle className="text-lg">{title}</CardTitle>
-        {showComparison && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <GitCompare className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground hidden sm:inline">Compare:</span>
-            </div>
-            <Select
-              value={comparisonPeriod}
-              onValueChange={(value) => handlePeriodChange(value as ComparisonPeriod)}
-            >
-              <SelectTrigger 
-                className="w-[160px] h-8 text-xs bg-primary/10 border-primary/30 focus:ring-primary"
-                data-testid="select-comparison-period"
+      <CardHeader className="flex flex-col gap-2">
+        <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
+          <CardTitle className="text-lg">{title}</CardTitle>
+          {showComparison && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Compare dropdown */}
+              <div className="flex items-center gap-1.5">
+                <GitCompare className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground hidden sm:inline">Compare:</span>
+              </div>
+              <Select
+                value={comparisonPeriod}
+                onValueChange={(value) => handlePeriodChange(value as ComparisonPeriod)}
               >
-                <SelectValue placeholder="Select period" />
-              </SelectTrigger>
-              <SelectContent>
-                {COMPARISON_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {showComparisonData && comparisonDate && (
-              <span className="text-xs text-muted-foreground">
-                (vs. {comparisonDate})
-              </span>
-            )}
-            
-            {/* Subtle historical data notification - only shown when no historical data */}
-            {hasHistoricalData === false && historicalCompareDate && (
-              <div className="flex flex-col items-end gap-1 text-xs text-muted-foreground">
-                {/* Actions row - buttons on top */}
-                <div className="flex items-center gap-2">
+                <SelectTrigger 
+                  className="w-[160px] h-8 text-xs bg-primary/10 border-primary/30 focus:ring-primary"
+                  data-testid="select-comparison-period"
+                >
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMPARISON_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {/* Historical data action buttons - same row as dropdown */}
+              {hasHistoricalData === false && historicalCompareDate && (
+                <>
                   <Button
                     type="button"
                     variant="ghost"
@@ -184,15 +179,26 @@ export default function SalesInput({
                       Bulk import
                     </Button>
                   )}
-                </div>
-                {/* Subtext below buttons in smaller muted style */}
-                <div className="text-[11px] text-muted-foreground/70">
-                  No historical data for {formattedHistoricalDate}.
-                </div>
-              </div>
-            )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Subtext row below - shows comparison date OR missing historical data notice (not both) */}
+        {showComparison && (showComparisonData && comparisonDate ? (
+          <div className="flex justify-end">
+            <span className="text-xs text-muted-foreground">
+              (vs. {comparisonDate})
+            </span>
           </div>
-        )}
+        ) : hasHistoricalData === false && historicalCompareDate ? (
+          <div className="flex justify-end">
+            <span className="text-[11px] text-muted-foreground/70">
+              No historical data for {formattedHistoricalDate}.
+            </span>
+          </div>
+        ) : null)}
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
