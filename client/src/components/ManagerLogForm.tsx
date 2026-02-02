@@ -63,7 +63,6 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   }>({ current: null, historical: null, historicalFallbackNote: null });
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   const [existingLogId, setExistingLogId] = useState<number | null>(null);
-  const [comparisonPeriod, setComparisonPeriod] = useState<"none" | "last_year" | "last_week">("none");
   
   const [newMaintenanceDescription, setNewMaintenanceDescription] = useState("");
   const [newMaintenanceStatus, setNewMaintenanceStatus] = useState<"open" | "completed">("open");
@@ -811,9 +810,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         onSalesChange={handleSalesChange}
         showComparison={true}
         disabled={isPastLog}
-        comparisonPeriod={comparisonPeriod}
-        onComparisonPeriodChange={setComparisonPeriod}
-        comparisonDate={comparisonPeriod === "last_week" ? format(lastWeekDate, 'EEEE, MMM d, yyyy') : format(lastYearDate, 'EEEE, MMM d, yyyy')}
+        comparisonDate={format(lastYearDate, 'EEEE, MMM d, yyyy')}
         hasHistoricalData={historicalStatus?.hasHistoricalData}
         historicalCompareDate={historicalStatus?.compareDate}
         clubId={clubId}

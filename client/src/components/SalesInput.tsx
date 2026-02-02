@@ -1,20 +1,12 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, Minus, GitCompare } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import AddHistoricalDataDialog from "./AddHistoricalDataDialog";
 
 export type ComparisonPeriod = "none" | "last_year" | "last_week";
-
-const COMPARISON_OPTIONS = [
-  { value: "none", label: "No Comparison" },
-  { value: "last_week", label: "Last Week Today" },
-  { value: "last_year", label: "Same Day Last Year" },
-] as const;
 
 interface SalesData {
   current: {
@@ -41,8 +33,6 @@ interface SalesInputProps {
   showComparison?: boolean;
   disabled?: boolean;
   comparisonDate?: string;
-  comparisonPeriod?: ComparisonPeriod;
-  onComparisonPeriodChange?: (period: ComparisonPeriod) => void;
   hasHistoricalData?: boolean;
   historicalCompareDate?: string;
   clubId?: string;
@@ -80,24 +70,12 @@ export default function SalesInput({
   showComparison = true, 
   disabled = false, 
   comparisonDate,
-  comparisonPeriod: externalPeriod,
-  onComparisonPeriodChange,
   hasHistoricalData,
   historicalCompareDate,
   clubId,
   apiBaseUrl
 }: SalesInputProps) {
-  const [localComparisonPeriod, setLocalComparisonPeriod] = useState<ComparisonPeriod>("none");
-  const comparisonPeriod = externalPeriod ?? localComparisonPeriod;
-  const showComparisonData = comparisonPeriod !== "none";
-  
-  const handlePeriodChange = (value: ComparisonPeriod) => {
-    setLocalComparisonPeriod(value);
-    onComparisonPeriodChange?.(value);
-  };
-
-  // Get comparison data based on selected period
-  const comparisonData = comparisonPeriod === "last_week" ? (salesData.lastWeek || { food: "", bar: "", gaming: "" }) : salesData.lastYear;
+  const comparisonData = salesData.lastYear;
 
   const foodChange = calculateChange(salesData.current.food, comparisonData.food);
   const barChange = calculateChange(salesData.current.bar, comparisonData.bar);
@@ -116,9 +94,6 @@ export default function SalesInput({
   const difference = currentTotal - comparisonTotal;
   const diffPercentage = comparisonTotal !== 0 ? (difference / comparisonTotal) * 100 : 0;
 
-  const hasComparisonData = comparisonTotal > 0;
-
-  // Format the historical compare date for display
   const formattedHistoricalDate = historicalCompareDate 
     ? format(parseISO(historicalCompareDate), 'MMM d, yyyy')
     : '';
@@ -128,58 +103,7 @@ export default function SalesInput({
       <CardHeader className="flex flex-col gap-2">
         <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-lg">{title}</CardTitle>
-          {showComparison && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Compare dropdown */}
-              <div className="flex items-center gap-1.5">
-                <GitCompare className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground hidden sm:inline">Compare:</span>
-              </div>
-              <Select
-                value={comparisonPeriod}
-                onValueChange={(value) => handlePeriodChange(value as ComparisonPeriod)}
-              >
-                <SelectTrigger 
-                  className="w-[160px] h-8 text-xs bg-primary/10 border-primary/30 focus:ring-primary"
-                  data-testid="select-comparison-period"
-                >
-                  <SelectValue placeholder="Select period" />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMPARISON_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              {/* Historical data dialog - shown when no historical data for comparison date */}
-              {hasHistoricalData === false && historicalCompareDate && clubId && (
-                <AddHistoricalDataDialog
-                  clubId={clubId}
-                  apiBaseUrl={apiBaseUrl}
-                  defaultDate={historicalCompareDate ? parseISO(historicalCompareDate) : undefined}
-                />
-              )}
-            </div>
-          )}
         </div>
-        
-        {/* Subtext row below - shows comparison date OR missing historical data notice (not both) */}
-        {showComparison && (showComparisonData && comparisonDate ? (
-          <div className="flex justify-end">
-            <span className="text-xs text-muted-foreground">
-              (vs. {comparisonDate})
-            </span>
-          </div>
-        ) : hasHistoricalData === false && historicalCompareDate ? (
-          <div className="flex justify-end">
-            <span className="text-[11px] text-muted-foreground/70">
-              No historical data for {formattedHistoricalDate}.
-            </span>
-          </div>
-        ) : null)}
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -197,9 +121,9 @@ export default function SalesInput({
               disabled={disabled}
               data-testid="input-food-sales"
             />
-            {showComparisonData && hasComparisonData && comparisonData.food && (
+            {showComparison && hasHistoricalData && comparisonData.food && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Comparison: ${comparisonData.food}</span>
+                <span>Last Year: ${comparisonData.food}</span>
                 <Badge variant="outline" className="flex items-center space-x-1">
                   {getTrendIcon(foodChange.trend)}
                   <span data-testid="text-food-change">{foodChange.percentage.toFixed(1)}%</span>
@@ -222,9 +146,9 @@ export default function SalesInput({
               disabled={disabled}
               data-testid="input-bar-sales"
             />
-            {showComparisonData && hasComparisonData && comparisonData.bar && (
+            {showComparison && hasHistoricalData && comparisonData.bar && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Comparison: ${comparisonData.bar}</span>
+                <span>Last Year: ${comparisonData.bar}</span>
                 <Badge variant="outline" className="flex items-center space-x-1">
                   {getTrendIcon(barChange.trend)}
                   <span data-testid="text-bar-change">{barChange.percentage.toFixed(1)}%</span>
@@ -247,9 +171,9 @@ export default function SalesInput({
               disabled={disabled}
               data-testid="input-gaming-sales"
             />
-            {showComparisonData && hasComparisonData && comparisonData.gaming && (
+            {showComparison && hasHistoricalData && comparisonData.gaming && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Comparison: ${comparisonData.gaming}</span>
+                <span>Last Year: ${comparisonData.gaming}</span>
                 <Badge variant="outline" className="flex items-center space-x-1">
                   {getTrendIcon(gamingChange.trend)}
                   <span data-testid="text-gaming-change">{gamingChange.percentage.toFixed(1)}%</span>
@@ -268,15 +192,15 @@ export default function SalesInput({
             </span>
           </div>
 
-          {/* Comparison totals - only when comparison is selected */}
-          {showComparisonData && hasComparisonData && (
+          {/* Same day last year comparison - shown when historical data exists */}
+          {showComparison && hasHistoricalData && (
             <>
               <div className="flex justify-between items-center text-sm text-muted-foreground">
-                <span>Comparison Total:</span>
+                <span>Same Day Last Year{comparisonDate ? ` (${comparisonDate})` : ''}:</span>
                 <span data-testid="text-comparison-total">${comparisonTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Difference:</span>
+                <span className="text-sm font-medium">Year-over-Year:</span>
                 <span 
                   className={`text-sm font-semibold flex items-center gap-1 ${
                     difference >= 0 ? 'text-green-600' : 'text-red-600'
@@ -289,9 +213,18 @@ export default function SalesInput({
               </div>
             </>
           )}
-          {showComparisonData && !hasComparisonData && (
-            <div className="text-sm text-muted-foreground italic">
-              No data available for comparison period
+          
+          {/* Add Historical Data button - only shown when no historical data for same day last year */}
+          {showComparison && hasHistoricalData === false && historicalCompareDate && clubId && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                No data for {formattedHistoricalDate}
+              </span>
+              <AddHistoricalDataDialog
+                clubId={clubId}
+                apiBaseUrl={apiBaseUrl}
+                defaultDate={historicalCompareDate ? parseISO(historicalCompareDate) : undefined}
+              />
             </div>
           )}
         </div>
