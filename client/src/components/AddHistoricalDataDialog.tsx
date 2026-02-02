@@ -99,9 +99,9 @@ export default function AddHistoricalDataDialog({
       const response = await apiRequest("POST", url, {
         logDate: data.date,
         dayOfWeek,
-        foodSales: data.foodSales,
-        barSales: data.barSales,
-        gamingSales: data.gamingSales,
+        foodSales: String(data.foodSales),
+        barSales: String(data.barSales),
+        gamingSales: String(data.gamingSales),
         clubId: clubId,
       });
       return response.json();
