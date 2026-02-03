@@ -109,6 +109,7 @@ export default function AddHistoricalDataDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/metrics"] });
       queryClient.invalidateQueries({ queryKey: ["/api/manager-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/manager-logs/by-date"] });
       queryClient.invalidateQueries({ queryKey: ["/api/historical-status"] });
       handleOpenChange(false);
     },
@@ -225,6 +226,7 @@ export default function AddHistoricalDataDialog({
       setBulkImportResult(result);
       queryClient.invalidateQueries({ queryKey: ["/api/metrics"] });
       queryClient.invalidateQueries({ queryKey: ["/api/manager-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/manager-logs/by-date"] });
       queryClient.invalidateQueries({ queryKey: ["/api/historical-status"] });
       if (result.failed === 0) {
         setTimeout(() => {

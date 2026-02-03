@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import AddHistoricalDataDialog from "./AddHistoricalDataDialog";
+import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 export type ComparisonPeriod = "none" | "last_year" | "last_week";
 
@@ -184,7 +185,7 @@ export default function SalesInput({
         </div>
 
         {/* Totals Section */}
-        <div className="border-t pt-4 space-y-2">
+        <div className="border-t pt-4 space-y-3">
           <div className="flex justify-between items-center">
             <span className="font-medium">Total Sales:</span>
             <span className="text-xl font-bold" data-testid="text-total-sales">
@@ -192,15 +193,13 @@ export default function SalesInput({
             </span>
           </div>
 
-          {/* Same day last year comparison - shown when historical data exists */}
+          {/* Year-over-Year Sparkline Chart - shown when historical data exists */}
           {showComparison && hasHistoricalData && (
-            <>
-              <div className="flex justify-between items-center text-sm text-muted-foreground">
-                <span>Same Day Last Year{comparisonDate ? ` (${comparisonDate})` : ''}:</span>
-                <span data-testid="text-comparison-total">${comparisonTotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Year-over-Year:</span>
+            <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Year-over-Year Comparison
+                </span>
                 <span 
                   className={`text-sm font-semibold flex items-center gap-1 ${
                     difference >= 0 ? 'text-green-600' : 'text-red-600'
@@ -208,10 +207,90 @@ export default function SalesInput({
                   data-testid="text-sales-difference"
                 >
                   {difference >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                  {difference >= 0 ? '+' : ''}${difference.toFixed(2)} ({diffPercentage >= 0 ? '+' : ''}{diffPercentage.toFixed(1)}%)
+                  {difference >= 0 ? '+' : ''}{diffPercentage.toFixed(1)}%
                 </span>
               </div>
-            </>
+              
+              {/* Sparkline Area Chart */}
+              <div className="h-16">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={[
+                      { 
+                        name: comparisonDate ? comparisonDate.split(',')[0] : 'Last Year', 
+                        value: comparisonTotal,
+                        label: 'Last Year'
+                      },
+                      { 
+                        name: 'Today', 
+                        value: currentTotal,
+                        label: 'Today'
+                      }
+                    ]}
+                    margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                  >
+                    <defs>
+                      <linearGradient id={`salesGradient-${difference >= 0 ? 'up' : 'down'}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop 
+                          offset="5%" 
+                          stopColor={difference >= 0 ? '#22c55e' : '#ef4444'} 
+                          stopOpacity={0.4}
+                        />
+                        <stop 
+                          offset="95%" 
+                          stopColor={difference >= 0 ? '#22c55e' : '#ef4444'} 
+                          stopOpacity={0.05}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <XAxis 
+                      dataKey="label" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <YAxis hide domain={['dataMin - 100', 'dataMax + 100']} />
+                    <Tooltip 
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Sales']}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--popover))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px',
+                        fontSize: '12px'
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke={difference >= 0 ? '#22c55e' : '#ef4444'}
+                      strokeWidth={2}
+                      fill={`url(#salesGradient-${difference >= 0 ? 'up' : 'down'})`}
+                      dot={{ 
+                        fill: difference >= 0 ? '#22c55e' : '#ef4444', 
+                        strokeWidth: 0,
+                        r: 4
+                      }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              
+              {/* Values below chart */}
+              <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                <div className="text-center">
+                  <span className="font-medium">${comparisonTotal.toFixed(2)}</span>
+                </div>
+                <div className="text-center">
+                  <span className={`font-medium ${difference >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {difference >= 0 ? '+' : ''}${difference.toFixed(2)}
+                  </span>
+                </div>
+                <div className="text-center">
+                  <span className="font-medium" data-testid="text-comparison-total">${currentTotal.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
           )}
           
           {/* Add Historical Data button - only shown when no historical data for same day last year */}
