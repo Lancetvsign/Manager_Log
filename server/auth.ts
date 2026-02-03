@@ -63,24 +63,35 @@ function verifySignature(
 /**
  * Express middleware to validate signed requests
  * 
- * In development mode without a secret configured, requests are allowed through
- * with a warning. In production, all requests must be properly signed.
+ * Supports two access modes:
+ * 1. Embedded mode (from SCP): Requests include HMAC signature headers and are validated
+ * 2. Standalone mode (direct access): Requests without signature headers are allowed
+ * 
+ * This allows the app to work both when embedded in Social Club Pro with
+ * signed requests AND when accessed directly via the deployed URL.
  */
 export function requireSignedRequest(req: Request, res: Response, next: NextFunction) {
   const secret = process.env.MANAGER_LOG_SECRET;
+  const hasSignatureHeaders = req.headers["x-signature"] && req.headers["x-timestamp"];
   
-  // In development mode, bypass auth if no signature headers are provided
-  // This allows direct browser access while still validating signed SCP requests
-  if (IS_DEVELOPMENT) {
-    const hasSignatureHeaders = req.headers["x-signature"] && req.headers["x-timestamp"];
-    if (!hasSignatureHeaders) {
+  // If no signature headers provided, allow standalone/direct access
+  // This enables the deployed app to work without embedding
+  if (!hasSignatureHeaders) {
+    if (IS_DEVELOPMENT) {
       console.warn("[Auth] Development mode: No signature headers, bypassing auth.");
-      return next();
     }
+    // Use clubId from query params or body for standalone requests
+    const queryClubId = req.query.clubId as string;
+    const bodyClubId = req.body?.clubId;
+    if (queryClubId || bodyClubId) {
+      (req as any).authenticatedClubId = queryClubId || bodyClubId;
+    }
+    return next();
   }
   
+  // Signed request mode - validate the signature
   if (!secret) {
-    console.error("[Auth] MANAGER_LOG_SECRET not configured");
+    console.error("[Auth] MANAGER_LOG_SECRET not configured but signed request received");
     return res.status(500).json({ error: "Server authentication not configured" });
   }
 
