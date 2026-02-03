@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import AddHistoricalDataDialog from "./AddHistoricalDataDialog";
-import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, Cell } from "recharts";
 
 export type ComparisonPeriod = "none" | "last_year" | "last_week";
 
@@ -211,45 +211,32 @@ export default function SalesInput({
                 </span>
               </div>
               
-              {/* Sparkline Area Chart */}
-              <div className="h-16">
+              {/* Bar Chart Comparison */}
+              <div className="h-20">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
+                  <BarChart
                     data={[
                       { 
-                        name: comparisonDate ? comparisonDate.split(',')[0] : 'Last Year', 
+                        name: 'Last Year', 
                         value: comparisonTotal,
-                        label: 'Last Year'
+                        fill: '#94a3b8'
                       },
                       { 
                         name: 'Today', 
                         value: currentTotal,
-                        label: 'Today'
+                        fill: difference >= 0 ? '#22c55e' : '#ef4444'
                       }
                     ]}
-                    margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                    margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+                    barCategoryGap="25%"
                   >
-                    <defs>
-                      <linearGradient id={`salesGradient-${difference >= 0 ? 'up' : 'down'}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop 
-                          offset="5%" 
-                          stopColor={difference >= 0 ? '#22c55e' : '#ef4444'} 
-                          stopOpacity={0.4}
-                        />
-                        <stop 
-                          offset="95%" 
-                          stopColor={difference >= 0 ? '#22c55e' : '#ef4444'} 
-                          stopOpacity={0.05}
-                        />
-                      </linearGradient>
-                    </defs>
                     <XAxis 
-                      dataKey="label" 
+                      dataKey="name" 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                     />
-                    <YAxis hide domain={['dataMin - 100', 'dataMax + 100']} />
+                    <YAxis hide domain={[0, 'auto']} />
                     <Tooltip 
                       formatter={(value: number) => [`$${value.toFixed(2)}`, 'Sales']}
                       contentStyle={{ 
@@ -258,21 +245,16 @@ export default function SalesInput({
                         borderRadius: '6px',
                         fontSize: '12px'
                       }}
+                      cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
                     />
-                    <Area
-                      type="monotone"
-                      dataKey="value"
-                      stroke={difference >= 0 ? '#22c55e' : '#ef4444'}
-                      strokeWidth={2}
-                      fill={`url(#salesGradient-${difference >= 0 ? 'up' : 'down'})`}
-                      dot={{ 
-                        fill: difference >= 0 ? '#22c55e' : '#ef4444', 
-                        strokeWidth: 0,
-                        r: 4
-                      }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </AreaChart>
+                    <Bar 
+                      dataKey="value" 
+                      radius={[4, 4, 0, 0]}
+                    >
+                      <Cell fill="#94a3b8" />
+                      <Cell fill={difference >= 0 ? '#22c55e' : '#ef4444'} />
+                    </Bar>
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
               
