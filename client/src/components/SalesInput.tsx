@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import AddHistoricalDataDialog from "./AddHistoricalDataDialog";
-import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, Cell } from "recharts";
+import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
 
 export type ComparisonPeriod = "none" | "last_year" | "last_week";
 
@@ -211,34 +211,48 @@ export default function SalesInput({
                 </span>
               </div>
               
-              {/* Bar Chart Comparison */}
-              <div className="h-20">
+              {/* Grouped Bar Chart - Category Comparison */}
+              <div className="h-36">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={[
                       { 
-                        name: 'Last Year', 
-                        value: comparisonTotal,
-                        fill: '#94a3b8'
+                        category: 'Food', 
+                        lastYear: parseFloat(comparisonData.food) || 0,
+                        today: parseFloat(salesData.current.food) || 0
                       },
                       { 
-                        name: 'Today', 
-                        value: currentTotal,
-                        fill: difference >= 0 ? '#22c55e' : '#ef4444'
+                        category: 'Bar', 
+                        lastYear: parseFloat(comparisonData.bar) || 0,
+                        today: parseFloat(salesData.current.bar) || 0
+                      },
+                      { 
+                        category: 'Gaming', 
+                        lastYear: parseFloat(comparisonData.gaming) || 0,
+                        today: parseFloat(salesData.current.gaming) || 0
+                      },
+                      { 
+                        category: 'Total', 
+                        lastYear: comparisonTotal,
+                        today: currentTotal
                       }
                     ]}
                     margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
-                    barCategoryGap="25%"
+                    barCategoryGap="15%"
+                    barGap={2}
                   >
                     <XAxis 
-                      dataKey="name" 
+                      dataKey="category" 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                     />
                     <YAxis hide domain={[0, 'auto']} />
                     <Tooltip 
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Sales']}
+                      formatter={(value: number, name: string) => [
+                        `$${value.toFixed(2)}`, 
+                        name === 'lastYear' ? 'Last Year' : 'Today'
+                      ]}
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--popover))', 
                         border: '1px solid hsl(var(--border))',
@@ -247,29 +261,36 @@ export default function SalesInput({
                       }}
                       cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
                     />
+                    <Legend 
+                      formatter={(value) => value === 'lastYear' ? 'Last Year' : 'Today'}
+                      wrapperStyle={{ fontSize: '11px' }}
+                    />
                     <Bar 
-                      dataKey="value" 
-                      radius={[4, 4, 0, 0]}
-                    >
-                      <Cell fill="#94a3b8" />
-                      <Cell fill={difference >= 0 ? '#22c55e' : '#ef4444'} />
-                    </Bar>
+                      dataKey="lastYear" 
+                      fill="#94a3b8"
+                      radius={[3, 3, 0, 0]}
+                      name="lastYear"
+                    />
+                    <Bar 
+                      dataKey="today" 
+                      fill={difference >= 0 ? '#22c55e' : '#ef4444'}
+                      radius={[3, 3, 0, 0]}
+                      name="today"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
               
-              {/* Values below chart */}
-              <div className="flex justify-between text-xs text-muted-foreground pt-1">
-                <div className="text-center">
-                  <span className="font-medium">${comparisonTotal.toFixed(2)}</span>
+              {/* Summary values */}
+              <div className="flex justify-between items-center text-xs pt-1 border-t border-muted/50">
+                <div className="text-muted-foreground">
+                  <span className="font-medium">Last Year Total:</span> ${comparisonTotal.toFixed(2)}
                 </div>
-                <div className="text-center">
-                  <span className={`font-medium ${difference >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {difference >= 0 ? '+' : ''}${difference.toFixed(2)}
-                  </span>
+                <div className={`font-semibold ${difference >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {difference >= 0 ? '+' : ''}${difference.toFixed(2)}
                 </div>
-                <div className="text-center">
-                  <span className="font-medium" data-testid="text-comparison-total">${currentTotal.toFixed(2)}</span>
+                <div className="text-muted-foreground">
+                  <span className="font-medium">Today Total:</span> <span data-testid="text-comparison-total">${currentTotal.toFixed(2)}</span>
                 </div>
               </div>
             </div>
