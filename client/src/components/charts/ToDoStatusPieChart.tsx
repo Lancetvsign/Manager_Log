@@ -61,14 +61,40 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
     return null;
   };
 
-  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value, name }: any) => {
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value, index }: any) => {
     if (value === 0) return null;
     
+    const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+    
+    // For small slices (less than 15% of chart), use external label
+    // For larger slices, position inside the arc
     const RADIAN = Math.PI / 180;
+    const isSmallSlice = percentage < 15;
+    
+    if (isSmallSlice) {
+      // External label with line
+      const radius = outerRadius + 20;
+      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+      
+      return (
+        <text
+          x={x}
+          y={y}
+          fill="hsl(var(--foreground))"
+          textAnchor={x > cx ? "start" : "end"}
+          dominantBaseline="central"
+          className="text-xs font-medium"
+        >
+          {percentage}%
+        </text>
+      );
+    }
+    
+    // Standard label inside the arc
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
 
     return (
       <text
