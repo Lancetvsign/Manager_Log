@@ -542,9 +542,9 @@ export default function AddHistoricalDataDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="gap-1"
+          className="gap-1 border-dashed"
           data-testid="button-add-historical"
         >
           <Plus className="h-4 w-4" />
