@@ -1,0 +1,209 @@
+import os
+import sqlite3
+from datetime import datetime
+from flask import Flask, request, redirect, url_for, render_template_string, abort
+
+app = Flask(__name__)
+DB_PATH = "content.db"
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "dev-token")  # change this in Secrets
+
+# ---------- DB ----------
+def db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    conn = db()
+    conn.execute("""
+      CREATE TABLE IF NOT EXISTS topics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        keyword TEXT NOT NULL,
+        intent TEXT NOT NULL,
+        cluster TEXT,
+        status TEXT NOT NULL DEFAULT 'queued', -- queued|drafted|published
+        created_at TEXT NOT NULL
+      )
+    """)
+    conn.execute("""
+      CREATE TABLE IF NOT EXISTS drafts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        topic_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        meta_description TEXT NOT NULL,
+        content_html TEXT NOT NULL,
+        faq_json TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(topic_id) REFERENCES topics(id)
+      )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# ---------- AUTH ----------
+def require_admin(req):
+    token = req.args.get("token") or req.headers.get("X-Admin-Token")
+    if token != ADMIN_TOKEN:
+        abort(403)
+
+# ---------- LLM (stub) ----------
+def generate_draft(keyword: str, intent: str, cluster: str | None):
+    """
+    Replace this with your LLM call.
+    Return dict with: title, slug, meta_description, content_html, faq_json
+    """
+    # TEMP: placeholder draft so the app runs end-to-end.
+    safe_slug = keyword.lower().strip().replace(" ", "-")[:80]
+    title = f"{keyword.title()} (2026 Guide)"
+    meta = f"Learn {keyword} with practical setup tips, cost notes, and best options for {intent}."
+    html = f"""
+    <h1>{title}</h1>
+    <p><em>Intent:</em> {intent} | <em>Cluster:</em> {cluster or "general"}</p>
+    <h2>Quick answer</h2>
+    <p>This is a placeholder draft. Replace <code>generate_draft()</code> with an LLM call.</p>
+    <h2>What to look for</h2>
+    <ul>
+      <li>Ease of setup</li>
+      <li>Device compatibility</li>
+      <li>Pricing</li>
+      <li>Offline support</li>
+    </ul>
+    <h2>FAQ</h2>
+    <p><strong>Q:</strong> Can I do this cheaply?<br><strong>A:</strong> Yes—depending on hardware and software.</p>
+    """
+    faq_json = """
+    [
+      {"q":"Can I do this cheaply?","a":"Yes—depending on hardware and software."},
+      {"q":"Do I need a commercial TV?","a":"Not always, but reliability matters."}
+    ]
+    """.strip()
+
+    return {
+        "title": title,
+        "slug": safe_slug,
+        "meta_description": meta,
+        "content_html": html.strip(),
+        "faq_json": faq_json
+    }
+
+# ---------- ROUTES ----------
+@app.route("/")
+def home():
+    return "DigitalSignReviews Content Machine is running. Go to /admin?token=..."
+
+@app.route("/topics/add", methods=["POST"])
+def add_topic():
+    require_admin(request)
+    keyword = request.form.get("keyword", "").strip()
+    intent = request.form.get("intent", "informational").strip()
+    cluster = request.form.get("cluster", "").strip() or None
+    if not keyword:
+        abort(400, "keyword required")
+    conn = db()
+    conn.execute(
+        "INSERT INTO topics(keyword,intent,cluster,status,created_at) VALUES (?,?,?,?,?)",
+        (keyword, intent, cluster, "queued", datetime.utcnow().isoformat())
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for("admin", token=ADMIN_TOKEN))
+
+@app.route("/topics/generate/<int:topic_id>", methods=["POST"])
+def generate(topic_id):
+    require_admin(request)
+    conn = db()
+    topic = conn.execute("SELECT * FROM topics WHERE id=?", (topic_id,)).fetchone()
+    if not topic:
+        abort(404)
+    draft = generate_draft(topic["keyword"], topic["intent"], topic["cluster"])
+
+    conn.execute("""
+      INSERT INTO drafts(topic_id,title,slug,meta_description,content_html,faq_json,created_at)
+      VALUES (?,?,?,?,?,?,?)
+    """, (topic_id, draft["title"], draft["slug"], draft["meta_description"],
+          draft["content_html"], draft["faq_json"], datetime.utcnow().isoformat()))
+    conn.execute("UPDATE topics SET status='drafted' WHERE id=?", (topic_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("admin", token=ADMIN_TOKEN))
+
+@app.route("/drafts/<int:draft_id>/publish", methods=["POST"])
+def publish(draft_id):
+    require_admin(request)
+    # TODO: wire this to WordPress REST, Webflow, or whatever your CMS is.
+    # For now we'll just mark as published.
+    conn = db()
+    draft = conn.execute("SELECT * FROM drafts WHERE id=?", (draft_id,)).fetchone()
+    if not draft:
+        abort(404)
+    conn.execute("UPDATE topics SET status='published' WHERE id=?", (draft["topic_id"],))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("admin", token=ADMIN_TOKEN))
+
+ADMIN_TEMPLATE = """
+<!doctype html>
+<title>Content Machine Admin</title>
+<h1>DigitalSignReviews Content Machine</h1>
+
+<h2>Add topic</h2>
+<form method="post" action="/topics/add?token={{token}}">
+  <input name="keyword" placeholder="keyword (e.g., screencloud vs yodeck)" size="50"/>
+  <input name="intent" placeholder="intent (comparison / commercial / informational)" size="35"/>
+  <input name="cluster" placeholder="cluster (software comparisons)" size="35"/>
+  <button type="submit">Add</button>
+</form>
+
+<h2>Topics</h2>
+<table border="1" cellpadding="6">
+<tr><th>ID</th><th>Keyword</th><th>Intent</th><th>Cluster</th><th>Status</th><th>Actions</th></tr>
+{% for t in topics %}
+<tr>
+  <td>{{t.id}}</td>
+  <td>{{t.keyword}}</td>
+  <td>{{t.intent}}</td>
+  <td>{{t.cluster or ""}}</td>
+  <td>{{t.status}}</td>
+  <td>
+    {% if t.status == 'queued' %}
+      <form style="display:inline" method="post" action="/topics/generate/{{t.id}}?token={{token}}">
+        <button type="submit">Generate Draft</button>
+      </form>
+    {% endif %}
+  </td>
+</tr>
+{% endfor %}
+</table>
+
+<h2>Drafts</h2>
+{% for d in drafts %}
+  <hr>
+  <h3>{{d.title}} <small>(draft #{{d.id}})</small></h3>
+  <p><strong>Slug:</strong> {{d.slug}}<br>
+     <strong>Meta:</strong> {{d.meta_description}}</p>
+  <details>
+    <summary>View HTML</summary>
+    <div style="border:1px solid #ccc; padding:10px; margin:10px 0;">
+      {{d.content_html | safe}}
+    </div>
+  </details>
+  <form method="post" action="/drafts/{{d.id}}/publish?token={{token}}">
+    <button type="submit">Approve & Mark Published</button>
+  </form>
+{% endfor %}
+"""
+
+@app.route("/admin")
+def admin():
+    require_admin(request)
+    conn = db()
+    topics = conn.execute("SELECT * FROM topics ORDER BY id DESC LIMIT 50").fetchall()
+    drafts = conn.execute("SELECT * FROM drafts ORDER BY id DESC LIMIT 20").fetchall()
+    conn.close()
+    return render_template_string(ADMIN_TEMPLATE, topics=topics, drafts=drafts, token=ADMIN_TOKEN)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=3000, debug=True)
