@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronDown, Camera, X, Upload, Download, Info } from "lucide-react";
+import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronDown, Camera, X, Upload, Download, Info, Circle } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
@@ -79,6 +79,13 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   
   // Photo lightbox state
   const [photoLightboxSrc, setPhotoLightboxSrc] = useState<string | null>(null);
+  
+  // Auto-save state
+  type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLoadingFromServerRef = useRef(false);
+  const hasFormDataRef = useRef(false);
   
   
   const { toast } = useToast();
@@ -230,6 +237,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   };
 
   useEffect(() => {
+    isLoadingFromServerRef.current = true;
     if (existingLog) {
       setExistingLogId(existingLog.id);
       setAmManagerName(existingLog.amManagerName || "");
@@ -256,10 +264,11 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           gaming: lastWeekLog?.gamingSales || ""
         }
       });
+      hasFormDataRef.current = true;
+      setSaveStatus('saved');
     } else {
       setExistingLogId(null);
       resetForm();
-      // Even without a current log, populate comparison data
       setSalesData(prev => ({
         ...prev,
         lastYear: {
@@ -273,7 +282,14 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
           gaming: lastWeekLog?.gamingSales || ""
         }
       }));
+      hasFormDataRef.current = false;
+      setSaveStatus('idle');
     }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        isLoadingFromServerRef.current = false;
+      });
+    });
   }, [existingLog, comparisonLog, lastWeekLog, dateString]);
 
   useEffect(() => {
@@ -404,10 +420,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       return response.json();
     },
     onSuccess: async (data) => {
-      toast({
-        title: "Success",
-        description: existingLogId ? "Manager log updated successfully!" : "Manager log created successfully!"
-      });
+      setSaveStatus('saved');
       queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', clubId] });
       queryClient.invalidateQueries({ queryKey: ['/api/manager-logs/by-date', dateString, clubId] });
       setExistingLogId(data.id);
@@ -416,6 +429,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     },
     onError: (error: any) => {
       console.error('Failed to save log entry:', error);
+      setSaveStatus('error');
       toast({
         title: "Error",
         description: error.message || "Failed to save log entry. Please try again.",
@@ -521,6 +535,85 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     }));
   };
 
+  const performAutoSave = useCallback(() => {
+    if (isPastLog) return;
+    
+    const primaryManager = amManagerName.trim() || pmManagerName.trim() || kitchenManagerName.trim();
+    if (!primaryManager) return;
+    
+    const food = parseFloat(salesData.current.food) || 0;
+    const bar = parseFloat(salesData.current.bar) || 0;
+    const gaming = parseFloat(salesData.current.gaming) || 0;
+    const total = food + bar + gaming;
+    
+    const logData = {
+      logDate: dateString,
+      dayOfWeek: getDayOfWeek(date),
+      managerName: primaryManager,
+      amManagerName: amManagerName.trim() || null,
+      pmManagerName: pmManagerName.trim() || null,
+      kitchenManagerName: kitchenManagerName.trim() || null,
+      weather: weatherData.current ? formatWeatherString(weatherData.current) : null,
+      weatherLastYear: weatherData.historical ? formatWeatherString(weatherData.historical) : null,
+      foodSales: salesData.current.food || null,
+      barSales: salesData.current.bar || null,
+      gamingSales: salesData.current.gaming || null,
+      totalSales: total > 0 ? total.toFixed(2) : null,
+      salesNotes: salesNotes.trim() || null,
+      dailyNumber: dailyNumber || null,
+      weeklyNumber: weeklyNumber || null,
+      dailyNotes: dailyNotes.trim() || null
+    };
+
+    setSaveStatus('saving');
+    saveLogMutation.mutate(logData);
+  }, [isPastLog, amManagerName, pmManagerName, kitchenManagerName, salesData.current, dailyNotes, salesNotes, dailyNumber, weeklyNumber, dateString, date, weatherData]);
+
+  const triggerAutoSave = useCallback(() => {
+    if (isPastLog || isLoadingFromServerRef.current) return;
+    
+    setSaveStatus(prev => prev === 'saving' ? prev : 'unsaved');
+    
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    autoSaveTimerRef.current = setTimeout(() => {
+      performAutoSave();
+    }, 2000);
+  }, [isPastLog, performAutoSave]);
+
+  useEffect(() => {
+    if (isLoadingFromServerRef.current || isPastLog) return;
+    if (!hasFormDataRef.current) {
+      const hasAnyContent = amManagerName.trim() || pmManagerName.trim() || kitchenManagerName.trim() ||
+        salesData.current.food || salesData.current.bar || salesData.current.gaming ||
+        dailyNotes.trim() || salesNotes.trim() || dailyNumber || weeklyNumber;
+      if (hasAnyContent) {
+        hasFormDataRef.current = true;
+      }
+    }
+    if (hasFormDataRef.current) {
+      triggerAutoSave();
+    }
+  }, [amManagerName, pmManagerName, kitchenManagerName, salesData.current.food, salesData.current.bar, salesData.current.gaming, dailyNotes, salesNotes, dailyNumber, weeklyNumber]);
+
+  useEffect(() => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    if (isPastLog) {
+      setSaveStatus('idle');
+    }
+  }, [isPastLog]);
+
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, []);
+
   const calculateTotalSales = (): string => {
     const food = parseFloat(salesData.current.food) || 0;
     const bar = parseFloat(salesData.current.bar) || 0;
@@ -532,7 +625,10 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // At least one manager name is required
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    
     const hasManager = amManagerName.trim() || pmManagerName.trim() || kitchenManagerName.trim();
     if (!hasManager) {
       toast({
@@ -543,13 +639,12 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       return;
     }
     
-    // Determine primary manager name (first non-empty value)
     const primaryManager = amManagerName.trim() || pmManagerName.trim() || kitchenManagerName.trim();
     
     const logData = {
       logDate: dateString,
       dayOfWeek: getDayOfWeek(date),
-      managerName: primaryManager, // Required field - primary manager for the day
+      managerName: primaryManager,
       amManagerName: amManagerName.trim() || null,
       pmManagerName: pmManagerName.trim() || null,
       kitchenManagerName: kitchenManagerName.trim() || null,
@@ -565,6 +660,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       dailyNotes: dailyNotes.trim() || null
     };
 
+    setSaveStatus('saving');
     saveLogMutation.mutate(logData);
   };
 
@@ -1026,7 +1122,35 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       </Collapsible>
 
       {/* Action Buttons */}
-      <div className="flex justify-end gap-3 mt-4">
+      <div className="flex items-center justify-end gap-3 mt-4 flex-wrap">
+        {!isPastLog && (
+          <div className="flex items-center gap-2 mr-auto" data-testid="save-status-indicator">
+            {saveStatus === 'saving' && (
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
+              </span>
+            )}
+            {saveStatus === 'saved' && (
+              <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
+                <CheckCircle className="h-4 w-4" />
+                Saved
+              </span>
+            )}
+            {saveStatus === 'unsaved' && (
+              <span className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400">
+                <Circle className="h-4 w-4" />
+                Unsaved changes
+              </span>
+            )}
+            {saveStatus === 'error' && (
+              <span className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
+                <AlertCircle className="h-4 w-4" />
+                Save failed
+              </span>
+            )}
+          </div>
+        )}
         <Button
           type="button"
           onClick={() => setShowEmailModal(true)}
