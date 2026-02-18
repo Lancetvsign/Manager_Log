@@ -72,22 +72,12 @@ export default function Home() {
 
   /**
    * Handle log submission from the New Entry form
-   * After saving, invalidate cache and switch to History tab
+   * After saving, invalidate cache so Log History stays up to date
    */
   const handleSubmitLog = (logData: any) => {
-    console.log('New log entry saved:', logData);
-    
-    // Invalidate and refetch logs to show the new entry (with clubId in key)
     queryClient.invalidateQueries({ queryKey: ['/api/manager-logs', clubId] });
-    
-    // Also invalidate maintenance items since a new log might have maintenance
     queryClient.invalidateQueries({ queryKey: ['/api/maintenance-items'] });
-    
-    // Invalidate metrics to keep Insights page up to date
     queryClient.invalidateQueries({ queryKey: ['/api/metrics'] });
-    
-    // Switch to history tab to show the saved entry
-    setActiveTab("history");
   };
 
   /**

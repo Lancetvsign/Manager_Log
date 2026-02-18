@@ -86,7 +86,6 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLoadingFromServerRef = useRef(false);
   const hasFormDataRef = useRef(false);
-  const isAutoSaveRef = useRef(false);
   
   
   const { toast } = useToast();
@@ -426,10 +425,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       queryClient.invalidateQueries({ queryKey: ['/api/manager-logs/by-date', dateString, clubId] });
       setExistingLogId(data.id);
       
-      if (!isAutoSaveRef.current) {
-        onSubmit(data);
-      }
-      isAutoSaveRef.current = false;
+      onSubmit(data);
     },
     onError: (error: any) => {
       console.error('Failed to save log entry:', error);
@@ -570,7 +566,6 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     };
 
     setSaveStatus('saving');
-    isAutoSaveRef.current = true;
     saveLogMutation.mutate(logData);
   }, [isPastLog, amManagerName, pmManagerName, kitchenManagerName, salesData.current, dailyNotes, salesNotes, dailyNumber, weeklyNumber, dateString, date, weatherData]);
 
