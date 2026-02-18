@@ -1123,7 +1123,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                   
                   <TabsContent value="single" className="space-y-4 pt-4">
                     <div className="space-y-2">
-                      <Label>Select Date (up to 3 years back)</Label>
+                      <Label>Select Date</Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button variant="outline" className="w-full justify-start">
@@ -1155,7 +1155,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                               }}
                               className="rounded-md border border-input bg-background px-2 py-1 text-sm"
                             >
-                              {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                              {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - i).map((y) => (
                                 <option key={y} value={y}>{y}</option>
                               ))}
                             </select>
@@ -1166,12 +1166,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                             onSelect={setHistoricalDate}
                             month={insightsCalendarMonth}
                             onMonthChange={setInsightsCalendarMonth}
-                            disabled={(date) => {
-                              const threeYearsAgo = new Date();
-                              threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
-                              return date > new Date() || date < threeYearsAgo;
-                            }}
-                            fromDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() - 3); return d; })()}
+                            disabled={(date) => date > new Date()}
                             toDate={new Date()}
                             initialFocus
                           />

@@ -251,12 +251,9 @@ export default function AddHistoricalDataDialog({
     URL.revokeObjectURL(url);
   }, []);
 
-  const threeYearsAgo = new Date();
-  threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
-
   const [calendarMonth, setCalendarMonth] = useState<Date>(historicalDate || new Date());
 
-  const years = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - i);
+  const years = Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - i);
   const months = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
@@ -279,7 +276,7 @@ export default function AddHistoricalDataDialog({
         
         <TabsContent value="single" className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label>Select Date (up to 3 years back)</Label>
+            <Label>Select Date</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full justify-start">
@@ -322,8 +319,7 @@ export default function AddHistoricalDataDialog({
                   onSelect={setHistoricalDate}
                   month={calendarMonth}
                   onMonthChange={setCalendarMonth}
-                  disabled={(date) => date > new Date() || date < threeYearsAgo}
-                  fromDate={threeYearsAgo}
+                  disabled={(date) => date > new Date()}
                   toDate={new Date()}
                   initialFocus
                 />
