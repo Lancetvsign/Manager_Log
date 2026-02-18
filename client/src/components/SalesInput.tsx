@@ -296,17 +296,19 @@ export default function SalesInput({
             </div>
           )}
           
-          {/* Add Historical Data button - only shown when no historical data for same day last year */}
           {showComparison && hasHistoricalData === false && historicalCompareDate && clubId && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                No data for {formattedHistoricalDate}
-              </span>
-              <AddHistoricalDataDialog
-                clubId={clubId}
-                apiBaseUrl={apiBaseUrl}
-                defaultDate={historicalCompareDate ? parseISO(historicalCompareDate) : undefined}
-              />
+            <div className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 p-3 space-y-1">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="space-y-0.5">
+                  <span className="text-sm font-medium">No comparison data for {formattedHistoricalDate}</span>
+                  <p className="text-xs text-muted-foreground">Add past sales to unlock year-over-year charts and trends</p>
+                </div>
+                <AddHistoricalDataDialog
+                  clubId={clubId}
+                  apiBaseUrl={apiBaseUrl}
+                  defaultDate={historicalCompareDate ? parseISO(historicalCompareDate) : undefined}
+                />
+              </div>
             </div>
           )}
         </div>

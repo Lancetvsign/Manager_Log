@@ -69,7 +69,6 @@ export default function AddHistoricalDataDialog({
     errors: string[];
   } | null>(null);
 
-  // Reset all state
   const resetState = useCallback(() => {
     setMode("single");
     setHistoricalDate(defaultDate);
@@ -80,6 +79,7 @@ export default function AddHistoricalDataDialog({
     setCsvPreviewData([]);
     setCsvParseError(null);
     setBulkImportResult(null);
+    setCalendarMonth(defaultDate || new Date());
   }, [defaultDate]);
 
   // Handle dialog open/close
@@ -251,12 +251,23 @@ export default function AddHistoricalDataDialog({
     URL.revokeObjectURL(url);
   }, []);
 
+  const threeYearsAgo = new Date();
+  threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+
+  const [calendarMonth, setCalendarMonth] = useState<Date>(historicalDate || new Date());
+
+  const years = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - i);
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
   const dialogContent = (
     <DialogContent className="max-w-lg">
       <DialogHeader>
-        <DialogTitle>Add Historical Sales Data</DialogTitle>
+        <DialogTitle>Add Past Sales for Year-over-Year Comparison</DialogTitle>
         <DialogDescription>
-          Enter sales data for past dates to enable comparison features.
+          Enter sales from previous years so you can compare performance across the same dates. This powers the year-over-year charts and trend indicators.
         </DialogDescription>
       </DialogHeader>
       
@@ -268,7 +279,7 @@ export default function AddHistoricalDataDialog({
         
         <TabsContent value="single" className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label>Select Date</Label>
+            <Label>Select Date (up to 3 years back)</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full justify-start">
@@ -277,11 +288,43 @@ export default function AddHistoricalDataDialog({
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
+                <div className="flex items-center gap-1 p-2 border-b">
+                  <select
+                    value={calendarMonth.getMonth()}
+                    onChange={(e) => {
+                      const newMonth = new Date(calendarMonth);
+                      newMonth.setMonth(parseInt(e.target.value));
+                      setCalendarMonth(newMonth);
+                    }}
+                    className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  >
+                    {months.map((m, i) => (
+                      <option key={m} value={i}>{m}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={calendarMonth.getFullYear()}
+                    onChange={(e) => {
+                      const newMonth = new Date(calendarMonth);
+                      newMonth.setFullYear(parseInt(e.target.value));
+                      setCalendarMonth(newMonth);
+                    }}
+                    className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  >
+                    {years.map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
                 <CalendarComponent
                   mode="single"
                   selected={historicalDate}
                   onSelect={setHistoricalDate}
-                  disabled={(date) => date > new Date()}
+                  month={calendarMonth}
+                  onMonthChange={setCalendarMonth}
+                  disabled={(date) => date > new Date() || date < threeYearsAgo}
+                  fromDate={threeYearsAgo}
+                  toDate={new Date()}
                   initialFocus
                 />
               </PopoverContent>
@@ -537,7 +580,6 @@ export default function AddHistoricalDataDialog({
     );
   }
 
-  // Default trigger button
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -548,7 +590,7 @@ export default function AddHistoricalDataDialog({
           data-testid="button-add-historical"
         >
           <Plus className="h-4 w-4" />
-          Add Historical Data
+          Add Past Sales for Comparison
         </Button>
       </DialogTrigger>
       {dialogContent}
