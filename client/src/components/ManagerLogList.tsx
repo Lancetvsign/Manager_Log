@@ -30,10 +30,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format, subDays } from "date-fns";
 import { 
   Search, Eye, Calendar as CalendarIcon, DollarSign, Loader2, 
-  CloudSun, ArrowLeft, Wrench, Clock, Filter
+  CloudSun, ArrowLeft, Wrench, Clock, Filter, Camera, Paperclip, X
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import type { ManagerLog } from "@shared/schema";
+import type { ManagerLog, NotePhoto, LogAttachment } from "@shared/schema";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
 import { MaintenanceItemsTable } from "./MaintenanceItemsTable";
 
@@ -117,6 +117,32 @@ export default function ManagerLogList({
     },
     enabled: !!selectedLog?.logDate,
   });
+
+  const { data: notePhotos = [], isLoading: isLoadingPhotos } = useQuery<NotePhoto[]>({
+    queryKey: ['/api/logs', selectedLog?.id, 'note-photos', clubId],
+    queryFn: async () => {
+      if (!selectedLog?.id) return [];
+      const url = buildApiUrl(`/api/logs/${selectedLog.id}/note-photos`, clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!selectedLog?.id,
+  });
+
+  const { data: logAttachments = [], isLoading: isLoadingAttachments } = useQuery<LogAttachment[]>({
+    queryKey: ['/api/logs', selectedLog?.id, 'attachments', clubId],
+    queryFn: async () => {
+      if (!selectedLog?.id) return [];
+      const url = buildApiUrl(`/api/logs/${selectedLog.id}/attachments`, clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!selectedLog?.id,
+  });
+
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
 
   const { data: specificDateLog, isLoading: isLoadingSpecificDate } = useQuery<ManagerLog>({
     queryKey: ['/api/manager-logs/by-date', specificDate ? format(specificDate, 'yyyy-MM-dd') : '', clubId],
@@ -324,6 +350,170 @@ export default function ManagerLogList({
             <p className="whitespace-pre-wrap">{selectedLog.dailyNotes || "No notes recorded."}</p>
           </CardContent>
         </Card>
+
+        {/* Photos */}
+        {(isLoadingPhotos || notePhotos.length > 0) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="h-5 w-5" />
+                Photos
+                {notePhotos.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {notePhotos.length}
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingPhotos ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {(() => {
+                    const operationalPhotos = notePhotos.filter(p => p.noteType === "operational");
+                    const maintenancePhotos = notePhotos.filter(p => p.noteType === "maintenance");
+                    return (
+                      <>
+                        {operationalPhotos.length > 0 && (
+                          <div>
+                            {maintenancePhotos.length > 0 && (
+                              <h4 className="text-sm font-medium text-muted-foreground mb-3">Operational Photos</h4>
+                            )}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                              {operationalPhotos.map((photo) => (
+                                <button
+                                  key={photo.id}
+                                  type="button"
+                                  aria-label="View operational photo full size"
+                                  className="relative aspect-square rounded-md overflow-visible border border-border hover-elevate cursor-pointer"
+                                  onClick={() => setLightboxPhoto(photo.url)}
+                                >
+                                  <img
+                                    src={photo.url}
+                                    alt="Operational photo"
+                                    className="w-full h-full object-cover rounded-md"
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {maintenancePhotos.length > 0 && (
+                          <div>
+                            {operationalPhotos.length > 0 && (
+                              <h4 className="text-sm font-medium text-muted-foreground mb-3">Maintenance Photos</h4>
+                            )}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                              {maintenancePhotos.map((photo) => (
+                                <button
+                                  key={photo.id}
+                                  type="button"
+                                  aria-label="View maintenance photo full size"
+                                  className="relative aspect-square rounded-md overflow-visible border border-border hover-elevate cursor-pointer"
+                                  onClick={() => setLightboxPhoto(photo.url)}
+                                >
+                                  <img
+                                    src={photo.url}
+                                    alt="Maintenance photo"
+                                    className="w-full h-full object-cover rounded-md"
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* File Attachments */}
+        {(isLoadingAttachments || logAttachments.length > 0) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Paperclip className="h-5 w-5" />
+                Attachments
+                {logAttachments.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {logAttachments.length}
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingAttachments ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {logAttachments.map((attachment) => (
+                    <div key={attachment.id} className="flex items-center justify-between gap-2 p-3 rounded-md border">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {attachment.fileType?.startsWith("image/") ? (
+                          <Camera className="h-4 w-4 text-muted-foreground shrink-0" />
+                        ) : (
+                          <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{attachment.fileName}</p>
+                          {attachment.fileSize && (
+                            <p className="text-xs text-muted-foreground">
+                              {attachment.fileSize < 1024 * 1024
+                                ? `${(attachment.fileSize / 1024).toFixed(1)} KB`
+                                : `${(attachment.fileSize / (1024 * 1024)).toFixed(1)} MB`}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" asChild className="shrink-0">
+                        <a
+                          href={attachment.publicUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          View
+                        </a>
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Lightbox for full-size photo viewing */}
+        {lightboxPhoto && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+            onClick={() => setLightboxPhoto(null)}
+          >
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Close photo viewer"
+              className="absolute top-4 right-4 bg-background/80"
+              onClick={() => setLightboxPhoto(null)}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+            <img
+              src={lightboxPhoto}
+              alt="Full size photo"
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded-md"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
 
         {/* Running Maintenance List (items as of this date with daily reset behavior) */}
         <Card>
