@@ -96,6 +96,8 @@ import {
   makeDemoSummary,
 } from "@/components/charts";
 import type { SalesPoint } from "@/components/charts";
+import { SalesDataTable } from "@/components/SalesDataTable";
+import { TableProperties } from "lucide-react";
 
 type DateRangePreset = "7days" | "30days" | "thisMonth" | "thisYear" | "custom";
 
@@ -1502,6 +1504,15 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               dateRange={dateRangeDisplay}
               clubName={clubName}
             />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            id="salesData"
+            title="Sales Data"
+            icon={<TableProperties className="h-5 w-5" />}
+            defaultExpanded={false}
+          >
+            <SalesDataTable data={displayDailySales} />
           </CollapsibleSection>
 
           {metrics.topDays.length > 0 && (
