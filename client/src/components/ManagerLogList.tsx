@@ -48,16 +48,16 @@ interface MaintenanceSnapshotItem {
   photoUrl: string | null;
 }
 
-interface RunningMaintenanceItem {
+interface MaintenanceOpenItem {
   id: number;
-  clubId: string;
-  title: string;
-  description: string | null;
+  description: string;
   status: string;
-  dateAdded: string;
-  dateCompleted: string | null;
-  createdBy: string | null;
-  relatedLogDate: string | null;
+  notes: string | null;
+  createdAt: string;
+  logDate: string;
+  photoUrl: string | null;
+  managerLogId: number;
+  resolvedAt: string | null;
 }
 
 type DateRangeFilter = "all" | "7days" | "30days" | "specific";
@@ -103,15 +103,14 @@ export default function ManagerLogList({
     enabled: !!selectedLog?.id,
   });
 
-  // Fetch running maintenance items for the selected log's date (with daily reset behavior)
-  const { data: runningMaintenanceByDate, isLoading: isLoadingRunningMaintenance } = useQuery<RunningMaintenanceItem[]>({
-    queryKey: ['/api/running-maintenance/by-date', selectedLog?.logDate, clubId],
+  const { data: maintenanceByDate, isLoading: isLoadingMaintenance } = useQuery<MaintenanceOpenItem[]>({
+    queryKey: ['/api/maintenance/open', selectedLog?.logDate, clubId],
     queryFn: async () => {
       if (!selectedLog?.logDate) return [];
-      const url = buildApiUrl(`/api/running-maintenance/by-date/${selectedLog.logDate}`, clubId, apiBaseUrl);
+      const url = buildApiUrl(`/api/maintenance/open`, clubId, apiBaseUrl, { date: selectedLog.logDate });
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error('Failed to fetch running maintenance for date');
+        throw new Error('Failed to fetch maintenance items');
       }
       return response.json();
     },
@@ -515,56 +514,75 @@ export default function ManagerLogList({
           </div>
         )}
 
-        {/* Running Maintenance List (items as of this date with daily reset behavior) */}
+        {/* Running Maintenance List (same data source as Today's Log) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wrench className="h-5 w-5" />
               Running Maintenance List
-              {runningMaintenanceByDate && runningMaintenanceByDate.length > 0 && (
+              {maintenanceByDate && maintenanceByDate.length > 0 && (
                 <Badge variant="secondary" className="ml-2">
-                  {runningMaintenanceByDate.filter(i => i.status === "open").length} Open
+                  {maintenanceByDate.filter(i => !i.resolvedAt).length} Open
                 </Badge>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoadingRunningMaintenance ? (
+            {isLoadingMaintenance ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : runningMaintenanceByDate && runningMaintenanceByDate.length > 0 ? (
+            ) : maintenanceByDate && maintenanceByDate.length > 0 ? (
               <div className="space-y-2">
-                {runningMaintenanceByDate.map((item) => (
-                  <div 
-                    key={item.id} 
-                    className={`p-3 rounded-lg border ${
-                      item.status === "completed" 
-                        ? "bg-muted/50 border-muted line-through opacity-60" 
-                        : "bg-card"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium">{item.title}</div>
-                        {item.description && (
-                          <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                {maintenanceByDate.map((item) => {
+                  const isCompleted = !!item.resolvedAt;
+                  return (
+                    <div 
+                      key={item.id} 
+                      className={`p-3 rounded-lg border ${
+                        isCompleted 
+                          ? "bg-muted/50 border-muted line-through opacity-60" 
+                          : "bg-card"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium">{item.description}</div>
+                          {item.notes && (
+                            <p className="text-sm text-muted-foreground mt-1">{item.notes}</p>
+                          )}
+                        </div>
+                        <Badge variant={isCompleted ? "secondary" : "default"}>
+                          {isCompleted ? "Completed" : "Open"}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-2">
+                        Added: {format(new Date(item.createdAt), "MMM d, yyyy")}
+                        {item.resolvedAt && (
+                          <span className="ml-2">
+                            | Completed: {format(new Date(item.resolvedAt), "MMM d, yyyy")}
+                          </span>
                         )}
                       </div>
-                      <Badge variant={item.status === "open" ? "default" : "secondary"}>
-                        {item.status === "open" ? "Open" : "Completed"}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-2">
-                      Added: {format(new Date(item.dateAdded), "MMM d, yyyy")}
-                      {item.dateCompleted && (
-                        <span className="ml-2">
-                          | Completed: {format(new Date(item.dateCompleted), "MMM d, yyyy")}
-                        </span>
+                      {item.photoUrl && (
+                        <div className="mt-2">
+                          <button
+                            type="button"
+                            aria-label="View maintenance photo full size"
+                            className="rounded-md overflow-visible border border-border hover-elevate cursor-pointer"
+                            onClick={() => setLightboxPhoto(item.photoUrl)}
+                          >
+                            <img
+                              src={item.photoUrl}
+                              alt="Maintenance item photo"
+                              className="h-16 w-16 object-cover rounded-md"
+                            />
+                          </button>
+                        </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
