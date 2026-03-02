@@ -994,7 +994,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                   onClick={() => setDatePreset("thisMonth")}
                   data-testid="button-thisMonth"
                 >
-                  This Month
+                  Month to Date
                 </Button>
                 <Button
                   variant={datePreset === "thisYear" ? "default" : "outline"}
@@ -1002,7 +1002,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                   onClick={() => setDatePreset("thisYear")}
                   data-testid="button-thisYear"
                 >
-                  This Year
+                  Year to Date
                 </Button>
                 <Popover>
                   <PopoverTrigger asChild>

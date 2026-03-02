@@ -252,7 +252,7 @@ async function snapshotRunningMaintenanceForLog(clubId: string, logId: number) {
           title: item.title,
           description: item.description ?? null,
           status: item.status,
-          daysOpen: Math.floor((Date.now() - new Date(item.dateAdded).getTime()) / 86400000),
+          daysOpen: Math.max(1, Math.floor((Date.now() - new Date(item.dateAdded).getTime()) / 86400000)),
         }))
       );
     }
@@ -1475,7 +1475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const topOldestOpen = oldestOpen.map((item) => ({
         id: item.id,
         title: item.title,
-        daysOpen: Math.floor((Date.now() - new Date(item.dateAdded).getTime()) / 86400000),
+        daysOpen: Math.max(1, Math.floor((Date.now() - new Date(item.dateAdded).getTime()) / 86400000)),
       }));
 
       // 7) REPEATED CARRYOVERS (items that appear in snapshots multiple days in range)
@@ -2994,7 +2994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const maintenanceList = maintenance.map(m => ({
         title: m.title,
         priority: m.priority,
-        daysOpen: Math.floor((Date.now() - new Date(m.dateAdded || Date.now()).getTime()) / (1000 * 60 * 60 * 24))
+        daysOpen: Math.max(1, Math.floor((Date.now() - new Date(m.dateAdded || Date.now()).getTime()) / (1000 * 60 * 60 * 24)))
       }));
       
       // Generate AI overview
