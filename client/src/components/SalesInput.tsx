@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Minus, Pencil, Check, X, Target } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Pencil, Check, X, Target, Plus, DollarSign } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import AddHistoricalDataDialog from "./AddHistoricalDataDialog";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
@@ -174,10 +174,10 @@ export default function SalesInput({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Budget Section */}
-        <div className="bg-muted/30 rounded-lg p-4 space-y-4">
+        {/* Daily Budget Section */}
+        <div className="rounded-lg border p-4 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <span className="text-sm font-medium flex items-center gap-1.5">
+            <span className="text-sm font-semibold flex items-center gap-1.5 uppercase tracking-wide text-muted-foreground">
               <Target className="h-4 w-4" />
               Daily Budget
             </span>
@@ -210,7 +210,7 @@ export default function SalesInput({
                   <p className="text-2xl font-bold">${(parseFloat(budget?.gamingSales || "0") || 0).toFixed(2)}</p>
                 </div>
               </div>
-              <div className="border-t border-muted pt-3">
+              <div className="border-t pt-3">
                 <div className="flex justify-between items-center">
                   <span className="font-medium">Budget Total:</span>
                   <span className="text-xl font-bold">${budgetTotal.toFixed(2)}</span>
@@ -224,91 +224,100 @@ export default function SalesInput({
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Food Sales */}
-          <div className="space-y-2">
-            <Label htmlFor="food-sales" className="text-sm font-medium">
-              Food Sales
-            </Label>
-            <Input
-              id="food-sales"
-              type="number"
-              placeholder="0.00"
-              value={salesData.current.food}
-              onChange={(e) => onSalesChange('food', e.target.value)}
-              disabled={disabled}
-              data-testid="input-food-sales"
-            />
-            {showComparison && hasActiveComparisonData && activeComparison.food && (
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{comparisonLabel}: ${activeComparison.food}</span>
-                <Badge variant="outline" className="flex items-center space-x-1">
-                  {getTrendIcon(foodChange.trend)}
-                  <span data-testid="text-food-change">{foodChange.percentage.toFixed(1)}%</span>
-                </Badge>
-              </div>
-            )}
+        {/* Today's Sales Section */}
+        <div className="rounded-lg border p-4 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-sm font-semibold flex items-center gap-1.5 uppercase tracking-wide text-muted-foreground">
+              <DollarSign className="h-4 w-4" />
+              Today's Sales
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="food-sales" className="text-sm font-medium">
+                Food Sales
+              </Label>
+              <Input
+                id="food-sales"
+                type="number"
+                placeholder="0.00"
+                value={salesData.current.food}
+                onChange={(e) => onSalesChange('food', e.target.value)}
+                disabled={disabled}
+                data-testid="input-food-sales"
+              />
+              {showComparison && hasActiveComparisonData && activeComparison.food && (
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{comparisonLabel}: ${activeComparison.food}</span>
+                  <Badge variant="outline" className="flex items-center space-x-1">
+                    {getTrendIcon(foodChange.trend)}
+                    <span data-testid="text-food-change">{foodChange.percentage.toFixed(1)}%</span>
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bar-sales" className="text-sm font-medium">
+                Bar Sales
+              </Label>
+              <Input
+                id="bar-sales"
+                type="number"
+                placeholder="0.00"
+                value={salesData.current.bar}
+                onChange={(e) => onSalesChange('bar', e.target.value)}
+                disabled={disabled}
+                data-testid="input-bar-sales"
+              />
+              {showComparison && hasActiveComparisonData && activeComparison.bar && (
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{comparisonLabel}: ${activeComparison.bar}</span>
+                  <Badge variant="outline" className="flex items-center space-x-1">
+                    {getTrendIcon(barChange.trend)}
+                    <span data-testid="text-bar-change">{barChange.percentage.toFixed(1)}%</span>
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="gaming-sales" className="text-sm font-medium">
+                Gaming Sales
+              </Label>
+              <Input
+                id="gaming-sales"
+                type="number"
+                placeholder="0.00"
+                value={salesData.current.gaming}
+                onChange={(e) => onSalesChange('gaming', e.target.value)}
+                disabled={disabled}
+                data-testid="input-gaming-sales"
+              />
+              {showComparison && hasActiveComparisonData && activeComparison.gaming && (
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{comparisonLabel}: ${activeComparison.gaming}</span>
+                  <Badge variant="outline" className="flex items-center space-x-1">
+                    {getTrendIcon(gamingChange.trend)}
+                    <span data-testid="text-gaming-change">{gamingChange.percentage.toFixed(1)}%</span>
+                  </Badge>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Bar Sales */}
-          <div className="space-y-2">
-            <Label htmlFor="bar-sales" className="text-sm font-medium">
-              Bar Sales
-            </Label>
-            <Input
-              id="bar-sales"
-              type="number"
-              placeholder="0.00"
-              value={salesData.current.bar}
-              onChange={(e) => onSalesChange('bar', e.target.value)}
-              disabled={disabled}
-              data-testid="input-bar-sales"
-            />
-            {showComparison && hasActiveComparisonData && activeComparison.bar && (
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{comparisonLabel}: ${activeComparison.bar}</span>
-                <Badge variant="outline" className="flex items-center space-x-1">
-                  {getTrendIcon(barChange.trend)}
-                  <span data-testid="text-bar-change">{barChange.percentage.toFixed(1)}%</span>
-                </Badge>
-              </div>
-            )}
-          </div>
-
-          {/* Gaming Sales */}
-          <div className="space-y-2">
-            <Label htmlFor="gaming-sales" className="text-sm font-medium">
-              Gaming Sales
-            </Label>
-            <Input
-              id="gaming-sales"
-              type="number"
-              placeholder="0.00"
-              value={salesData.current.gaming}
-              onChange={(e) => onSalesChange('gaming', e.target.value)}
-              disabled={disabled}
-              data-testid="input-gaming-sales"
-            />
-            {showComparison && hasActiveComparisonData && activeComparison.gaming && (
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{comparisonLabel}: ${activeComparison.gaming}</span>
-                <Badge variant="outline" className="flex items-center space-x-1">
-                  {getTrendIcon(gamingChange.trend)}
-                  <span data-testid="text-gaming-change">{gamingChange.percentage.toFixed(1)}%</span>
-                </Badge>
-              </div>
-            )}
+          <div className="border-t pt-3">
+            <div className="flex justify-between items-center">
+              <span className="font-medium">Total Sales:</span>
+              <span className="text-xl font-bold" data-testid="text-total-sales">
+                ${currentTotal.toFixed(2)}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Totals Section */}
-        <div className="border-t pt-4 space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="font-medium">Total Sales:</span>
-            <span className="text-xl font-bold" data-testid="text-total-sales">
-              ${currentTotal.toFixed(2)}
-            </span>
-          </div>
+        {/* Comparison Section */}
+        <div className="space-y-3">
 
           {/* Comparison Chart */}
           {showComparison && (hasActiveComparisonData || hasHistoricalData) && (
@@ -350,17 +359,36 @@ export default function SalesInput({
                     </Button>
                   </div>
                 </div>
-                {hasActiveComparisonData && (
-                  <span 
-                    className={`text-sm font-semibold flex items-center gap-1 ${
-                      difference >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}
-                    data-testid="text-sales-difference"
-                  >
-                    {difference >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                    {difference >= 0 ? '+' : ''}{diffPercentage.toFixed(1)}%
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {hasActiveComparisonData && (
+                    <span 
+                      className={`text-sm font-semibold flex items-center gap-1 ${
+                        difference >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}
+                      data-testid="text-sales-difference"
+                    >
+                      {difference >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                      {difference >= 0 ? '+' : ''}{diffPercentage.toFixed(1)}%
+                    </span>
+                  )}
+                  {clubId && (
+                    <AddHistoricalDataDialog
+                      clubId={clubId}
+                      apiBaseUrl={apiBaseUrl}
+                      trigger={
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-xs px-2 gap-1 border-dashed"
+                          data-testid="button-add-historical-comparison"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add Data
+                        </Button>
+                      }
+                    />
+                  )}
+                </div>
               </div>
               
               {hasActiveComparisonData ? (
