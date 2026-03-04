@@ -48,7 +48,7 @@ export default function AddHistoricalDataDialog({
   const setOpen = isControlled ? controlledOnOpenChange : setInternalOpen;
 
   // Tab state
-  const [mode, setMode] = useState<"view" | "single" | "bulk">("view");
+  const [mode, setMode] = useState<"view" | "single" | "bulk">("single");
 
   // Fetch all logs for View Data tab
   const { data: allLogs } = useQuery<ManagerLog[]>({
@@ -103,7 +103,7 @@ export default function AddHistoricalDataDialog({
   } | null>(null);
 
   const resetState = useCallback(() => {
-    setMode("view");
+    setMode("single");
     setHistoricalDate(defaultDate);
     setHistoricalFood("");
     setHistoricalBar("");
@@ -303,17 +303,13 @@ export default function AddHistoricalDataDialog({
       
       <Tabs value={mode} onValueChange={(v) => setMode(v as "view" | "single" | "bulk")} className="pt-2">
         <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="single">Single Entry</TabsTrigger>
+          <TabsTrigger value="bulk">Bulk Import</TabsTrigger>
           <TabsTrigger value="view" className="gap-1">
             <TableProperties className="h-3.5 w-3.5" />
             View Data
           </TabsTrigger>
-          <TabsTrigger value="single">Single Entry</TabsTrigger>
-          <TabsTrigger value="bulk">Bulk Import</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="view" className="pt-4">
-          <SalesDataTable data={salesTableData} />
-        </TabsContent>
         
         <TabsContent value="single" className="space-y-4 pt-4">
           <div className="space-y-2">
@@ -600,6 +596,10 @@ export default function AddHistoricalDataDialog({
               </>
             )}
           </Button>
+        </TabsContent>
+
+        <TabsContent value="view" className="pt-4">
+          <SalesDataTable data={salesTableData} />
         </TabsContent>
       </Tabs>
     </DialogContent>
