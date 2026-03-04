@@ -97,21 +97,29 @@ export default function SalesInput({
   onBudgetSave,
   hasLastWeekData,
 }: SalesInputProps) {
-  const [comparisonMode, setComparisonMode] = useState<"lastYear" | "lastWeek">("lastYear");
+  const [comparisonMode, setComparisonMode] = useState<"lastYear" | "lastWeek" | "budget">("lastYear");
   const [budgetEditOpen, setBudgetEditOpen] = useState(false);
   const [editBudgetFood, setEditBudgetFood] = useState("");
   const [editBudgetBar, setEditBudgetBar] = useState("");
   const [editBudgetGaming, setEditBudgetGaming] = useState("");
 
+  const budgetComparison = budget
+    ? { food: budget.foodSales, bar: budget.barSales, gaming: budget.gamingSales }
+    : { food: "", bar: "", gaming: "" };
+
   const activeComparison = comparisonMode === "lastWeek"
     ? (salesData.lastWeek || { food: "", bar: "", gaming: "" })
+    : comparisonMode === "budget"
+    ? budgetComparison
     : salesData.lastYear;
 
   const hasActiveComparisonData = comparisonMode === "lastWeek"
     ? !!(salesData.lastWeek && (salesData.lastWeek.food !== undefined && salesData.lastWeek.food !== null && salesData.lastWeek.food !== ""))
+    : comparisonMode === "budget"
+    ? !!(budget && ((parseFloat(budget.foodSales) || 0) + (parseFloat(budget.barSales) || 0) + (parseFloat(budget.gamingSales) || 0)) > 0)
     : !!hasHistoricalData;
 
-  const comparisonLabel = comparisonMode === "lastWeek" ? "Last Week" : "Last Year";
+  const comparisonLabel = comparisonMode === "lastWeek" ? "Last Week" : comparisonMode === "budget" ? "Budget" : "Last Year";
 
   const foodChange = calculateChange(salesData.current.food, activeComparison.food);
   const barChange = calculateChange(salesData.current.bar, activeComparison.bar);
@@ -166,47 +174,52 @@ export default function SalesInput({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Budget Bar */}
-        <div className="bg-muted/40 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-              <Target className="h-3 w-3" />
+        {/* Budget Section */}
+        <div className="bg-muted/30 rounded-lg p-4 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-sm font-medium flex items-center gap-1.5">
+              <Target className="h-4 w-4" />
               Daily Budget
             </span>
             {!disabled && (
               <Button
                 variant="ghost"
-                size="icon"
+                size="sm"
                 onClick={openBudgetEdit}
                 data-testid="button-edit-budget"
-                className="h-6 w-6"
+                className="gap-1"
               >
                 <Pencil className="h-3 w-3" />
+                Edit
               </Button>
             )}
           </div>
           {hasBudget ? (
-            <div className="grid grid-cols-4 gap-2 text-sm">
-              <div>
-                <span className="text-xs text-muted-foreground">Food</span>
-                <p className="font-medium">${(parseFloat(budget?.foodSales || "0") || 0).toFixed(2)}</p>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Food Sales</Label>
+                  <p className="text-2xl font-bold">${(parseFloat(budget?.foodSales || "0") || 0).toFixed(2)}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Bar Sales</Label>
+                  <p className="text-2xl font-bold">${(parseFloat(budget?.barSales || "0") || 0).toFixed(2)}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Gaming Sales</Label>
+                  <p className="text-2xl font-bold">${(parseFloat(budget?.gamingSales || "0") || 0).toFixed(2)}</p>
+                </div>
               </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Bar</span>
-                <p className="font-medium">${(parseFloat(budget?.barSales || "0") || 0).toFixed(2)}</p>
+              <div className="border-t border-muted pt-3">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Budget Total:</span>
+                  <span className="text-xl font-bold">${budgetTotal.toFixed(2)}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Gaming</span>
-                <p className="font-medium">${(parseFloat(budget?.gamingSales || "0") || 0).toFixed(2)}</p>
-              </div>
-              <div>
-                <span className="text-xs text-muted-foreground">Total</span>
-                <p className="font-semibold">${budgetTotal.toFixed(2)}</p>
-              </div>
-            </div>
+            </>
           ) : (
-            <p className="text-xs text-muted-foreground">
-              No budget set. {!disabled && "Click the pencil to set daily budget targets."}
+            <p className="text-sm text-muted-foreground">
+              No budget set. {!disabled && "Click the edit button to set daily budget targets."}
             </p>
           )}
         </div>
@@ -303,7 +316,7 @@ export default function SalesInput({
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {comparisonMode === "lastWeek" ? "Last Week Comparison" : "Year-over-Year Comparison"}
+                    {comparisonMode === "lastWeek" ? "Last Week Comparison" : comparisonMode === "budget" ? "Budget Comparison" : "Year-over-Year Comparison"}
                   </span>
                   <div className="flex items-center gap-1">
                     <Button
@@ -324,6 +337,16 @@ export default function SalesInput({
                       data-testid="button-compare-last-week"
                     >
                       Last Week
+                    </Button>
+                    <Button
+                      variant={comparisonMode === "budget" ? "default" : "outline"}
+                      size="sm"
+                      className="h-6 text-xs px-2"
+                      onClick={() => setComparisonMode("budget")}
+                      disabled={!hasBudget}
+                      data-testid="button-compare-budget"
+                    >
+                      Budget
                     </Button>
                   </div>
                 </div>

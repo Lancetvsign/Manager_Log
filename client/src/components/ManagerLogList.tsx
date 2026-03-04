@@ -37,6 +37,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { ManagerLog, NotePhoto, LogAttachment } from "@shared/schema";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
 import { MaintenanceItemsTable } from "./MaintenanceItemsTable";
+import { SalesDataTable } from "./SalesDataTable";
+import { TableProperties } from "lucide-react";
 
 interface MaintenanceSnapshotItem {
   id: number;
@@ -352,27 +354,29 @@ export default function ManagerLogList({
           <CardContent className="space-y-4">
             {/* Budget Row */}
             {budgetData && (parseFloat(budgetData.foodSales) || parseFloat(budgetData.barSales) || parseFloat(budgetData.gamingSales)) ? (
-              <div className="bg-muted/40 rounded-lg p-3">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1 mb-2">
-                  <Target className="h-3 w-3" />
+              <div className="bg-muted/30 rounded-lg p-4 space-y-4">
+                <span className="text-sm font-medium flex items-center gap-1.5">
+                  <Target className="h-4 w-4" />
                   Daily Budget
                 </span>
-                <div className="grid grid-cols-4 gap-2 text-sm">
-                  <div>
-                    <span className="text-xs text-muted-foreground">Food</span>
-                    <p className="font-medium">${parseFloat(budgetData.foodSales || "0").toFixed(2)}</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium">Food Sales</h4>
+                    <p className="text-2xl font-bold">${parseFloat(budgetData.foodSales || "0").toFixed(2)}</p>
                   </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Bar</span>
-                    <p className="font-medium">${parseFloat(budgetData.barSales || "0").toFixed(2)}</p>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium">Bar Sales</h4>
+                    <p className="text-2xl font-bold">${parseFloat(budgetData.barSales || "0").toFixed(2)}</p>
                   </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Gaming</span>
-                    <p className="font-medium">${parseFloat(budgetData.gamingSales || "0").toFixed(2)}</p>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium">Gaming Sales</h4>
+                    <p className="text-2xl font-bold">${parseFloat(budgetData.gamingSales || "0").toFixed(2)}</p>
                   </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Total</span>
-                    <p className="font-semibold">${((parseFloat(budgetData.foodSales) || 0) + (parseFloat(budgetData.barSales) || 0) + (parseFloat(budgetData.gamingSales) || 0)).toFixed(2)}</p>
+                </div>
+                <div className="border-t border-muted pt-3">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Budget Total:</span>
+                    <span className="text-xl font-bold">${((parseFloat(budgetData.foodSales) || 0) + (parseFloat(budgetData.barSales) || 0) + (parseFloat(budgetData.gamingSales) || 0)).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -882,6 +886,36 @@ export default function ManagerLogList({
           {dateFilter === "specific" && specificDate && ` for ${format(specificDate, "PPP")}`}
         </div>
       </div>
+
+      {/* Sales Data Table */}
+      {logs.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TableProperties className="h-5 w-5" />
+              Sales Data
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SalesDataTable
+              data={filteredLogs.map(log => {
+                const d = new Date(log.logDate + "T12:00:00");
+                const food = parseFloat(log.foodSales || "0") || 0;
+                const bar = parseFloat(log.barSales || "0") || 0;
+                const gaming = parseFloat(log.gamingSales || "0") || 0;
+                return {
+                  date: log.logDate,
+                  dayOfWeek: format(d, "EEEE"),
+                  foodSales: food,
+                  barSales: bar,
+                  gamingSales: gaming,
+                  totalSales: food + bar + gaming,
+                };
+              })}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Log List */}
       <div className="space-y-4">
