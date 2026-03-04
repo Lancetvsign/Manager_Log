@@ -184,7 +184,7 @@ export default function SalesChart({
   });
 
   function toggleSeries(key: SeriesKey) {
-    setVisible((v) => ({ ...v, [key]: !v[key] }));
+    setVisible({ total: false, food: false, bar: false, gaming: false, [key]: true });
   }
 
   const effectiveGranularity: GranularityType = useMemo(() => {

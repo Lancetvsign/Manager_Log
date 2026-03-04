@@ -86,7 +86,6 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
   SalesChart,
   ToDoStatusPieChart,
-  SalesHeatmapCalendar,
   WeekdaySalesChart,
   CollapsibleSection,
   getComparisonDateRange,
@@ -1476,21 +1475,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               onChartTypeChange={setChartType}
               comparisonPeriod={comparisonPeriod}
             />
-            <div className="mt-6">
-              <SalesHeatmapCalendar
-                data={displayDailySales}
-                startDate={dateRange.startDate}
-                endDate={dateRange.endDate}
-                dateRange={dateRangeDisplay}
-                clubName={clubName}
-                onDayClick={(date) => {
-                  const log = metrics.topDays.find((d) => d.date === date);
-                  if (log && onViewLog) {
-                    onViewLog(log.logId, date);
-                  }
-                }}
-              />
-            </div>
           </CollapsibleSection>
 
           <CollapsibleSection

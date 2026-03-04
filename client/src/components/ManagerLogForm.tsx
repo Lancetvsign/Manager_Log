@@ -157,6 +157,39 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     enabled: !!lastWeekDateString,
   });
 
+  interface BudgetData {
+    foodSales: string;
+    barSales: string;
+    gamingSales: string;
+  }
+
+  const { data: budgetData } = useQuery<BudgetData>({
+    queryKey: ['/api/club-budget', clubId],
+    queryFn: async () => {
+      const url = buildApiUrl('/api/club-budget', clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch budget');
+      return response.json();
+    },
+  });
+
+  const budgetMutation = useMutation({
+    mutationFn: async (budget: BudgetData) => {
+      const url = buildApiUrl('/api/club-budget', clubId, apiBaseUrl);
+      const response = await apiRequest("PUT", url, budget);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/club-budget', clubId] });
+      toast({ title: "Budget saved", description: "Daily budget targets have been updated." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to save budget.", variant: "destructive" });
+    },
+  });
+
+  const hasLastWeekData = !!(lastWeekLog && (lastWeekLog.foodSales !== null && lastWeekLog.foodSales !== undefined && lastWeekLog.foodSales !== ""));
+
   const { data: maintenanceItems, isLoading: isLoadingMaintenance } = useQuery<MaintenanceItem[]>({
     queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId],
     queryFn: async () => {
@@ -914,6 +947,9 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         historicalCompareDate={historicalStatus?.compareDate}
         clubId={clubId}
         apiBaseUrl={apiBaseUrl}
+        budget={budgetData}
+        onBudgetSave={(b) => budgetMutation.mutate(b)}
+        hasLastWeekData={hasLastWeekData}
       />
 
 

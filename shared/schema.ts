@@ -39,6 +39,9 @@ export const clubs = pgTable("clubs", {
   name: text("name").notNull(),
   prepChecklistNotificationListId: integer("prep_checklist_notification_list_id"),
   aiOverviewEnabled: boolean("ai_overview_enabled").default(false).notNull(),
+  budgetFoodSales: numeric("budget_food_sales", { precision: 10, scale: 2 }),
+  budgetBarSales: numeric("budget_bar_sales", { precision: 10, scale: 2 }),
+  budgetGamingSales: numeric("budget_gaming_sales", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -2922,6 +2922,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/club-budget", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const [club] = await db
+        .select()
+        .from(clubs)
+        .where(eq(clubs.id, clubId))
+        .limit(1);
+
+      res.json({
+        foodSales: club?.budgetFoodSales || "",
+        barSales: club?.budgetBarSales || "",
+        gamingSales: club?.budgetGamingSales || "",
+      });
+    } catch (error) {
+      console.error("Error fetching club budget:", error);
+      res.status(500).json({ error: "Failed to fetch club budget" });
+    }
+  });
+
+  const updateBudgetSchema = z.object({
+    foodSales: z.string().optional(),
+    barSales: z.string().optional(),
+    gamingSales: z.string().optional(),
+  });
+
+  app.put("/api/club-budget", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const parseResult = updateBudgetSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid request body", details: parseResult.error.errors });
+      }
+
+      const { foodSales, barSales, gamingSales } = parseResult.data;
+
+      const [existingClub] = await db
+        .select()
+        .from(clubs)
+        .where(eq(clubs.id, clubId))
+        .limit(1);
+
+      if (!existingClub) {
+        const [newClub] = await db
+          .insert(clubs)
+          .values({
+            id: clubId,
+            name: `Club ${clubId}`,
+            budgetFoodSales: foodSales || null,
+            budgetBarSales: barSales || null,
+            budgetGamingSales: gamingSales || null,
+          })
+          .returning();
+        return res.json({
+          foodSales: newClub.budgetFoodSales || "",
+          barSales: newClub.budgetBarSales || "",
+          gamingSales: newClub.budgetGamingSales || "",
+        });
+      }
+
+      const [updatedClub] = await db
+        .update(clubs)
+        .set({
+          budgetFoodSales: foodSales || null,
+          budgetBarSales: barSales || null,
+          budgetGamingSales: gamingSales || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(clubs.id, clubId))
+        .returning();
+
+      res.json({
+        foodSales: updatedClub.budgetFoodSales || "",
+        barSales: updatedClub.budgetBarSales || "",
+        gamingSales: updatedClub.budgetGamingSales || "",
+      });
+    } catch (error) {
+      console.error("Error updating club budget:", error);
+      res.status(500).json({ error: "Failed to update club budget" });
+    }
+  });
+
   // POST /api/ai-overview - Generate AI-powered insights analysis
   app.post("/api/ai-overview", async (req, res) => {
     try {

@@ -30,7 +30,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format, subDays } from "date-fns";
 import { 
   Search, Eye, Calendar as CalendarIcon, DollarSign, Loader2, 
-  CloudSun, ArrowLeft, Wrench, Clock, Filter, Camera, Paperclip, X
+  CloudSun, ArrowLeft, Wrench, Clock, Filter, Camera, Paperclip, X,
+  TrendingUp, TrendingDown, Minus, Target
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { ManagerLog, NotePhoto, LogAttachment } from "@shared/schema";
@@ -139,6 +140,66 @@ export default function ManagerLogList({
       return response.json();
     },
     enabled: !!selectedLog?.id,
+  });
+
+  const selectedLogComparisonDate = selectedLog?.logDate
+    ? (() => {
+        const d = new Date(selectedLog.logDate + "T12:00:00");
+        d.setDate(d.getDate() - 364);
+        return format(d, 'yyyy-MM-dd');
+      })()
+    : null;
+
+  const selectedLogLastWeekDate = selectedLog?.logDate
+    ? (() => {
+        const d = new Date(selectedLog.logDate + "T12:00:00");
+        d.setDate(d.getDate() - 7);
+        return format(d, 'yyyy-MM-dd');
+      })()
+    : null;
+
+  const { data: comparisonLog } = useQuery<ManagerLog>({
+    queryKey: ['/api/manager-logs/by-date', selectedLogComparisonDate, clubId, 'history-comparison'],
+    queryFn: async () => {
+      const url = buildApiUrl(`/api/manager-logs/by-date/${selectedLogComparisonDate}`, clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error('Failed to fetch comparison log');
+      }
+      return response.json();
+    },
+    enabled: !!selectedLogComparisonDate,
+  });
+
+  const { data: lastWeekCompLog } = useQuery<ManagerLog>({
+    queryKey: ['/api/manager-logs/by-date', selectedLogLastWeekDate, clubId, 'history-lastweek'],
+    queryFn: async () => {
+      const url = buildApiUrl(`/api/manager-logs/by-date/${selectedLogLastWeekDate}`, clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error('Failed to fetch last week log');
+      }
+      return response.json();
+    },
+    enabled: !!selectedLogLastWeekDate,
+  });
+
+  interface BudgetData {
+    foodSales: string;
+    barSales: string;
+    gamingSales: string;
+  }
+
+  const { data: budgetData } = useQuery<BudgetData>({
+    queryKey: ['/api/club-budget', clubId],
+    queryFn: async () => {
+      const url = buildApiUrl('/api/club-budget', clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch budget');
+      return response.json();
+    },
   });
 
   const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
@@ -288,31 +349,139 @@ export default function ManagerLogList({
               Sales Performance
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {/* Budget Row */}
+            {budgetData && (parseFloat(budgetData.foodSales) || parseFloat(budgetData.barSales) || parseFloat(budgetData.gamingSales)) ? (
+              <div className="bg-muted/40 rounded-lg p-3">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1 mb-2">
+                  <Target className="h-3 w-3" />
+                  Daily Budget
+                </span>
+                <div className="grid grid-cols-4 gap-2 text-sm">
+                  <div>
+                    <span className="text-xs text-muted-foreground">Food</span>
+                    <p className="font-medium">${parseFloat(budgetData.foodSales || "0").toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Bar</span>
+                    <p className="font-medium">${parseFloat(budgetData.barSales || "0").toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Gaming</span>
+                    <p className="font-medium">${parseFloat(budgetData.gamingSales || "0").toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Total</span>
+                    <p className="font-semibold">${((parseFloat(budgetData.foodSales) || 0) + (parseFloat(budgetData.barSales) || 0) + (parseFloat(budgetData.gamingSales) || 0)).toFixed(2)}</p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <h4 className="font-medium">Food Sales</h4>
                 <p className="text-2xl font-bold">${selectedLog.foodSales || "0.00"}</p>
+                {comparisonLog?.foodSales && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span>Last Year: ${comparisonLog.foodSales}</span>
+                    {(() => {
+                      const curr = parseFloat(selectedLog.foodSales || "0");
+                      const comp = parseFloat(comparisonLog.foodSales || "0");
+                      const pct = comp > 0 ? ((curr - comp) / comp * 100) : 0;
+                      return pct !== 0 ? (
+                        <Badge variant="outline" className="flex items-center gap-0.5 text-xs">
+                          {pct > 0 ? <TrendingUp className="h-3 w-3 text-green-500" /> : <TrendingDown className="h-3 w-3 text-red-500" />}
+                          {Math.abs(pct).toFixed(1)}%
+                        </Badge>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
+                {lastWeekCompLog?.foodSales && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span>Last Week: ${lastWeekCompLog.foodSales}</span>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <h4 className="font-medium">Bar Sales</h4>
                 <p className="text-2xl font-bold">${selectedLog.barSales || "0.00"}</p>
+                {comparisonLog?.barSales && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span>Last Year: ${comparisonLog.barSales}</span>
+                    {(() => {
+                      const curr = parseFloat(selectedLog.barSales || "0");
+                      const comp = parseFloat(comparisonLog.barSales || "0");
+                      const pct = comp > 0 ? ((curr - comp) / comp * 100) : 0;
+                      return pct !== 0 ? (
+                        <Badge variant="outline" className="flex items-center gap-0.5 text-xs">
+                          {pct > 0 ? <TrendingUp className="h-3 w-3 text-green-500" /> : <TrendingDown className="h-3 w-3 text-red-500" />}
+                          {Math.abs(pct).toFixed(1)}%
+                        </Badge>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
+                {lastWeekCompLog?.barSales && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span>Last Week: ${lastWeekCompLog.barSales}</span>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <h4 className="font-medium">Gaming Sales</h4>
                 <p className="text-2xl font-bold">${selectedLog.gamingSales || "0.00"}</p>
+                {comparisonLog?.gamingSales && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span>Last Year: ${comparisonLog.gamingSales}</span>
+                    {(() => {
+                      const curr = parseFloat(selectedLog.gamingSales || "0");
+                      const comp = parseFloat(comparisonLog.gamingSales || "0");
+                      const pct = comp > 0 ? ((curr - comp) / comp * 100) : 0;
+                      return pct !== 0 ? (
+                        <Badge variant="outline" className="flex items-center gap-0.5 text-xs">
+                          {pct > 0 ? <TrendingUp className="h-3 w-3 text-green-500" /> : <TrendingDown className="h-3 w-3 text-red-500" />}
+                          {Math.abs(pct).toFixed(1)}%
+                        </Badge>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
+                {lastWeekCompLog?.gamingSales && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span>Last Week: ${lastWeekCompLog.gamingSales}</span>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="border-t pt-4 mt-4">
+            <div className="border-t pt-4">
               <div className="flex justify-between items-center flex-wrap gap-2">
                 <span className="font-medium">Total Sales:</span>
                 <span className="text-xl font-bold">
                   ${selectedLog.totalSales || calculateTotal(selectedLog.foodSales, selectedLog.barSales, selectedLog.gamingSales).toFixed(2)}
                 </span>
               </div>
+              {(comparisonLog?.totalSales || (comparisonLog?.foodSales && comparisonLog?.barSales)) && (() => {
+                const compTotal = parseFloat(comparisonLog?.totalSales || "0") || 
+                  (parseFloat(comparisonLog?.foodSales || "0") + parseFloat(comparisonLog?.barSales || "0") + parseFloat(comparisonLog?.gamingSales || "0"));
+                const currTotal = parseFloat(selectedLog.totalSales || "0") || calculateTotal(selectedLog.foodSales, selectedLog.barSales, selectedLog.gamingSales);
+                const diff = currTotal - compTotal;
+                const pct = compTotal > 0 ? (diff / compTotal * 100) : 0;
+                return (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                    <span>Last Year Total: ${compTotal.toFixed(2)}</span>
+                    {pct !== 0 && (
+                      <span className={`font-semibold ${diff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {diff >= 0 ? '+' : ''}{pct.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             {(selectedLog.dailyNumber || selectedLog.weeklyNumber) && (
-              <div className="border-t pt-4 mt-4 flex gap-4 flex-wrap">
+              <div className="border-t pt-4 flex gap-4 flex-wrap">
                 {selectedLog.dailyNumber && (
                   <div>
                     <span className="font-medium">Daily Number:</span> {selectedLog.dailyNumber}
