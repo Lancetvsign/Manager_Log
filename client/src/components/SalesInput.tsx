@@ -241,6 +241,23 @@ export default function SalesInput({
               <DollarSign className="h-4 w-4" />
               Today's Sales
             </span>
+            {clubId && (
+              <AddHistoricalDataDialog
+                clubId={clubId}
+                apiBaseUrl={apiBaseUrl}
+                trigger={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 border-dashed"
+                    data-testid="button-add-historical-comparison"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add Data
+                  </Button>
+                }
+              />
+            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
@@ -369,36 +386,17 @@ export default function SalesInput({
                     </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {hasActiveComparisonData && (
-                    <span 
-                      className={`text-sm font-semibold flex items-center gap-1 ${
-                        difference >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}
-                      data-testid="text-sales-difference"
-                    >
-                      {difference >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                      {difference >= 0 ? '+' : ''}{diffPercentage.toFixed(1)}%
-                    </span>
-                  )}
-                  {clubId && (
-                    <AddHistoricalDataDialog
-                      clubId={clubId}
-                      apiBaseUrl={apiBaseUrl}
-                      trigger={
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 text-xs px-2 gap-1 border-dashed"
-                          data-testid="button-add-historical-comparison"
-                        >
-                          <Plus className="h-3 w-3" />
-                          Add Data
-                        </Button>
-                      }
-                    />
-                  )}
-                </div>
+                {hasActiveComparisonData && (
+                  <span 
+                    className={`text-sm font-semibold flex items-center gap-1 ${
+                      difference >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}
+                    data-testid="text-sales-difference"
+                  >
+                    {difference >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                    {difference >= 0 ? '+' : ''}{diffPercentage.toFixed(1)}%
+                  </span>
+                )}
               </div>
               
               {hasActiveComparisonData ? (
