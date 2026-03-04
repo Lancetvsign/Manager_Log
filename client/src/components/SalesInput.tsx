@@ -1,20 +1,13 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Minus, Pencil, Check, X, Target, Plus, DollarSign } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Target, Plus, DollarSign } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import AddHistoricalDataDialog from "./AddHistoricalDataDialog";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 
 export type ComparisonPeriod = "none" | "last_year" | "last_week";
 
@@ -98,10 +91,27 @@ export default function SalesInput({
   hasLastWeekData,
 }: SalesInputProps) {
   const [comparisonMode, setComparisonMode] = useState<"lastYear" | "lastWeek" | "budget">("lastYear");
-  const [budgetEditOpen, setBudgetEditOpen] = useState(false);
-  const [editBudgetFood, setEditBudgetFood] = useState("");
-  const [editBudgetBar, setEditBudgetBar] = useState("");
-  const [editBudgetGaming, setEditBudgetGaming] = useState("");
+  const [localBudgetFood, setLocalBudgetFood] = useState(budget?.foodSales || "");
+  const [localBudgetBar, setLocalBudgetBar] = useState(budget?.barSales || "");
+  const [localBudgetGaming, setLocalBudgetGaming] = useState(budget?.gamingSales || "");
+
+  useEffect(() => {
+    if (budget) {
+      setLocalBudgetFood(budget.foodSales || "");
+      setLocalBudgetBar(budget.barSales || "");
+      setLocalBudgetGaming(budget.gamingSales || "");
+    }
+  }, [budget?.foodSales, budget?.barSales, budget?.gamingSales]);
+
+  const saveBudgetOnBlur = useCallback(() => {
+    if (onBudgetSave) {
+      onBudgetSave({
+        foodSales: localBudgetFood,
+        barSales: localBudgetBar,
+        gamingSales: localBudgetGaming,
+      });
+    }
+  }, [onBudgetSave, localBudgetFood, localBudgetBar, localBudgetGaming]);
 
   const budgetComparison = budget
     ? { food: budget.foodSales, bar: budget.barSales, gaming: budget.gamingSales }
@@ -148,23 +158,10 @@ export default function SalesInput({
 
   const hasBudget = budget && budgetTotal > 0;
 
-  const openBudgetEdit = () => {
-    setEditBudgetFood(budget?.foodSales || "");
-    setEditBudgetBar(budget?.barSales || "");
-    setEditBudgetGaming(budget?.gamingSales || "");
-    setBudgetEditOpen(true);
-  };
-
-  const saveBudget = () => {
-    if (onBudgetSave) {
-      onBudgetSave({
-        foodSales: editBudgetFood,
-        barSales: editBudgetBar,
-        gamingSales: editBudgetGaming,
-      });
-    }
-    setBudgetEditOpen(false);
-  };
+  const localBudgetTotal = 
+    (parseFloat(localBudgetFood) || 0) +
+    (parseFloat(localBudgetBar) || 0) +
+    (parseFloat(localBudgetGaming) || 0);
 
   return (
     <Card data-testid="card-sales">
@@ -181,47 +178,60 @@ export default function SalesInput({
               <Target className="h-4 w-4" />
               Daily Budget
             </span>
-            {!disabled && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={openBudgetEdit}
-                data-testid="button-edit-budget"
-                className="gap-1"
-              >
-                <Pencil className="h-3 w-3" />
-                Edit
-              </Button>
-            )}
           </div>
-          {hasBudget ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Food Sales</Label>
-                  <p className="text-2xl font-bold">${(parseFloat(budget?.foodSales || "0") || 0).toFixed(2)}</p>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Bar Sales</Label>
-                  <p className="text-2xl font-bold">${(parseFloat(budget?.barSales || "0") || 0).toFixed(2)}</p>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Gaming Sales</Label>
-                  <p className="text-2xl font-bold">${(parseFloat(budget?.gamingSales || "0") || 0).toFixed(2)}</p>
-                </div>
-              </div>
-              <div className="border-t pt-3">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Budget Total:</span>
-                  <span className="text-xl font-bold">${budgetTotal.toFixed(2)}</span>
-                </div>
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No budget set. {!disabled && "Click the edit button to set daily budget targets."}
-            </p>
-          )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="budget-food-sales" className="text-sm font-medium">
+                Food Sales
+              </Label>
+              <Input
+                id="budget-food-sales"
+                type="number"
+                placeholder="0.00"
+                value={localBudgetFood}
+                onChange={(e) => setLocalBudgetFood(e.target.value)}
+                onBlur={saveBudgetOnBlur}
+                disabled={disabled}
+                data-testid="input-budget-food"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="budget-bar-sales" className="text-sm font-medium">
+                Bar Sales
+              </Label>
+              <Input
+                id="budget-bar-sales"
+                type="number"
+                placeholder="0.00"
+                value={localBudgetBar}
+                onChange={(e) => setLocalBudgetBar(e.target.value)}
+                onBlur={saveBudgetOnBlur}
+                disabled={disabled}
+                data-testid="input-budget-bar"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="budget-gaming-sales" className="text-sm font-medium">
+                Gaming Sales
+              </Label>
+              <Input
+                id="budget-gaming-sales"
+                type="number"
+                placeholder="0.00"
+                value={localBudgetGaming}
+                onChange={(e) => setLocalBudgetGaming(e.target.value)}
+                onBlur={saveBudgetOnBlur}
+                disabled={disabled}
+                data-testid="input-budget-gaming"
+              />
+            </div>
+          </div>
+          <div className="border-t pt-3">
+            <div className="flex justify-between items-center">
+              <span className="font-medium">Budget Total:</span>
+              <span className="text-xl font-bold">${localBudgetTotal.toFixed(2)}</span>
+            </div>
+          </div>
         </div>
 
         {/* Today's Sales Section */}
@@ -499,62 +509,6 @@ export default function SalesInput({
           )}
         </div>
 
-        {/* Budget Edit Dialog */}
-        <Dialog open={budgetEditOpen} onOpenChange={setBudgetEditOpen}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Set Daily Budget</DialogTitle>
-              <DialogDescription>
-                Set your daily sales budget targets for this club.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div className="space-y-2">
-                <Label>Food Sales Budget</Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={editBudgetFood}
-                  onChange={(e) => setEditBudgetFood(e.target.value)}
-                  data-testid="input-budget-food"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Bar Sales Budget</Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={editBudgetBar}
-                  onChange={(e) => setEditBudgetBar(e.target.value)}
-                  data-testid="input-budget-bar"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Gaming Sales Budget</Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={editBudgetGaming}
-                  onChange={(e) => setEditBudgetGaming(e.target.value)}
-                  data-testid="input-budget-gaming"
-                />
-              </div>
-              <div className="flex items-center justify-between pt-2 border-t">
-                <span className="text-sm text-muted-foreground">
-                  Total: ${((parseFloat(editBudgetFood) || 0) + (parseFloat(editBudgetBar) || 0) + (parseFloat(editBudgetGaming) || 0)).toFixed(2)}
-                </span>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setBudgetEditOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button size="sm" onClick={saveBudget} data-testid="button-save-budget">
-                    Save Budget
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </CardContent>
     </Card>
   );

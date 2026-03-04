@@ -352,8 +352,8 @@ export default function ManagerLogList({
           <CardContent className="space-y-4">
             {/* Budget Row */}
             {budgetData && (parseFloat(budgetData.foodSales) || parseFloat(budgetData.barSales) || parseFloat(budgetData.gamingSales)) ? (
-              <div className="bg-muted/30 rounded-lg p-4 space-y-4">
-                <span className="text-sm font-medium flex items-center gap-1.5">
+              <div className="rounded-lg border p-4 space-y-4">
+                <span className="text-sm font-semibold flex items-center gap-1.5 uppercase tracking-wide text-muted-foreground">
                   <Target className="h-4 w-4" />
                   Daily Budget
                 </span>
@@ -371,7 +371,7 @@ export default function ManagerLogList({
                     <p className="text-2xl font-bold">${parseFloat(budgetData.gamingSales || "0").toFixed(2)}</p>
                   </div>
                 </div>
-                <div className="border-t border-muted pt-3">
+                <div className="border-t pt-3">
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Budget Total:</span>
                     <span className="text-xl font-bold">${((parseFloat(budgetData.foodSales) || 0) + (parseFloat(budgetData.barSales) || 0) + (parseFloat(budgetData.gamingSales) || 0)).toFixed(2)}</span>
