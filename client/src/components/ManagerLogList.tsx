@@ -38,7 +38,8 @@ import type { ManagerLog, NotePhoto, LogAttachment } from "@shared/schema";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
 import { MaintenanceItemsTable } from "./MaintenanceItemsTable";
 import { SalesDataTable } from "./SalesDataTable";
-import { TableProperties } from "lucide-react";
+import AddHistoricalDataDialog from "./AddHistoricalDataDialog";
+import { TableProperties, Plus } from "lucide-react";
 
 interface MaintenanceSnapshotItem {
   id: number;
@@ -895,6 +896,16 @@ export default function ManagerLogList({
               <TableProperties className="h-5 w-5" />
               Sales Data
             </CardTitle>
+            <AddHistoricalDataDialog
+              clubId={clubId}
+              apiBaseUrl={apiBaseUrl}
+              trigger={
+                <Button variant="outline" size="sm" className="gap-1" data-testid="button-add-historical-from-table">
+                  <Plus className="h-4 w-4" />
+                  Add Historical Data
+                </Button>
+              }
+            />
           </CardHeader>
           <CardContent>
             <SalesDataTable
