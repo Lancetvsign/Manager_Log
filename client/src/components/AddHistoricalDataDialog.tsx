@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { buildApiUrl } from "@/contexts/ManagerLogContext";
+import { SalesDataTable } from "./SalesDataTable";
+import type { ManagerLog } from "@shared/schema";
 import {
   Calendar,
   Loader2,
@@ -19,6 +21,7 @@ import {
   AlertCircle,
   CheckCircle,
   Info,
+  TableProperties,
 } from "lucide-react";
 
 interface AddHistoricalDataDialogProps {
@@ -45,7 +48,37 @@ export default function AddHistoricalDataDialog({
   const setOpen = isControlled ? controlledOnOpenChange : setInternalOpen;
 
   // Tab state
-  const [mode, setMode] = useState<"single" | "bulk">("single");
+  const [mode, setMode] = useState<"view" | "single" | "bulk">("view");
+
+  // Fetch all logs for View Data tab
+  const { data: allLogs } = useQuery<ManagerLog[]>({
+    queryKey: ['/api/manager-logs', clubId],
+    queryFn: async () => {
+      const url = buildApiUrl('/api/manager-logs', clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch logs');
+      return response.json();
+    },
+    enabled: open,
+  });
+
+  const salesTableData = useMemo(() => {
+    if (!allLogs) return [];
+    return allLogs.map(log => {
+      const d = new Date(log.logDate + "T12:00:00");
+      const food = parseFloat(log.foodSales || "0") || 0;
+      const bar = parseFloat(log.barSales || "0") || 0;
+      const gaming = parseFloat(log.gamingSales || "0") || 0;
+      return {
+        date: log.logDate,
+        dayOfWeek: format(d, "EEEE"),
+        foodSales: food,
+        barSales: bar,
+        gamingSales: gaming,
+        totalSales: food + bar + gaming,
+      };
+    });
+  }, [allLogs]);
 
   // Single entry state
   const [historicalDate, setHistoricalDate] = useState<Date | undefined>(defaultDate);
@@ -70,7 +103,7 @@ export default function AddHistoricalDataDialog({
   } | null>(null);
 
   const resetState = useCallback(() => {
-    setMode("single");
+    setMode("view");
     setHistoricalDate(defaultDate);
     setHistoricalFood("");
     setHistoricalBar("");
@@ -260,19 +293,27 @@ export default function AddHistoricalDataDialog({
   ];
 
   const dialogContent = (
-    <DialogContent className="max-w-lg">
+    <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
       <DialogHeader>
-        <DialogTitle>Add Past Sales for Year-over-Year Comparison</DialogTitle>
+        <DialogTitle>Sales Data Manager</DialogTitle>
         <DialogDescription>
-          Enter sales from previous years so you can compare performance across the same dates. This powers the year-over-year charts and trend indicators.
+          View, verify, and manage all your sales data. Add individual entries or bulk import from CSV.
         </DialogDescription>
       </DialogHeader>
       
-      <Tabs value={mode} onValueChange={(v) => setMode(v as "single" | "bulk")} className="pt-2">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs value={mode} onValueChange={(v) => setMode(v as "view" | "single" | "bulk")} className="pt-2">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="view" className="gap-1">
+            <TableProperties className="h-3.5 w-3.5" />
+            View Data
+          </TabsTrigger>
           <TabsTrigger value="single">Single Entry</TabsTrigger>
           <TabsTrigger value="bulk">Bulk Import</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="view" className="pt-4">
+          <SalesDataTable data={salesTableData} />
+        </TabsContent>
         
         <TabsContent value="single" className="space-y-4 pt-4">
           <div className="space-y-2">
