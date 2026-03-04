@@ -37,9 +37,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { ManagerLog, NotePhoto, LogAttachment } from "@shared/schema";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
 import { MaintenanceItemsTable } from "./MaintenanceItemsTable";
-import { SalesDataTable } from "./SalesDataTable";
-import AddHistoricalDataDialog from "./AddHistoricalDataDialog";
-import { TableProperties, Plus } from "lucide-react";
 
 interface MaintenanceSnapshotItem {
   id: number;
@@ -887,46 +884,6 @@ export default function ManagerLogList({
           {dateFilter === "specific" && specificDate && ` for ${format(specificDate, "PPP")}`}
         </div>
       </div>
-
-      {/* Sales Data Table */}
-      {logs.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <TableProperties className="h-5 w-5" />
-              Sales Data
-            </CardTitle>
-            <AddHistoricalDataDialog
-              clubId={clubId}
-              apiBaseUrl={apiBaseUrl}
-              trigger={
-                <Button variant="outline" size="sm" className="gap-1" data-testid="button-add-historical-from-table">
-                  <Plus className="h-4 w-4" />
-                  Add Historical Data
-                </Button>
-              }
-            />
-          </CardHeader>
-          <CardContent>
-            <SalesDataTable
-              data={filteredLogs.map(log => {
-                const d = new Date(log.logDate + "T12:00:00");
-                const food = parseFloat(log.foodSales || "0") || 0;
-                const bar = parseFloat(log.barSales || "0") || 0;
-                const gaming = parseFloat(log.gamingSales || "0") || 0;
-                return {
-                  date: log.logDate,
-                  dayOfWeek: format(d, "EEEE"),
-                  foodSales: food,
-                  barSales: bar,
-                  gamingSales: gaming,
-                  totalSales: food + bar + gaming,
-                };
-              })}
-            />
-          </CardContent>
-        </Card>
-      )}
 
       {/* Log List */}
       <div className="space-y-4">
