@@ -95,7 +95,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const queryClient = useQueryClient();
   
   const hasClubAddress = !!(clubCity && clubCity.trim());
-  const browserLocation = useLocationPermission();
+  const browserLocation = useLocationPermission(!hasClubAddress);
   const { lat: browserLat, lon: browserLon, loading: browserLocationLoading, error: browserLocationError } = browserLocation;
 
   const { data: geocodedCoords, isLoading: isGeocodingLoading, isError: isGeocodingError } = useQuery<{ lat: number; lon: number }>({

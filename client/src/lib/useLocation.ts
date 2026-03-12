@@ -7,16 +7,26 @@ type LocationState = {
   error: string | null;
 };
 
-export function useLocationPermission(): LocationState {
+export function useLocationPermission(enabled: boolean = true): LocationState {
   const [state, setState] = useState<LocationState>({
     lat: null,
     lon: null,
-    loading: true,
+    loading: enabled,
     error: null,
   });
   const hasResolved = useRef(false);
 
   useEffect(() => {
+    if (!enabled) {
+      setState({
+        lat: null,
+        lon: null,
+        loading: false,
+        error: null,
+      });
+      return;
+    }
+
     if (!navigator.geolocation) {
       setState({
         lat: null,
@@ -27,7 +37,6 @@ export function useLocationPermission(): LocationState {
       return;
     }
 
-    // Fallback timeout - if geolocation doesn't respond in 5 seconds, continue without location
     const fallbackTimeout = setTimeout(() => {
       if (!hasResolved.current) {
         hasResolved.current = true;
@@ -35,7 +44,7 @@ export function useLocationPermission(): LocationState {
           lat: null,
           lon: null,
           loading: false,
-          error: null, // Not an error, just use default location
+          error: null,
         });
       }
     }, 5000);
@@ -71,14 +80,14 @@ export function useLocationPermission(): LocationState {
       {
         enableHighAccuracy: false,
         timeout: 8000,
-        maximumAge: 1000 * 60 * 60, // 1 hour cache
+        maximumAge: 1000 * 60 * 60,
       }
     );
 
     return () => {
       clearTimeout(fallbackTimeout);
     };
-  }, []);
+  }, [enabled]);
 
   return state;
 }
