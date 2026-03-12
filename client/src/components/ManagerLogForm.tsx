@@ -95,8 +95,6 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const queryClient = useQueryClient();
   
   const hasClubAddress = !!(clubCity && clubCity.trim());
-  const browserLocation = useLocationPermission(!hasClubAddress);
-  const { lat: browserLat, lon: browserLon, loading: browserLocationLoading, error: browserLocationError } = browserLocation;
 
   const { data: geocodedCoords, isLoading: isGeocodingLoading, isError: isGeocodingError } = useQuery<{ lat: number; lon: number }>({
     queryKey: ['/api/weather/geocode', clubCity, clubProvince, clubCountry],
@@ -114,11 +112,15 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     retry: 1,
   });
 
+  const needsBrowserLocation = !hasClubAddress || isGeocodingError;
+  const browserLocation = useLocationPermission(needsBrowserLocation);
+  const { lat: browserLat, lon: browserLon, loading: browserLocationLoading, error: browserLocationError } = browserLocation;
+
   const useGeocodedLocation = hasClubAddress && !isGeocodingError && geocodedCoords;
   const lat = useGeocodedLocation ? geocodedCoords.lat : browserLat;
   const lon = useGeocodedLocation ? geocodedCoords.lon : browserLon;
-  const locationLoading = hasClubAddress && !isGeocodingError ? isGeocodingLoading : browserLocationLoading;
-  const locationError = hasClubAddress ? null : browserLocationError;
+  const locationLoading = useGeocodedLocation ? false : (hasClubAddress && !isGeocodingError ? isGeocodingLoading : browserLocationLoading);
+  const locationError = useGeocodedLocation ? null : browserLocationError;
 
   const dateString = format(date, 'yyyy-MM-dd');
   
