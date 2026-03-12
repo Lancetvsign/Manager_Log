@@ -40,7 +40,7 @@ interface WeatherData {
 }
 
 export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
-  const { clubId, managerName: defaultManagerName, apiBaseUrl } = useManagerLog();
+  const { clubId, managerName: defaultManagerName, apiBaseUrl, clubCity, clubCountry, clubProvince } = useManagerLog();
   const [date, setDate] = useState<Date>(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -94,8 +94,31 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // Get user's location for weather data
-  const { lat, lon, loading: locationLoading, error: locationError } = useLocationPermission();
+  const hasClubAddress = !!(clubCity && clubCity.trim());
+  const browserLocation = useLocationPermission();
+  const { lat: browserLat, lon: browserLon, loading: browserLocationLoading, error: browserLocationError } = browserLocation;
+
+  const { data: geocodedCoords, isLoading: isGeocodingLoading, isError: isGeocodingError } = useQuery<{ lat: number; lon: number }>({
+    queryKey: ['/api/weather/geocode', clubCity, clubProvince, clubCountry],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (clubCity) params.set('city', clubCity);
+      if (clubProvince) params.set('province', clubProvince);
+      if (clubCountry) params.set('country', clubCountry);
+      const response = await fetch(`${apiBaseUrl}/api/weather/geocode?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to geocode');
+      return response.json();
+    },
+    enabled: hasClubAddress,
+    staleTime: Infinity,
+    retry: 1,
+  });
+
+  const useGeocodedLocation = hasClubAddress && !isGeocodingError && geocodedCoords;
+  const lat = useGeocodedLocation ? geocodedCoords.lat : browserLat;
+  const lon = useGeocodedLocation ? geocodedCoords.lon : browserLon;
+  const locationLoading = hasClubAddress && !isGeocodingError ? isGeocodingLoading : browserLocationLoading;
+  const locationError = hasClubAddress ? null : browserLocationError;
 
   const dateString = format(date, 'yyyy-MM-dd');
   

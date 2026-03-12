@@ -64,7 +64,7 @@ When embedding the Manager Log in SCP, users are authenticated via signed URL pa
 
 **Embed URL Format:**
 ```
-/embed?clubId=1&userId=5&userRole=manager&clubName=Eagle%20Lodge&firstName=John&lastName=Smith&membershipNumber=EL-1234&timestamp=1702756800000&signature=abc123...
+/embed?clubId=1&userId=5&userRole=manager&clubName=Eagle%20Lodge&firstName=John&lastName=Smith&membershipNumber=EL-1234&clubCity=Denver&clubProvince=CO&clubCountry=US&timestamp=1702756800000&signature=abc123...
 ```
 
 **URL Parameters:**
@@ -79,6 +79,9 @@ When embedding the Manager Log in SCP, users are authenticated via signed URL pa
 | `membershipNumber` | User's membership number |
 | `timestamp` | Unix timestamp (milliseconds) |
 | `signature` | HMAC-SHA256 signature |
+| `clubCity` | (Optional) Club's city for weather location (URL encoded) |
+| `clubProvince` | (Optional) Club's state/province for weather location (URL encoded) |
+| `clubCountry` | (Optional) Club's country code for weather location (e.g., "US", "CA") |
 
 **Embed Signature Generation (SCP Side):**
 ```javascript
@@ -132,6 +135,8 @@ The UI features a dark header with a teal background, leveraging `shadcn/ui` com
 
 ### Weather Data
 - **Open-Meteo API**: Fetches current and historical weather data.
+- **Nominatim (OpenStreetMap)**: Geocodes club addresses (city/province/country) to lat/lon coordinates for weather lookups. Results are cached in server memory by address key. Used when SCP provides `clubCity`/`clubProvince`/`clubCountry` via the embed URL, eliminating the need for browser geolocation prompts.
+- **Location Priority**: If SCP provides club address params → geocode via Nominatim → use for weather. If no address provided → fall back to browser geolocation → default to NYC coordinates.
 
 ### Database
 - **Neon Serverless PostgreSQL**: Cloud-hosted relational database.

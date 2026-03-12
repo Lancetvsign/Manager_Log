@@ -29,6 +29,9 @@ interface EmbedUser {
   lastName: string;
   membershipNumber: string;
   fullName: string;
+  clubCity?: string;
+  clubProvince?: string;
+  clubCountry?: string;
 }
 
 function App() {
@@ -58,6 +61,9 @@ function App() {
         membershipNumber: params.get("membershipNumber") || "",
         timestamp: params.get("timestamp") || "",
         signature: params.get("signature") || "",
+        clubCity: decodeURIComponent(params.get("clubCity") || ""),
+        clubProvince: decodeURIComponent(params.get("clubProvince") || ""),
+        clubCountry: decodeURIComponent(params.get("clubCountry") || ""),
       };
 
       try {
@@ -112,6 +118,9 @@ function App() {
         membershipNumber={embedUser.membershipNumber}
         userRole={embedUser.userRole}
         apiBaseUrl=""
+        clubCity={embedUser.clubCity}
+        clubProvince={embedUser.clubProvince}
+        clubCountry={embedUser.clubCountry}
       />
     );
   }

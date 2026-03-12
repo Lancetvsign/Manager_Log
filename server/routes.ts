@@ -1035,6 +1035,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WEATHER API
   // ==================
 
+  const geocodeCache = new Map<string, { lat: number; lon: number }>();
+
+  app.get("/api/weather/geocode", async (req, res) => {
+    try {
+      const { city, province, country } = req.query;
+
+      if (!city) {
+        return res.status(400).json({ error: "City parameter is required" });
+      }
+
+      const cacheKey = `${city}|${province || ""}|${country || ""}`.toLowerCase();
+      const cached = geocodeCache.get(cacheKey);
+      if (cached) {
+        return res.json(cached);
+      }
+
+      const queryParts = [city as string];
+      if (province) queryParts.push(province as string);
+      if (country) queryParts.push(country as string);
+      const query = queryParts.join(", ");
+
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
+      const response = await fetch(url, {
+        headers: { "User-Agent": "ManagerLog/1.0" },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Geocoding API request failed: ${response.status}`);
+      }
+
+      const results = await response.json() as Array<{ lat: string; lon: string }>;
+      if (!results || results.length === 0) {
+        return res.status(404).json({ error: "Location not found" });
+      }
+
+      const coords = {
+        lat: parseFloat(results[0].lat),
+        lon: parseFloat(results[0].lon),
+      };
+
+      geocodeCache.set(cacheKey, coords);
+      res.json(coords);
+    } catch (error) {
+      console.error("Error geocoding address:", error);
+      res.status(500).json({ error: "Failed to geocode address" });
+    }
+  });
+
   app.get("/api/weather/current", async (req, res) => {
     try {
       const { lat, lon } = req.query;
@@ -2796,7 +2844,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             firstName: params.firstName,
             lastName: params.lastName,
             membershipNumber: params.membershipNumber,
-            fullName: `${params.firstName} ${params.lastName}`.trim()
+            fullName: `${params.firstName} ${params.lastName}`.trim(),
+            clubCity: req.body.clubCity || "",
+            clubProvince: req.body.clubProvince || "",
+            clubCountry: req.body.clubCountry || "",
           }
         });
       }
@@ -2811,7 +2862,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid or expired signature" });
       }
 
-      res.json({ valid: true, user });
+      res.json({ valid: true, user: {
+        ...user,
+        clubCity: req.body.clubCity || "",
+        clubProvince: req.body.clubProvince || "",
+        clubCountry: req.body.clubCountry || "",
+      } });
     } catch (error) {
       console.error("Error verifying embed signature:", error);
       res.status(500).json({ error: "Failed to verify embed signature" });

@@ -74,6 +74,27 @@ export interface ManagerLogModuleProps {
    * Example: "/manager-log" would make calls to "/manager-log/api/..."
    */
   apiBaseUrl?: string;
+
+  /**
+   * Optional: Club's city for weather location (from SCP database).
+   * When provided, weather is fetched for this location instead of using browser geolocation.
+   * Example: "Toronto"
+   */
+  clubCity?: string;
+
+  /**
+   * Optional: Club's state/province for weather location (from SCP database).
+   * Used together with clubCity and clubCountry for geocoding.
+   * Example: "ON", "California"
+   */
+  clubProvince?: string;
+
+  /**
+   * Optional: Club's country for weather location (from SCP database).
+   * Used together with clubCity for geocoding.
+   * Example: "CA", "US"
+   */
+  clubCountry?: string;
 }
 
 /**
@@ -134,4 +155,7 @@ export interface ManagerLogContextValue {
   membershipNumber?: string;
   userRole?: string;
   apiBaseUrl: string;
+  clubCity?: string;
+  clubProvince?: string;
+  clubCountry?: string;
 }
