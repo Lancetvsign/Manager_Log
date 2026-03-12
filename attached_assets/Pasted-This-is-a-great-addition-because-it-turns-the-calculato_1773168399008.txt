@@ -1,0 +1,206 @@
+This is a great addition because it turns the calculator from just cost justification into revenue generation. Digital signage (The TV Sign) is actually one of the easiest things to quantify in a club environment.
+
+The key is to treat signage as two revenue drivers:
+
+1️⃣ Increased in-club spending (traffic / impulse purchases)
+2️⃣ Ad revenue from local businesses
+
+And it needs to be toggleable ON/OFF in the calculator.
+
+How to Integrate Digital Signage Into the Calculator
+1️⃣ New Toggle Input
+
+Add a toggle in the Operations section:
+
+Digital Signage (The TV Sign)
+[ ] Enable signage revenue model
+
+When enabled, reveal inputs:
+
+Number of TVs used for signage
+Ad slots per TV
+Average ad price per month
+Estimated traffic lift (%)
+
+Example defaults:
+
+TVs: 2
+Ad slots per TV: 8
+Ad price: $50/month
+Traffic lift: 3%
+
+These should also be editable assumptions in Admin just like the other percentages.
+
+2️⃣ Revenue Model
+A) Ad Revenue Formula
+monthlyAdRevenue =
+  TVs
+  × adSlotsPerTV
+  × adPricePerMonth
+
+Annual:
+
+annualAdRevenue = monthlyAdRevenue × 12
+
+Example:
+
+2 TVs
+8 ads
+$50/month
+
+= 2 × 8 × 50
+= $800/month
+= $9,600/year
+B) Traffic / Spending Lift
+
+Digital signage increases impulse purchases.
+
+Industry average lift:
+
+2–5% bar revenue increase
+
+Formula:
+
+signageTrafficRevenue =
+  annualBarRevenue × trafficLiftPct
+
+Example:
+
+$3000 weekly bar
+= $156,000 annually
+
+3% lift
+
+= $4,680/year
+3️⃣ Total Signage Impact
+totalSignageRevenue =
+  annualAdRevenue + signageTrafficRevenue
+
+Example:
+
+$9,600 ads
++ $4,680 traffic
+
+= $14,280/year
+4️⃣ Add to Opportunity Breakdown
+
+Your current calculator has:
+
+Membership retention
+Engagement revenue
+Admin efficiency
+
+Add:
+
+Digital signage revenue
+
+Example output:
+
+Estimated Annual Optimization Potential
+
+$26,760
+
+Retention                $300
+Engagement               $7,800
+Operations               $4,380
+Digital Signage          $14,280
+5️⃣ Comparison With SCP + TV Sign
+
+Your comparison box should become:
+
+SCP Investment
+$2,988
+
+TV Sign Investment
+$49/month per TV
+
+Total Investment
+$4,164/year
+
+Then show:
+
+Total Opportunity
+$26,760
+
+Payback
+< 2 months
+6️⃣ Make It Toggleable in the Engine
+
+In calc.ts add something like:
+
+const signageEnabled = Boolean(inputs.signageEnabled);
+
+let signageRevenue = 0;
+
+if (signageEnabled) {
+
+  const tvs = num(inputs.signageTVs);
+  const adSlots = num(inputs.adSlotsPerTV);
+  const adPrice = num(inputs.adPricePerMonth);
+  const trafficLift = num(settings.signage_traffic_lift_pct);
+
+  const monthlyAds = tvs * adSlots * adPrice;
+  const annualAds = monthlyAds * 12;
+
+  const annualBar = weeklyBar * 52;
+  const trafficRevenue = annualBar * trafficLift;
+
+  signageRevenue = annualAds + trafficRevenue;
+}
+
+totalOpportunity += signageRevenue;
+
+Return:
+
+signageRevenue
+7️⃣ UI Section Example
+
+Add a card:
+
+Digital Signage Opportunity
+
+Ad Revenue
+$9,600
+
+Traffic Lift
+$4,680
+
+Total Signage Impact
+$14,280
+8️⃣ Why This Is Powerful for Sales
+
+This lets you say:
+
+“Most clubs pay for SCP. But signage actually pays you.”
+
+That flips the conversation from:
+
+cost
+
+to
+
+profit center
+
+Which is huge.
+
+9️⃣ One More Thing (Very Important)
+
+You should also show:
+
+Example Advertisers
+
+When signage is enabled:
+
+Local plumber
+Pizza shop
+Real estate agent
+Lawyer
+Auto shop
+
+Clubs immediately understand the concept.
+
+If you want, I can also show you the next upgrade that would make this calculator extremely powerful:
+
+A “Club Health Score” system (like SaaS diagnostics).
+
+That would make this tool feel like real software intelligence instead of a simple calculator, which dramatically increases conversions.
