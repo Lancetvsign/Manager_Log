@@ -31,6 +31,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -262,6 +263,7 @@ export default function Home() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
+            <DialogDescription>Configure options for this club.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
