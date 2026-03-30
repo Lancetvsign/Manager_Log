@@ -1,70 +1,45 @@
 /**
  * Email Service for Manager Log Notifications
- * 
- * Simple SMTP-based email sending using nodemailer.
- * 
- * Configuration via environment variables:
- * - SMTP_HOST: SMTP server hostname
- * - SMTP_PORT: SMTP server port (default: 587)
- * - SMTP_USER: SMTP authentication username
- * - SMTP_PASSWORD: SMTP authentication password
- * - FROM_EMAIL: Sender email address (defaults to SMTP_USER)
+ *
+ * Sends email via Mailgun's HTTP API.
+ *
+ * Required environment variables:
+ * - MAILGUN_API_KEY: Mailgun private API key
+ * - MAILGUN_DOMAIN: Mailgun sending domain (e.g. mail.membermanager.club)
+ * - FROM_EMAIL: Sender address (e.g. noreply@mail.membermanager.club)
  */
 
-import nodemailer from 'nodemailer';
-
-const SMTP_HOST = process.env.SMTP_HOST;
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
-const FROM_EMAIL = process.env.FROM_EMAIL || SMTP_USER;
+const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY;
+const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN;
+const FROM_EMAIL = process.env.FROM_EMAIL;
 
 /**
- * Log SMTP configuration status at startup
+ * Log Mailgun configuration status at startup
  */
 export function logEmailConfigStatus(): void {
   const missing: string[] = [];
-  if (!SMTP_HOST) missing.push('SMTP_HOST');
-  if (!SMTP_USER) missing.push('SMTP_USER');
-  if (!SMTP_PASSWORD) missing.push('SMTP_PASSWORD');
+  if (!MAILGUN_API_KEY) missing.push('MAILGUN_API_KEY');
+  if (!MAILGUN_DOMAIN) missing.push('MAILGUN_DOMAIN');
+  if (!FROM_EMAIL) missing.push('FROM_EMAIL');
 
   if (missing.length > 0) {
-    console.log(`[Email] SMTP not configured. Missing: ${missing.join(', ')}`);
-    console.log('[Email] Notifications will be logged but not sent until SMTP is configured.');
+    console.log(`[Email] Mailgun not configured. Missing: ${missing.join(', ')}`);
+    console.log('[Email] Notifications will be logged but not sent until Mailgun is configured.');
   } else {
-    console.log(`[Email] SMTP configured - Host: ${SMTP_HOST}, Port: ${SMTP_PORT}, From: ${FROM_EMAIL}`);
+    console.log(`[Email] Mailgun configured - Domain: ${MAILGUN_DOMAIN}, From: ${FROM_EMAIL}`);
   }
-}
-
-/**
- * Creates a configured nodemailer transporter for sending emails.
- */
-function createTransporter() {
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASSWORD) {
-    return null;
-  }
-
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_PORT === 465,
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASSWORD,
-    },
-  });
 }
 
 /**
  * Checks if email notifications are configured
  */
 export function isEmailConfigured(): boolean {
-  return !!(SMTP_HOST && SMTP_USER && SMTP_PASSWORD);
+  return !!(MAILGUN_API_KEY && MAILGUN_DOMAIN && FROM_EMAIL);
 }
 
 /**
  * Send a notification email with the given subject, HTML body, and recipients.
- * 
+ *
  * @param subject - Email subject line
  * @param htmlBody - HTML content for the email body
  * @param recipients - Array of email addresses
@@ -78,26 +53,42 @@ export async function sendLogNotificationEmail(
     return { success: false, message: 'No recipients specified' };
   }
 
-  const transporter = createTransporter();
-  if (!transporter) {
-    return { success: false, message: 'SMTP not configured' };
+  if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !FROM_EMAIL) {
+    return { success: false, message: 'Mailgun not configured' };
   }
 
   try {
-    await transporter.sendMail({
-      from: `"Manager Log" <${FROM_EMAIL}>`,
-      to: recipients.join(','),
-      subject,
-      html: htmlBody,
+    const form = new FormData();
+    form.append('from', `Manager Log <${FROM_EMAIL}>`);
+    form.append('to', recipients.join(','));
+    form.append('subject', subject);
+    form.append('html', htmlBody);
+
+    const credentials = Buffer.from(`api:${MAILGUN_API_KEY}`).toString('base64');
+    const url = `https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${credentials}`,
+      },
+      body: form,
     });
 
-    console.log(`Email notification sent to ${recipients.length} recipient(s)`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Mailgun error ${response.status}:`, errorText);
+      return { success: false, message: `Mailgun error: ${response.status} ${errorText}` };
+    }
+
+    const result = await response.json() as { id?: string; message?: string };
+    console.log(`Email notification sent via Mailgun to ${recipients.length} recipient(s). ID: ${result.id}`);
     return { success: true, message: `Sent to ${recipients.length} recipient(s)` };
   } catch (error) {
-    console.error('Failed to send email notification:', error);
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : 'Failed to send email' 
+    console.error('Failed to send email via Mailgun:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to send email',
     };
   }
 }
