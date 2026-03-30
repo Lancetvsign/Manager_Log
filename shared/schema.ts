@@ -42,6 +42,7 @@ export const clubs = pgTable("clubs", {
   budgetFoodSales: numeric("budget_food_sales", { precision: 10, scale: 2 }),
   budgetBarSales: numeric("budget_bar_sales", { precision: 10, scale: 2 }),
   budgetGamingSales: numeric("budget_gaming_sales", { precision: 10, scale: 2 }),
+  weatherZipCode: text("weather_zip_code"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

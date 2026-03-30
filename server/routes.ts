@@ -1039,24 +1039,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/weather/geocode", async (req, res) => {
     try {
-      const { city, province, country } = req.query;
+      const { city, province, country, zip } = req.query;
 
-      if (!city) {
-        return res.status(400).json({ error: "City parameter is required" });
+      if (!city && !zip) {
+        return res.status(400).json({ error: "Either city or zip parameter is required" });
       }
 
-      const cacheKey = `${city}|${province || ""}|${country || ""}`.toLowerCase();
-      const cached = geocodeCache.get(cacheKey);
-      if (cached) {
-        return res.json(cached);
+      let cacheKey: string;
+      let url: string;
+
+      if (zip) {
+        cacheKey = `zip|${zip}`.toLowerCase();
+        const cached = geocodeCache.get(cacheKey);
+        if (cached) return res.json(cached);
+        url = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(zip as string)}&format=json&limit=1`;
+      } else {
+        cacheKey = `${city}|${province || ""}|${country || ""}`.toLowerCase();
+        const cached = geocodeCache.get(cacheKey);
+        if (cached) return res.json(cached);
+        const queryParts = [city as string];
+        if (province) queryParts.push(province as string);
+        if (country) queryParts.push(country as string);
+        url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryParts.join(", "))}&format=json&limit=1`;
       }
 
-      const queryParts = [city as string];
-      if (province) queryParts.push(province as string);
-      if (country) queryParts.push(country as string);
-      const query = queryParts.join(", ");
-
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
       const response = await fetch(url, {
         headers: { "User-Agent": "ManagerLog/1.0" },
       });
@@ -2905,7 +2911,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         clubId: club.id,
-        aiOverviewEnabled: club.aiOverviewEnabled
+        aiOverviewEnabled: club.aiOverviewEnabled,
+        weatherZipCode: club.weatherZipCode ?? null,
       });
     } catch (error) {
       console.error("Error fetching club settings:", error);
@@ -2916,6 +2923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Zod schema for club settings update
   const updateClubSettingsSchema = z.object({
     aiOverviewEnabled: z.boolean().optional(),
+    weatherZipCode: z.string().max(20).nullable().optional(),
   });
 
   // PATCH /api/club-settings - Update club settings (e.g., toggle AI overview)
@@ -2932,7 +2940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const { aiOverviewEnabled } = parseResult.data;
+      const { aiOverviewEnabled, weatherZipCode } = parseResult.data;
       
       // Check if club exists
       const [existingClub] = await db
@@ -2948,13 +2956,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .values({
             id: clubId,
             name: `Club ${clubId}`,
-            aiOverviewEnabled: aiOverviewEnabled ?? false
+            aiOverviewEnabled: aiOverviewEnabled ?? false,
+            weatherZipCode: weatherZipCode ?? null,
           })
           .returning();
         
         return res.json({
           clubId: newClub.id,
-          aiOverviewEnabled: newClub.aiOverviewEnabled
+          aiOverviewEnabled: newClub.aiOverviewEnabled,
+          weatherZipCode: newClub.weatherZipCode ?? null,
         });
       }
       
@@ -2963,6 +2973,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .update(clubs)
         .set({
           aiOverviewEnabled: aiOverviewEnabled ?? existingClub.aiOverviewEnabled,
+          weatherZipCode: weatherZipCode !== undefined ? weatherZipCode : existingClub.weatherZipCode,
           updatedAt: new Date()
         })
         .where(eq(clubs.id, clubId))
@@ -2970,7 +2981,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         clubId: updatedClub.id,
-        aiOverviewEnabled: updatedClub.aiOverviewEnabled
+        aiOverviewEnabled: updatedClub.aiOverviewEnabled,
+        weatherZipCode: updatedClub.weatherZipCode ?? null,
       });
     } catch (error) {
       console.error("Error updating club settings:", error);

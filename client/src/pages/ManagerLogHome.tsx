@@ -20,11 +20,21 @@ import ManagerLogForm from "@/components/ManagerLogForm";
 import ManagerLogList from "@/components/ManagerLogList";
 import InsightsPage from "@/components/InsightsPage";
 import ThemeToggle from "@/components/ThemeToggle";
-import { History, Plus, BarChart3, User } from "lucide-react";
+import { History, Plus, BarChart3, User, Settings } from "lucide-react";
 import logoImageDark from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
 import logoImageLight from "@assets/Restaurant_Manager's_Log_Daily_operations_tracking_with_weathe_1764696079981.png";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface LogEntry {
   id: string;
@@ -44,14 +54,58 @@ interface LogEntry {
 
 export default function Home() {
   const { clubId, clubName, managerName, membershipNumber, userRole, apiBaseUrl } = useManagerLog();
+  const { toast } = useToast();
   
   // Track which tab is currently active
   const [activeTab, setActiveTab] = useState("new-entry");
   
   // Store log ID when navigating from Maintenance to History detail view
   const [selectedLogId, setSelectedLogId] = useState<number | null>(null);
+
+  // Settings dialog state
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [zipInput, setZipInput] = useState("");
   
   const queryClient = useQueryClient();
+
+  // Fetch current club settings to pre-populate zip field
+  const { data: clubSettings } = useQuery<{ weatherZipCode: string | null }>({
+    queryKey: ['/api/club-settings', clubId],
+    queryFn: async () => {
+      const url = buildApiUrl('/api/club-settings', clubId, apiBaseUrl);
+      const res = await fetch(url);
+      if (!res.ok) return { weatherZipCode: null };
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // When dialog opens, seed input from saved value
+  const handleOpenSettings = () => {
+    setZipInput(clubSettings?.weatherZipCode ?? "");
+    setSettingsOpen(true);
+  };
+
+  const saveZipMutation = useMutation({
+    mutationFn: async (zip: string | null) => {
+      const url = buildApiUrl('/api/club-settings', clubId, apiBaseUrl);
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weatherZipCode: zip || null }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/club-settings', clubId] });
+      setSettingsOpen(false);
+      toast({ title: "Settings saved", description: "Weather zip code updated." });
+    },
+    onError: () => {
+      toast({ title: "Save failed", description: "Could not save settings.", variant: "destructive" });
+    },
+  });
 
   /**
    * Fetch all logs to display count in the History tab badge
@@ -119,9 +173,9 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               {(managerName || clubName) && (
-                <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground border-r pr-4">
+                <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground border-r pr-4 mr-2">
                   <User className="h-4 w-4" />
                   <div className="text-right">
                     {managerName && (
@@ -137,6 +191,9 @@ export default function Home() {
                   </div>
                 </div>
               )}
+              <Button size="icon" variant="ghost" onClick={handleOpenSettings} data-testid="btn-settings">
+                <Settings className="h-4 w-4" />
+              </Button>
               <ThemeToggle />
             </div>
           </div>
@@ -199,6 +256,49 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Settings Dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Settings</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="weather-zip">Weather Location (Zip / Postal Code)</Label>
+              <Input
+                id="weather-zip"
+                placeholder="e.g. 80201 or M5H 2N2"
+                value={zipInput}
+                onChange={(e) => setZipInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveZipMutation.mutate(zipInput.trim() || null); }}
+                data-testid="input-weather-zip"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter a zip or postal code to set the weather location for this club. Leave blank to use the address provided by SCP or your browser location.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              {clubSettings?.weatherZipCode && (
+                <Button
+                  variant="outline"
+                  onClick={() => { setZipInput(""); saveZipMutation.mutate(null); }}
+                  disabled={saveZipMutation.isPending}
+                >
+                  Clear
+                </Button>
+              )}
+              <Button
+                onClick={() => saveZipMutation.mutate(zipInput.trim() || null)}
+                disabled={saveZipMutation.isPending}
+                data-testid="btn-save-zip"
+              >
+                {saveZipMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

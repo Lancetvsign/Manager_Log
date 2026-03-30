@@ -94,9 +94,37 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const hasClubAddress = !!(clubCity && clubCity.trim());
+  // --- Weather location priority: zip code > SCP address > browser geolocation ---
 
-  const { data: geocodedCoords, isLoading: isGeocodingLoading, isError: isGeocodingError } = useQuery<{ lat: number; lon: number }>({
+  // 1. Fetch saved zip code from club settings (highest priority)
+  const { data: clubSettings } = useQuery<{ weatherZipCode: string | null }>({
+    queryKey: ['/api/club-settings', clubId],
+    queryFn: async () => {
+      const url = buildApiUrl('/api/club-settings', clubId, apiBaseUrl);
+      const res = await fetch(url);
+      if (!res.ok) return { weatherZipCode: null };
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+  const savedZip = clubSettings?.weatherZipCode?.trim() || null;
+
+  // 2. Geocode zip if available
+  const { data: zipCoords, isLoading: isZipGeocodingLoading, isError: isZipGeocodingError } = useQuery<{ lat: number; lon: number }>({
+    queryKey: ['/api/weather/geocode/zip', savedZip],
+    queryFn: async () => {
+      const response = await fetch(`${apiBaseUrl}/api/weather/geocode?zip=${encodeURIComponent(savedZip!)}`);
+      if (!response.ok) throw new Error('Failed to geocode zip');
+      return response.json();
+    },
+    enabled: !!savedZip,
+    staleTime: Infinity,
+    retry: 1,
+  });
+
+  // 3. Geocode SCP address if no zip
+  const hasClubAddress = !!(clubCity && clubCity.trim());
+  const { data: addressCoords, isLoading: isAddressGeocodingLoading, isError: isAddressGeocodingError } = useQuery<{ lat: number; lon: number }>({
     queryKey: ['/api/weather/geocode', clubCity, clubProvince, clubCountry],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -107,20 +135,23 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
       if (!response.ok) throw new Error('Failed to geocode');
       return response.json();
     },
-    enabled: hasClubAddress,
+    enabled: !savedZip && hasClubAddress,
     staleTime: Infinity,
     retry: 1,
   });
 
-  const needsBrowserLocation = !hasClubAddress || isGeocodingError;
+  // 4. Browser geolocation only if no zip and no SCP address (or if both fail)
+  const needsBrowserLocation = !savedZip && (!hasClubAddress || isAddressGeocodingError) && (!savedZip || isZipGeocodingError);
   const browserLocation = useLocationPermission(needsBrowserLocation);
   const { lat: browserLat, lon: browserLon, loading: browserLocationLoading, error: browserLocationError } = browserLocation;
 
-  const useGeocodedLocation = hasClubAddress && !isGeocodingError && geocodedCoords;
-  const lat = useGeocodedLocation ? geocodedCoords.lat : browserLat;
-  const lon = useGeocodedLocation ? geocodedCoords.lon : browserLon;
-  const locationLoading = useGeocodedLocation ? false : (hasClubAddress && !isGeocodingError ? isGeocodingLoading : browserLocationLoading);
-  const locationError = useGeocodedLocation ? null : browserLocationError;
+  // Resolve final coords using priority chain
+  const geocodedCoords = savedZip && !isZipGeocodingError ? zipCoords : (!savedZip && hasClubAddress && !isAddressGeocodingError ? addressCoords : null);
+  const lat = geocodedCoords ? geocodedCoords.lat : browserLat;
+  const lon = geocodedCoords ? geocodedCoords.lon : browserLon;
+  const isGeocodingLoading = savedZip ? isZipGeocodingLoading : isAddressGeocodingLoading;
+  const locationLoading = geocodedCoords ? false : (isGeocodingLoading || browserLocationLoading);
+  const locationError = geocodedCoords ? null : browserLocationError;
 
   const dateString = format(date, 'yyyy-MM-dd');
   
