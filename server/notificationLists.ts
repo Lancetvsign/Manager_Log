@@ -92,11 +92,4 @@ export async function seedDefaultNotificationLists(clubId: string): Promise<void
     })
     .returning();
 
-  await db.insert(notificationRecipients).values([
-    { listId: coreTeam.id, name: "Manager", email: "manager@example.com" },
-    { listId: coreTeam.id, name: "Assistant Manager", email: "assistant@example.com" },
-    { listId: kitchenStaff.id, name: "Head Chef", email: "chef@example.com" },
-    { listId: kitchenStaff.id, name: "Line Cook", email: "cook@example.com" },
-    { listId: ownership.id, name: "Owner", email: "owner@example.com" },
-  ]);
 }

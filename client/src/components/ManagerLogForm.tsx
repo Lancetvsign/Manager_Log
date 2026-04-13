@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronDown, Camera, X, Upload, Download, Info, Circle } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
@@ -125,7 +125,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   // Check if viewing a past log (read-only mode)
   // Use local time for both to avoid timezone mismatches
   const todayLocal = format(new Date(), 'yyyy-MM-dd');
-  const isPastLog = dateString < todayLocal;
+  const yesterdayLocal = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+  const isPastLog = dateString < yesterdayLocal;
 
   const { data: existingLog, isLoading: isLoadingLog } = useQuery<ManagerLog>({
     queryKey: ['/api/manager-logs/by-date', dateString, clubId],

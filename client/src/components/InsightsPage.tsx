@@ -63,7 +63,6 @@ import {
   AlertTriangle,
   Sparkles,
   RefreshCw,
-  FlaskConical,
   Plus,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -84,12 +83,7 @@ import {
   WeekdaySalesChart,
   CollapsibleSection,
   getComparisonDateRange,
-  makeCompareFromCurrent,
-  makeDemoSalesSeries,
-  makeComparisonForMode,
-  makeDemoSummary,
 } from "@/components/charts";
-import type { SalesPoint } from "@/components/charts";
 import AddHistoricalDataDialog from "@/components/AddHistoricalDataDialog";
 
 type DateRangePreset = "7days" | "30days" | "thisMonth" | "thisYear" | "custom";
@@ -143,7 +137,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
   const [chartType, setChartType] = useState<ChartType>(DEFAULT_CHART_TYPE);
 
   const [comparisonPeriod, setComparisonPeriod] = useState<ComparisonPeriod>("none");
-  const [demoMode, setDemoMode] = useState(false);
 
   const dateRange = useMemo(() => {
     const today = new Date();
@@ -309,55 +302,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     },
   });
 
-  const demoData = useMemo(() => {
-    if (!demoMode) return null;
-    
-    let rangeStart = parseISO(dateRange.startDate);
-    let rangeEnd = parseISO(dateRange.endDate);
-    
-    // For "This Year" with monthly granularity in demo mode, extend to full year
-    // so the chart shows 12 months of sample data instead of just 1 month
-    if (datePreset === "thisYear" && granularity === "monthly") {
-      rangeEnd = endOfYear(rangeStart);
-    }
-    
-    // In demo mode, always generate complete synthetic data for the full date range
-    // This ensures connected lines regardless of sparse real data
-    const labels = buildSalesLabels(rangeStart, rangeEnd, granularity);
-    const demoCurrent = makeDemoSalesSeries(labels, 7);
-    const demoCompare = comparisonPeriod !== "none" 
-      ? makeComparisonForMode(demoCurrent, comparisonPeriod)
-      : [];
-    
-    const demoSummary = makeDemoSummary(demoCurrent, 7);
-    const demoComparisonSummary = makeDemoSummary(demoCompare, 42);
-    
-    const currentForLogs = demoCurrent.map((d) => ({
-      date: d.dateKey,
-      dayOfWeek: format(parseISO(d.dateKey), "EEEE"),
-      totalSales: d.total,
-      foodSales: d.food,
-      barSales: d.bar,
-      gamingSales: d.gaming,
-    }));
-    
-    const comparisonForLogs = demoCompare.map((d) => ({
-      date: d.dateKey,
-      dayOfWeek: format(parseISO(d.dateKey), "EEEE"),
-      totalSales: d.total,
-      foodSales: d.food,
-      barSales: d.bar,
-      gamingSales: d.gaming,
-    }));
-    
-    return { 
-      current: currentForLogs,
-      comparison: comparisonForLogs,
-      summary: demoSummary,
-      comparisonSummary: demoComparisonSummary,
-    };
-  }, [demoMode, dateRange, datePreset, comparisonPeriod, granularity]);
-
   const comparisonChanges = useMemo((): ComparisonMetrics | null => {
     // Only calculate comparison changes when a comparison period is selected
     if (comparisonPeriod === "none") return null;
@@ -366,16 +310,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       if (previous === 0) return current > 0 ? 100 : 0;
       return Math.round(((current - previous) / previous) * 100);
     };
-
-    if (demoMode && demoData && demoData.comparison.length > 0) {
-      return {
-        totalSalesChange: calculateChange(demoData.summary.totalSales, demoData.comparisonSummary.totalSales),
-        averageDailySalesChange: calculateChange(demoData.summary.averageDailySales, demoData.comparisonSummary.averageDailySales),
-        openToDoChange: calculateChange(demoData.summary.openToDo, demoData.comparisonSummary.openToDo),
-        completedToDoChange: calculateChange(demoData.summary.completedToDo, demoData.comparisonSummary.completedToDo),
-        daysWithLogsChange: calculateChange(demoData.summary.daysWithLogs, demoData.comparisonSummary.daysWithLogs),
-      };
-    }
 
     if (!metrics || !comparisonMetrics) return null;
 
@@ -401,7 +335,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
         comparisonMetrics.summary.daysWithLogs
       ),
     };
-  }, [metrics, comparisonMetrics, demoMode, demoData, comparisonPeriod]);
+  }, [metrics, comparisonMetrics, comparisonPeriod]);
 
   const resetFilters = useCallback(() => {
     setDatePreset(DEFAULT_DATE_PRESET);
@@ -541,11 +475,11 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     );
   }
 
-  const hasData = metrics && (metrics.summary.daysWithLogs > 0 || comparisonPeriod !== "none" || demoMode);
+  const hasData = metrics && (metrics.summary.daysWithLogs > 0 || comparisonPeriod !== "none");
 
-  const displaySummary = demoMode && demoData ? demoData.summary : metrics?.summary;
-  const displayDailySales = demoMode && demoData ? demoData.current : metrics?.dailySales || [];
-  const displayComparisonDailySales = demoMode && demoData ? demoData.comparison : comparisonMetrics?.dailySales;
+  const displaySummary = metrics?.summary;
+  const displayDailySales = metrics?.dailySales || [];
+  const displayComparisonDailySales = comparisonMetrics?.dailySales;
 
   const completionRate = displaySummary 
     ? Math.round(
@@ -567,27 +501,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
           >
             <RotateCcw className="h-4 w-4" />
             Reset
-          </Button>
-          <Button
-            variant={demoMode ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setDemoMode(!demoMode);
-              if (!demoMode) {
-                const today = new Date();
-                const thisWeekStart = startOfWeek(today, { weekStartsOn: 0 });
-                const thisWeekEnd = endOfWeek(today, { weekStartsOn: 0 });
-                setCustomStartDate(thisWeekStart);
-                setCustomEndDate(thisWeekEnd);
-                setDatePreset("custom");
-                setComparisonPeriod("previousPeriod");
-              }
-            }}
-            className="gap-1"
-            data-testid="button-demo-mode"
-          >
-            <FlaskConical className="h-4 w-4" />
-            {demoMode ? "Exit Demo" : "Demo Mode"}
           </Button>
           {hasData && (
             <>
@@ -944,14 +857,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
             />
           </div>
 
-          {demoMode && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mt-4">
-              <p className="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-2">
-                <FlaskConical className="h-4 w-4" />
-                <span><strong>Demo Mode Active</strong> - Showing sample comparison data. Click "Exit Demo" to return to real data.</span>
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
 
