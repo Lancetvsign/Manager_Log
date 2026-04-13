@@ -20,7 +20,7 @@ import ManagerLogForm from "@/components/ManagerLogForm";
 import ManagerLogList from "@/components/ManagerLogList";
 import InsightsPage from "@/components/InsightsPage";
 import ThemeToggle from "@/components/ThemeToggle";
-import { History, Plus, BarChart3, User, Settings } from "lucide-react";
+import { History, Plus, BarChart3, User, Settings, MapPin, Loader2 } from "lucide-react";
 import logoImageDark from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
 import logoImageLight from "@assets/Restaurant_Manager's_Log_Daily_operations_tracking_with_weathe_1764696079981.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,6 +28,7 @@ import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -69,8 +70,8 @@ export default function Home() {
   
   const queryClient = useQueryClient();
 
-  // Fetch current club settings to pre-populate zip field
-  const { data: clubSettings } = useQuery<{ weatherZipCode: string | null }>({
+  // Fetch current club settings — drives both the gate and the settings dialog
+  const { data: clubSettings, isLoading: isSettingsLoading } = useQuery<{ weatherZipCode: string | null }>({
     queryKey: ['/api/club-settings', clubId],
     queryFn: async () => {
       const url = buildApiUrl('/api/club-settings', clubId, apiBaseUrl);
@@ -81,7 +82,9 @@ export default function Home() {
     staleTime: 1000 * 60 * 5,
   });
 
-  // When dialog opens, seed input from saved value
+  const zipIsConfigured = !isSettingsLoading && !!clubSettings?.weatherZipCode?.trim();
+
+  // When settings dialog opens, seed input from saved value
   const handleOpenSettings = () => {
     setZipInput(clubSettings?.weatherZipCode ?? "");
     setSettingsOpen(true);
@@ -145,6 +148,68 @@ export default function Home() {
     // Switch to history tab
     setActiveTab("history");
   };
+
+  // --- Zip gate: show spinner while loading, setup screen if not configured ---
+  if (isSettingsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!zipIsConfigured) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background px-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader className="text-center space-y-3">
+            <div className="flex justify-center">
+              <div className="rounded-full bg-primary/10 p-4">
+                <MapPin className="h-8 w-8 text-primary" />
+              </div>
+            </div>
+            <CardTitle>Set Your Weather Location</CardTitle>
+            <CardDescription>
+              A zip or postal code is required before you can use the app. This is used to fetch accurate weather data for your logs.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="setup-zip">Zip / Postal Code</Label>
+              <Input
+                id="setup-zip"
+                placeholder="e.g. 80201 or M5H 2N2"
+                value={zipInput}
+                onChange={(e) => setZipInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && zipInput.trim()) {
+                    saveZipMutation.mutate(zipInput.trim());
+                  }
+                }}
+                data-testid="input-weather-zip"
+                autoFocus
+              />
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => saveZipMutation.mutate(zipInput.trim())}
+              disabled={saveZipMutation.isPending || !zipInput.trim()}
+              data-testid="btn-save-zip"
+            >
+              {saveZipMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Continue"
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -273,26 +338,24 @@ export default function Home() {
                 placeholder="e.g. 80201 or M5H 2N2"
                 value={zipInput}
                 onChange={(e) => setZipInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") saveZipMutation.mutate(zipInput.trim() || null); }}
+                onKeyDown={(e) => { if (e.key === "Enter" && zipInput.trim()) saveZipMutation.mutate(zipInput.trim()); }}
                 data-testid="input-weather-zip"
               />
               <p className="text-xs text-muted-foreground">
-                Enter a zip or postal code to set the weather location for this club. Leave blank to use the address provided by SCP or your browser location.
+                This zip or postal code is required. Clearing it will lock the app until a new one is entered.
               </p>
             </div>
             <div className="flex gap-2 justify-end">
-              {clubSettings?.weatherZipCode && (
-                <Button
-                  variant="outline"
-                  onClick={() => { setZipInput(""); saveZipMutation.mutate(null); }}
-                  disabled={saveZipMutation.isPending}
-                >
-                  Clear
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                onClick={() => setSettingsOpen(false)}
+                disabled={saveZipMutation.isPending}
+              >
+                Cancel
+              </Button>
               <Button
                 onClick={() => saveZipMutation.mutate(zipInput.trim() || null)}
-                disabled={saveZipMutation.isPending}
+                disabled={saveZipMutation.isPending || !zipInput.trim()}
                 data-testid="btn-save-zip"
               >
                 {saveZipMutation.isPending ? "Saving..." : "Save"}

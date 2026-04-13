@@ -25,7 +25,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ManagerLog, MaintenanceItem } from "@shared/schema";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
-import { useLocationPermission } from "@/lib/useLocation";
 
 interface ManagerLogFormProps {
   onSubmit: (data: any) => void;
@@ -40,7 +39,7 @@ interface WeatherData {
 }
 
 export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
-  const { clubId, managerName: defaultManagerName, apiBaseUrl, clubCity, clubCountry, clubProvince } = useManagerLog();
+  const { clubId, managerName: defaultManagerName, apiBaseUrl } = useManagerLog();
   const [date, setDate] = useState<Date>(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -94,10 +93,11 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // --- Weather location priority: zip code > SCP address > browser geolocation ---
+  // --- Weather location: zip code is required (gate ensures it is always set) ---
+  // Backend resolves zip → coordinates internally; no frontend geocoding needed.
 
-  // 1. Fetch saved zip code from club settings (highest priority)
-  const { data: clubSettings } = useQuery<{ weatherZipCode: string | null }>({
+  // Fetch club settings to know when zip is ready (gate ensures it will be non-null)
+  const { data: clubSettings, isLoading: isSettingsLoading } = useQuery<{ weatherZipCode: string | null }>({
     queryKey: ['/api/club-settings', clubId],
     queryFn: async () => {
       const url = buildApiUrl('/api/club-settings', clubId, apiBaseUrl);
@@ -107,51 +107,9 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     },
     staleTime: 1000 * 60 * 5,
   });
-  const savedZip = clubSettings?.weatherZipCode?.trim() || null;
-
-  // 2. Geocode zip if available
-  const { data: zipCoords, isLoading: isZipGeocodingLoading, isError: isZipGeocodingError } = useQuery<{ lat: number; lon: number }>({
-    queryKey: ['/api/weather/geocode/zip', savedZip],
-    queryFn: async () => {
-      const response = await fetch(`${apiBaseUrl}/api/weather/geocode?zip=${encodeURIComponent(savedZip!)}`);
-      if (!response.ok) throw new Error('Failed to geocode zip');
-      return response.json();
-    },
-    enabled: !!savedZip,
-    staleTime: Infinity,
-    retry: 1,
-  });
-
-  // 3. Geocode SCP address if no zip
-  const hasClubAddress = !!(clubCity && clubCity.trim());
-  const { data: addressCoords, isLoading: isAddressGeocodingLoading, isError: isAddressGeocodingError } = useQuery<{ lat: number; lon: number }>({
-    queryKey: ['/api/weather/geocode', clubCity, clubProvince, clubCountry],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (clubCity) params.set('city', clubCity);
-      if (clubProvince) params.set('province', clubProvince);
-      if (clubCountry) params.set('country', clubCountry);
-      const response = await fetch(`${apiBaseUrl}/api/weather/geocode?${params.toString()}`);
-      if (!response.ok) throw new Error('Failed to geocode');
-      return response.json();
-    },
-    enabled: !savedZip && hasClubAddress,
-    staleTime: Infinity,
-    retry: 1,
-  });
-
-  // 4. Browser geolocation only if no zip and no SCP address (or if both fail)
-  const needsBrowserLocation = !savedZip && (!hasClubAddress || isAddressGeocodingError) && (!savedZip || isZipGeocodingError);
-  const browserLocation = useLocationPermission(needsBrowserLocation);
-  const { lat: browserLat, lon: browserLon, loading: browserLocationLoading, error: browserLocationError } = browserLocation;
-
-  // Resolve final coords using priority chain
-  const geocodedCoords = savedZip && !isZipGeocodingError ? zipCoords : (!savedZip && hasClubAddress && !isAddressGeocodingError ? addressCoords : null);
-  const lat = geocodedCoords ? geocodedCoords.lat : browserLat;
-  const lon = geocodedCoords ? geocodedCoords.lon : browserLon;
-  const isGeocodingLoading = savedZip ? isZipGeocodingLoading : isAddressGeocodingLoading;
-  const locationLoading = geocodedCoords ? false : (isGeocodingLoading || browserLocationLoading);
-  const locationError = geocodedCoords ? null : browserLocationError;
+  const zipReady = !isSettingsLoading && !!clubSettings?.weatherZipCode?.trim();
+  const locationLoading = isSettingsLoading;
+  const locationError: string | null = null;
 
   const dateString = format(date, 'yyyy-MM-dd');
   
@@ -385,8 +343,8 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   }, [existingLog, comparisonLog, lastWeekLog, dateString]);
 
   useEffect(() => {
-    // Wait for location to be available (or error out)
-    if (locationLoading) {
+    // Wait for club settings to load and zip to be confirmed
+    if (locationLoading || !zipReady) {
       setIsLoadingWeather(true);
       return;
     }
@@ -406,17 +364,14 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     const fetchWeatherData = async () => {
       setIsLoadingWeather(true);
       
-      // Helper to build URL with optional location params
+      // Helper to build URL with clubId; backend resolves location from stored zip
       const buildUrl = (base: string, params?: Record<string, string>): string => {
         const url = new URL(base, window.location.origin);
+        url.searchParams.set('clubId', clubId);
         if (params) {
           Object.entries(params).forEach(([key, value]) => {
             if (value) url.searchParams.set(key, value);
           });
-        }
-        if (lat && lon) {
-          url.searchParams.set('lat', lat.toString());
-          url.searchParams.set('lon', lon.toString());
         }
         return url.toString();
       };
@@ -494,7 +449,7 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     };
 
     fetchWeatherData();
-  }, [dateString, toast, apiBaseUrl, lat, lon, locationLoading]);
+  }, [dateString, toast, apiBaseUrl, clubId, zipReady, locationLoading]);
 
   const saveLogMutation = useMutation({
     mutationFn: async (logData: any) => {

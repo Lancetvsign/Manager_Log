@@ -1037,6 +1037,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const geocodeCache = new Map<string, { lat: number; lon: number }>();
 
+  /**
+   * Resolves weather coordinates for a club from its stored weatherZipCode.
+   * Zip code is the sole location source — no lat/lon fallback.
+   * Returns null when no zip is configured; callers must return 422.
+   */
+  async function resolveWeatherCoords(
+    clubId: string
+  ): Promise<{ lat: number; lon: number } | null> {
+    try {
+      const [club] = await db
+        .select({ weatherZipCode: clubs.weatherZipCode })
+        .from(clubs)
+        .where(eq(clubs.id, clubId))
+        .limit(1);
+
+      const zip = club?.weatherZipCode?.trim();
+      if (!zip) return null;
+
+      const cacheKey = `zip|${zip}`.toLowerCase();
+      const cached = geocodeCache.get(cacheKey);
+      if (cached) return cached;
+
+      const url = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(zip)}&format=json&limit=1`;
+      const response = await fetch(url, { headers: { "User-Agent": "ManagerLog/1.0" } });
+      if (response.ok) {
+        const results = await response.json() as Array<{ lat: string; lon: string }>;
+        if (results && results.length > 0) {
+          const coords = { lat: parseFloat(results[0].lat), lon: parseFloat(results[0].lon) };
+          geocodeCache.set(cacheKey, coords);
+          return coords;
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to resolve weather coords from zip:", err);
+    }
+
+    // No zip configured or geocoding failed — caller must return 422
+    return null;
+  }
+
   app.get("/api/weather/geocode", async (req, res) => {
     try {
       const { city, province, country, zip } = req.query;
@@ -1091,11 +1131,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/weather/current", async (req, res) => {
     try {
-      const { lat, lon } = req.query;
-      const weather = await getCurrentWeather(
-        lat ? parseFloat(lat as string) : undefined,
-        lon ? parseFloat(lon as string) : undefined
-      );
+      const { clubId: qClubId } = req.query;
+      const clubId = qClubId as string;
+      if (!clubId) return res.status(400).json({ error: "clubId is required" });
+      const coords = await resolveWeatherCoords(clubId);
+      if (!coords) {
+        return res.status(422).json({ error: "No weather location configured for this club. Please set a zip code in settings." });
+      }
+      const weather = await getCurrentWeather(coords.lat, coords.lon);
       res.json(weather);
     } catch (error) {
       console.error("Error fetching current weather:", error);
@@ -1105,11 +1148,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/weather/current/formatted", async (req, res) => {
     try {
-      const { lat, lon } = req.query;
-      const weather = await getCurrentWeather(
-        lat ? parseFloat(lat as string) : undefined,
-        lon ? parseFloat(lon as string) : undefined
-      );
+      const { clubId: qClubId } = req.query;
+      const clubId = qClubId as string;
+      if (!clubId) return res.status(400).json({ error: "clubId is required" });
+      const coords = await resolveWeatherCoords(clubId);
+      if (!coords) {
+        return res.status(422).json({ error: "No weather location configured for this club. Please set a zip code in settings." });
+      }
+      const weather = await getCurrentWeather(coords.lat, coords.lon);
       res.json({ weather: formatWeatherString(weather) });
     } catch (error) {
       console.error("Error fetching current weather:", error);
@@ -1119,12 +1165,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/weather/historical", async (req, res) => {
     try {
-      const { date, lat, lon } = req.query;
+      const { date, clubId: qClubId } = req.query;
       
       if (!date) {
         return res.status(400).json({ error: "Date parameter is required" });
       }
       
+      const clubId = qClubId as string;
+      if (!clubId) return res.status(400).json({ error: "clubId is required" });
+      const coords = await resolveWeatherCoords(clubId);
+      if (!coords) {
+        return res.status(422).json({ error: "No weather location configured for this club. Please set a zip code in settings." });
+      }
+
       const targetDate = new Date(date as string);
       // Use 52 weeks (364 days) before for year-over-year comparison (same day of week)
       const comparisonDate = new Date(targetDate);
@@ -1132,8 +1185,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const weather = await getHistoricalWeather(
         comparisonDate.toISOString().split('T')[0],
-        lat ? parseFloat(lat as string) : undefined,
-        lon ? parseFloat(lon as string) : undefined
+        coords.lat,
+        coords.lon
       );
       
       res.json(weather);
@@ -1145,12 +1198,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/weather/historical/formatted", async (req, res) => {
     try {
-      const { date, lat, lon } = req.query;
+      const { date, clubId: qClubId } = req.query;
       
       if (!date) {
         return res.status(400).json({ error: "Date parameter is required" });
       }
-      
+
+      const clubId = qClubId as string;
+      if (!clubId) return res.status(400).json({ error: "clubId is required" });
+      const coords = await resolveWeatherCoords(clubId);
+      if (!coords) {
+        return res.status(422).json({ error: "No weather location configured for this club. Please set a zip code in settings." });
+      }
+
       const targetDate = new Date(date as string);
       // Use 52 weeks (364 days) before for year-over-year comparison (same day of week)
       const comparisonDate = new Date(targetDate);
@@ -1158,8 +1218,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const weather = await getHistoricalWeather(
         comparisonDate.toISOString().split('T')[0],
-        lat ? parseFloat(lat as string) : undefined,
-        lon ? parseFloat(lon as string) : undefined
+        coords.lat,
+        coords.lon
       );
       
       res.json({ weather: formatWeatherString(weather) });
