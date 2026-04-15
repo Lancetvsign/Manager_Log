@@ -70,21 +70,14 @@ export default function Home() {
   // Settings dialog state
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [zipInput, setZipInput] = useState("");
-  const [budgetFood, setBudgetFood] = useState("");
-  const [budgetBar, setBudgetBar] = useState("");
-  const [budgetGaming, setBudgetGaming] = useState("");
+  // Optimistic local state for AI toggle — flips instantly without waiting for server
+  const [aiChecked, setAiChecked] = useState(false);
 
   const queryClient = useQueryClient();
 
   interface ClubSettings {
     weatherZipCode: string | null;
     aiOverviewEnabled: boolean;
-  }
-
-  interface BudgetData {
-    foodSales: string;
-    barSales: string;
-    gamingSales: string;
   }
 
   // Fetch current club settings — drives both the gate and the settings dialog
@@ -99,26 +92,12 @@ export default function Home() {
     staleTime: 1000 * 60 * 5,
   });
 
-  // Fetch budget data for settings dialog
-  const { data: budgetData } = useQuery<BudgetData>({
-    queryKey: ['/api/club-budget', clubId],
-    queryFn: async () => {
-      const url = buildApiUrl('/api/club-budget', clubId, apiBaseUrl);
-      const res = await fetch(url);
-      if (!res.ok) return { foodSales: "0", barSales: "0", gamingSales: "0" };
-      return res.json();
-    },
-    staleTime: 1000 * 60 * 5,
-  });
-
   const zipIsConfigured = !isSettingsLoading && !!clubSettings?.weatherZipCode?.trim();
 
-  // When settings dialog opens, seed all inputs from saved values
+  // When settings dialog opens, seed inputs from saved values
   const handleOpenSettings = () => {
     setZipInput(clubSettings?.weatherZipCode ?? "");
-    setBudgetFood(budgetData?.foodSales ?? "0");
-    setBudgetBar(budgetData?.barSales ?? "0");
-    setBudgetGaming(budgetData?.gamingSales ?? "0");
+    setAiChecked(clubSettings?.aiOverviewEnabled ?? false);
     setSettingsOpen(true);
   };
 
@@ -151,22 +130,10 @@ export default function Home() {
       queryClient.invalidateQueries({ queryKey: ['/api/club-settings', clubId] });
       toast({ title: "Saved", description: `AI Overview ${enabled ? "enabled" : "disabled"}.` });
     },
-    onError: () => {
+    onError: (_err, enabled) => {
+      // Roll back to the previous state on failure
+      setAiChecked(!enabled);
       toast({ title: "Save failed", description: "Could not update AI setting.", variant: "destructive" });
-    },
-  });
-
-  const saveBudgetMutation = useMutation({
-    mutationFn: async (budget: BudgetData) => {
-      const url = buildApiUrl('/api/club-budget', clubId, apiBaseUrl);
-      return apiRequest("PUT", url, budget);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/club-budget', clubId] });
-      toast({ title: "Saved", description: "Daily budget targets updated." });
-    },
-    onError: () => {
-      toast({ title: "Save failed", description: "Could not save budget.", variant: "destructive" });
     },
   });
 
@@ -447,64 +414,6 @@ export default function Home() {
 
             <Separator />
 
-            {/* ── Daily Budget Targets ─────────────────── */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Daily Budget Targets</p>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="budget-food" className="text-xs">Food ($)</Label>
-                  <Input
-                    id="budget-food"
-                    type="number"
-                    min="0"
-                    step="50"
-                    placeholder="0"
-                    value={budgetFood}
-                    onChange={(e) => setBudgetFood(e.target.value)}
-                    data-testid="input-budget-food"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="budget-bar" className="text-xs">Bar ($)</Label>
-                  <Input
-                    id="budget-bar"
-                    type="number"
-                    min="0"
-                    step="50"
-                    placeholder="0"
-                    value={budgetBar}
-                    onChange={(e) => setBudgetBar(e.target.value)}
-                    data-testid="input-budget-bar"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="budget-gaming" className="text-xs">Gaming ($)</Label>
-                  <Input
-                    id="budget-gaming"
-                    type="number"
-                    min="0"
-                    step="50"
-                    placeholder="0"
-                    value={budgetGaming}
-                    onChange={(e) => setBudgetGaming(e.target.value)}
-                    data-testid="input-budget-gaming"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  onClick={() => saveBudgetMutation.mutate({ foodSales: budgetFood || "0", barSales: budgetBar || "0", gamingSales: budgetGaming || "0" })}
-                  disabled={saveBudgetMutation.isPending || !budgetData}
-                  data-testid="btn-save-budget"
-                >
-                  {saveBudgetMutation.isPending ? "Saving…" : "Save Budget"}
-                </Button>
-              </div>
-            </div>
-
-            <Separator />
-
             {/* ── AI Features ─────────────────────────── */}
             <div className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI Features</p>
@@ -516,8 +425,11 @@ export default function Home() {
                   </p>
                 </div>
                 <Switch
-                  checked={clubSettings?.aiOverviewEnabled ?? false}
-                  onCheckedChange={(checked) => toggleAiMutation.mutate(checked)}
+                  checked={aiChecked}
+                  onCheckedChange={(checked) => {
+                    setAiChecked(checked);
+                    toggleAiMutation.mutate(checked);
+                  }}
                   disabled={toggleAiMutation.isPending}
                   data-testid="switch-ai-enabled"
                 />
