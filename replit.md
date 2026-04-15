@@ -82,6 +82,7 @@ When embedding the Manager Log in SCP, users are authenticated via signed URL pa
 | `clubCity` | (Optional) Club's city for weather location (URL encoded) |
 | `clubProvince` | (Optional) Club's state/province for weather location (URL encoded) |
 | `clubCountry` | (Optional) Club's country code for weather location (e.g., "US", "CA") |
+| `returnUrl` | (Optional) URL to navigate back to SCP (URL encoded). Shows a "Back to SCP" button in the header. |
 
 **Embed Signature Generation (SCP Side):**
 ```javascript

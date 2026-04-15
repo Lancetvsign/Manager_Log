@@ -95,6 +95,13 @@ export interface ManagerLogModuleProps {
    * Example: "CA", "US"
    */
   clubCountry?: string;
+
+  /**
+   * Optional: URL to navigate back to Social Club Pro.
+   * When provided, a "Back to SCP" button appears in the header.
+   * Example: "https://app.socialclubpro.com/dashboard"
+   */
+  returnUrl?: string;
 }
 
 /**
@@ -158,4 +165,5 @@ export interface ManagerLogContextValue {
   clubCity?: string;
   clubProvince?: string;
   clubCountry?: string;
+  returnUrl?: string;
 }

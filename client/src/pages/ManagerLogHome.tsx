@@ -20,7 +20,7 @@ import ManagerLogForm from "@/components/ManagerLogForm";
 import ManagerLogList from "@/components/ManagerLogList";
 import InsightsPage from "@/components/InsightsPage";
 import ThemeToggle from "@/components/ThemeToggle";
-import { History, Plus, BarChart3, User, Settings, MapPin, Loader2 } from "lucide-react";
+import { History, Plus, BarChart3, User, Settings, MapPin, Loader2, ChevronLeft } from "lucide-react";
 import logoImageDark from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
 import logoImageLight from "@assets/Restaurant_Manager's_Log_Daily_operations_tracking_with_weathe_1764696079981.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -55,7 +55,7 @@ interface LogEntry {
 }
 
 export default function Home() {
-  const { clubId, clubName, managerName, membershipNumber, userRole, apiBaseUrl } = useManagerLog();
+  const { clubId, clubName, managerName, membershipNumber, userRole, apiBaseUrl, returnUrl } = useManagerLog();
   const { toast } = useToast();
   
   // Track which tab is currently active
@@ -217,26 +217,40 @@ export default function Home() {
       <header className="border-b bg-white dark:bg-gray-900">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <img 
-                src={logoImageLight} 
-                alt="Social Club Pro Logo" 
-                className="h-10 w-auto block dark:hidden"
-                data-testid="img-logo-light"
-              />
-              <img 
-                src={logoImageDark} 
-                alt="Social Club Pro Logo" 
-                className="h-10 w-auto hidden dark:block"
-                data-testid="img-logo-dark"
-              />
-              <div>
-                <h1 className="text-lg font-semibold text-foreground" data-testid="text-app-title">
-                  Restaurant Manager's Log
-                </h1>
-                <p className="text-xs text-muted-foreground">
-                  Daily operations tracking with weather and sales data
-                </p>
+            <div className="flex items-center gap-3">
+              {returnUrl && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 text-muted-foreground"
+                  onClick={() => { window.location.href = returnUrl; }}
+                  data-testid="btn-back-to-scp"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back to SCP
+                </Button>
+              )}
+              <div className="flex items-center space-x-4">
+                <img 
+                  src={logoImageLight} 
+                  alt="Social Club Pro Logo" 
+                  className="h-10 w-auto block dark:hidden"
+                  data-testid="img-logo-light"
+                />
+                <img 
+                  src={logoImageDark} 
+                  alt="Social Club Pro Logo" 
+                  className="h-10 w-auto hidden dark:block"
+                  data-testid="img-logo-dark"
+                />
+                <div>
+                  <h1 className="text-lg font-semibold text-foreground" data-testid="text-app-title">
+                    Restaurant Manager's Log
+                  </h1>
+                  <p className="text-xs text-muted-foreground">
+                    Daily operations tracking with weather and sales data
+                  </p>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">

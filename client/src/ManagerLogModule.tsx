@@ -65,6 +65,7 @@ export function ManagerLogModule({
   clubCity,
   clubProvince,
   clubCountry,
+  returnUrl,
 }: ManagerLogModuleProps) {
   const contextValue = {
     clubId,
@@ -77,6 +78,7 @@ export function ManagerLogModule({
     clubCity,
     clubProvince,
     clubCountry,
+    returnUrl,
   };
 
   return (

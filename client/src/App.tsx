@@ -32,6 +32,7 @@ interface EmbedUser {
   clubCity?: string;
   clubProvince?: string;
   clubCountry?: string;
+  returnUrl?: string;
 }
 
 function App() {
@@ -51,6 +52,8 @@ function App() {
         return;
       }
 
+      const returnUrl = params.get("returnUrl") ? decodeURIComponent(params.get("returnUrl") || "") : undefined;
+
       const embedParams = {
         clubId: params.get("clubId") || "",
         userId: params.get("userId") || "",
@@ -64,6 +67,7 @@ function App() {
         clubCity: decodeURIComponent(params.get("clubCity") || ""),
         clubProvince: decodeURIComponent(params.get("clubProvince") || ""),
         clubCountry: decodeURIComponent(params.get("clubCountry") || ""),
+        returnUrl,
       };
 
       try {
@@ -81,7 +85,7 @@ function App() {
         }
 
         const { user } = await response.json();
-        setEmbedUser(user);
+        setEmbedUser({ ...user, returnUrl });
       } catch (err) {
         setError("Failed to verify authentication");
       } finally {
@@ -121,6 +125,7 @@ function App() {
         clubCity={embedUser.clubCity}
         clubProvince={embedUser.clubProvince}
         clubCountry={embedUser.clubCountry}
+        returnUrl={embedUser.returnUrl}
       />
     );
   }
