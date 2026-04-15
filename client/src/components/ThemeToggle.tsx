@@ -5,18 +5,33 @@ export function useTheme() {
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
-    let dark: boolean;
-    if (savedTheme !== null) {
-      dark = savedTheme === 'dark';
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const applyTheme = (dark: boolean) => {
+      setIsDark(dark);
+      if (dark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+
+    if (savedTheme === 'dark') {
+      applyTheme(true);
+    } else if (savedTheme === 'light') {
+      applyTheme(false);
     } else {
-      dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      applyTheme(mediaQuery.matches);
     }
-    setIsDark(dark);
-    if (dark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      if (!localStorage.getItem('theme')) {
+        applyTheme(e.matches);
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
   const toggleTheme = (dark?: boolean) => {
