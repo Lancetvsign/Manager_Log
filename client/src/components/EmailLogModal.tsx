@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Mail, Send, Loader2, Settings, Users } from "lucide-react";
+import { Mail, Send, Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,11 +16,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -49,7 +44,6 @@ export default function EmailLogModal({
   const { apiBaseUrl } = useManagerLog();
   const [selectedListIds, setSelectedListIds] = useState<number[]>([]);
   const [reason, setReason] = useState<"maintenance" | "operations" | "other">("maintenance");
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const niceDate = useMemo(() => {
     try {
@@ -192,7 +186,7 @@ A link to this log entry will be included automatically.`
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="modal-email-log">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="modal-email-log">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
@@ -248,7 +242,7 @@ A link to this log entry will be included automatically.`
                 </div>
               ) : lists.length === 0 ? (
                 <div className="text-sm text-muted-foreground">
-                  No lists yet. Add lists in Settings below.
+                  No lists yet. Add one in the Email Lists section below.
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -302,32 +296,12 @@ A link to this log entry will be included automatically.`
             </p>
           </div>
 
-          <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-between"
-                type="button"
-                data-testid="button-toggle-settings"
-              >
-                <div className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {settingsOpen ? "Hide" : "Show"}
-                </span>
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-3 space-y-3">
-              <div className="rounded-md border p-4">
-                <NotificationSettingsPanel
-                  clubId={clubId}
-                  onChanged={handleSettingsChanged}
-                />
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
+          <div className="rounded-md border p-4">
+            <NotificationSettingsPanel
+              clubId={clubId}
+              onChanged={handleSettingsChanged}
+            />
+          </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">
             <Button

@@ -114,7 +114,7 @@ export function NotificationSettingsPanel({
   return (
     <div className="grid grid-cols-[1.2fr_2fr] gap-6">
       <section>
-        <h2 className="text-base font-semibold mb-2">Notification Lists</h2>
+        <h2 className="text-base font-semibold mb-2">Email Lists</h2>
         <div className="border rounded-lg overflow-hidden">
           {lists.map((list) => (
             <div
