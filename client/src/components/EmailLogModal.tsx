@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Mail, Send, Loader2, Settings, Users, Zap } from "lucide-react";
+import { Mail, Send, Loader2, Settings, Users } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
-import EscalationRulesPanel from "./EscalationRulesPanel";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
@@ -50,7 +49,6 @@ export default function EmailLogModal({
   const { apiBaseUrl } = useManagerLog();
   const [selectedListIds, setSelectedListIds] = useState<number[]>([]);
   const [reason, setReason] = useState<"maintenance" | "operations" | "other">("maintenance");
-  const [settingsTab, setSettingsTab] = useState<"contacts" | "rules">("contacts");
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const niceDate = useMemo(() => {
@@ -322,41 +320,11 @@ A link to this log entry will be included automatically.`
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-3 space-y-3">
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={settingsTab === "contacts" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSettingsTab("contacts")}
-                  data-testid="button-settings-contacts"
-                >
-                  <Users className="h-4 w-4 mr-1" />
-                  Manage Contacts
-                </Button>
-                <Button
-                  type="button"
-                  variant={settingsTab === "rules" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSettingsTab("rules")}
-                  data-testid="button-settings-rules"
-                >
-                  <Zap className="h-4 w-4 mr-1" />
-                  Rules
-                </Button>
-              </div>
-
               <div className="rounded-md border p-4">
-                {settingsTab === "contacts" ? (
-                  <NotificationSettingsPanel
-                    clubId={clubId}
-                    onChanged={handleSettingsChanged}
-                  />
-                ) : (
-                  <EscalationRulesPanel
-                    clubId={clubId}
-                    onRulesChanged={handleSettingsChanged}
-                  />
-                )}
+                <NotificationSettingsPanel
+                  clubId={clubId}
+                  onChanged={handleSettingsChanged}
+                />
               </div>
             </CollapsibleContent>
           </Collapsible>
