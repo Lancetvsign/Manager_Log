@@ -52,7 +52,7 @@ function App() {
         return;
       }
 
-      const returnUrl = params.get("returnUrl") ? decodeURIComponent(params.get("returnUrl") || "") : undefined;
+      const returnUrl = params.get("returnUrl") || undefined;
 
       const embedParams = {
         clubId: params.get("clubId") || "",
