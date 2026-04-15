@@ -87,6 +87,7 @@ export default function AddHistoricalDataDialog({
   const [historicalGaming, setHistoricalGaming] = useState("");
 
   // Bulk import state
+  const [isDragOver, setIsDragOver] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvPreviewData, setCsvPreviewData] = useState<Array<{
     date: string;
@@ -207,14 +208,11 @@ export default function AddHistoricalDataDialog({
     setCsvPreviewData(parsedRows);
   }, []);
 
-  // Handle CSV file upload
-  const handleCsvFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
+  // Shared file processing used by both click-upload and drag-and-drop
+  const processFile = useCallback((file: File) => {
     setCsvFile(file);
     setBulkImportResult(null);
-    
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
@@ -226,6 +224,41 @@ export default function AddHistoricalDataDialog({
     };
     reader.readAsText(file);
   }, [parseCSV]);
+
+  // Handle CSV file upload via file picker
+  const handleCsvFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processFile(file);
+  }, [processFile]);
+
+  // Drag-and-drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    processFile(file);
+  }, [processFile]);
 
   // Clear bulk import state
   const clearBulkImport = useCallback(() => {
@@ -482,7 +515,17 @@ export default function AddHistoricalDataDialog({
           
           <div className="space-y-2">
             <Label>Upload CSV File</Label>
-            <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
+            <div
+              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                isDragOver
+                  ? "border-primary bg-primary/5"
+                  : "hover:border-primary/50"
+              }`}
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
               <input
                 type="file"
                 accept=".csv,.txt"
@@ -492,9 +535,9 @@ export default function AddHistoricalDataDialog({
                 data-testid="input-csv-upload"
               />
               <label htmlFor="csv-upload-dialog" className="cursor-pointer">
-                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <Upload className={`h-8 w-8 mx-auto mb-2 transition-colors ${isDragOver ? "text-primary" : "text-muted-foreground"}`} />
                 <p className="text-sm text-muted-foreground">
-                  {csvFile ? csvFile.name : "Click to upload or drag and drop"}
+                  {csvFile ? csvFile.name : isDragOver ? "Drop your CSV file here" : "Click to upload or drag and drop"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">CSV or TXT file</p>
               </label>
