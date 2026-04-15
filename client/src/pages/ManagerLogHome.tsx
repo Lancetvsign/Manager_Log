@@ -15,12 +15,14 @@
  */
 
 import { useState } from "react";
+import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ManagerLogForm from "@/components/ManagerLogForm";
 import ManagerLogList from "@/components/ManagerLogList";
 import InsightsPage from "@/components/InsightsPage";
 import ThemeToggle from "@/components/ThemeToggle";
-import { History, Plus, BarChart3, User, Settings, MapPin, Loader2, ChevronLeft } from "lucide-react";
+import EmailLogModal from "@/components/EmailLogModal";
+import { History, Plus, BarChart3, User, Settings, MapPin, Loader2, ChevronLeft, Mail } from "lucide-react";
 import logoImageDark from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
 import logoImageLight from "@assets/Restaurant_Manager's_Log_Daily_operations_tracking_with_weathe_1764696079981.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -66,6 +68,14 @@ export default function Home() {
   
   // Store log ID when navigating from Maintenance to History detail view
   const [selectedLogId, setSelectedLogId] = useState<number | null>(null);
+
+  // Email modal state — lifted to app-shell level so both header button and form button work across tabs
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailData, setEmailData] = useState<{ logId: number | null; logDateISO: string; managerName: string }>({
+    logId: null,
+    logDateISO: format(new Date(), 'yyyy-MM-dd'),
+    managerName: '',
+  });
 
   // Settings dialog state
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -310,6 +320,10 @@ export default function Home() {
                   </div>
                 </div>
               )}
+              <Button size="sm" variant="ghost" onClick={() => setShowEmailModal(true)} data-testid="btn-email-team-header">
+                <Mail className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Email Team</span>
+              </Button>
               <Button size="icon" variant="ghost" onClick={handleOpenSettings} data-testid="btn-settings">
                 <Settings className="h-4 w-4" />
               </Button>
@@ -348,7 +362,12 @@ export default function Home() {
 
           {/* Today's Log Tab - Daily log form */}
           <TabsContent value="new-entry" className="space-y-6">
-            <ManagerLogForm onSubmit={handleSubmitLog} />
+            <ManagerLogForm
+              onSubmit={handleSubmitLog}
+              showEmailModal={showEmailModal}
+              onEmailModalChange={setShowEmailModal}
+              onEmailDataChange={setEmailData}
+            />
           </TabsContent>
 
           {/* History Tab - List of all log entries */}
@@ -375,6 +394,16 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Email Team Modal — rendered at app-shell level so header button works on any tab */}
+      <EmailLogModal
+        open={showEmailModal}
+        onOpenChange={setShowEmailModal}
+        clubId={clubId}
+        logId={emailData.logId}
+        logDateISO={emailData.logDateISO}
+        managerName={emailData.managerName}
+      />
 
       {/* Settings Dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>

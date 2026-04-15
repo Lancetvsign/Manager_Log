@@ -18,7 +18,6 @@ import { apiRequest } from "@/lib/queryClient";
 import WeatherCard from "./WeatherCard";
 import WeatherWide from "./WeatherWide";
 import SalesInput from "./SalesInput";
-import EmailLogModal from "./EmailLogModal";
 import { NotePhotos } from "./NotePhotos";
 import { MaintenanceItemsTable } from "./MaintenanceItemsTable";
 import { useToast } from "@/hooks/use-toast";
@@ -26,8 +25,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ManagerLog, MaintenanceItem } from "@shared/schema";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
 
+interface EmailModalData {
+  logId: number | null;
+  logDateISO: string;
+  managerName: string;
+}
+
 interface ManagerLogFormProps {
   onSubmit: (data: any) => void;
+  showEmailModal?: boolean;
+  onEmailModalChange?: (open: boolean) => void;
+  onEmailDataChange?: (data: EmailModalData) => void;
 }
 
 interface WeatherData {
@@ -38,7 +46,7 @@ interface WeatherData {
   description: string;
 }
 
-export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
+export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModalProp, onEmailModalChange, onEmailDataChange }: ManagerLogFormProps) {
   const { clubId, managerName: defaultManagerName, apiBaseUrl } = useManagerLog();
   const [date, setDate] = useState<Date>(() => {
     const now = new Date();
@@ -73,8 +81,13 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
   const [newMaintenancePhotoPreview, setNewMaintenancePhotoPreview] = useState<string | null>(null);
   const maintenancePhotoInputRef = useRef<HTMLInputElement>(null);
   
-  // Email modal state
-  const [showEmailModal, setShowEmailModal] = useState(false);
+  // Email modal state — lifted to parent when props are provided; local fallback otherwise
+  const [localShowEmailModal, setLocalShowEmailModal] = useState(false);
+  const showEmailModal = showEmailModalProp !== undefined ? showEmailModalProp : localShowEmailModal;
+  const setShowEmailModal = (open: boolean) => {
+    setLocalShowEmailModal(open);
+    onEmailModalChange?.(open);
+  };
   
   // Collapsible state for maintenance list
   const [maintenanceOpen, setMaintenanceOpen] = useState(true);
@@ -662,6 +675,15 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
     };
   }, []);
 
+  // Sync email-modal data to the parent so EmailLogModal can be rendered at the app-shell level
+  useEffect(() => {
+    onEmailDataChange?.({
+      logId: existingLogId,
+      logDateISO: dateString,
+      managerName: amManagerName || pmManagerName || defaultManagerName || '',
+    });
+  }, [existingLogId, dateString, amManagerName, pmManagerName, defaultManagerName]);
+
   const calculateTotalSales = (): string => {
     const food = parseFloat(salesData.current.food) || 0;
     const bar = parseFloat(salesData.current.bar) || 0;
@@ -1223,16 +1245,6 @@ export default function ManagerLogForm({ onSubmit }: ManagerLogFormProps) {
         )}
       </div>
 
-        {/* Email Team Modal */}
-        <EmailLogModal
-          open={showEmailModal}
-          onOpenChange={setShowEmailModal}
-          clubId={clubId}
-          logId={existingLogId}
-          logDateISO={format(date, 'yyyy-MM-dd')}
-          managerName={amManagerName || pmManagerName || defaultManagerName}
-        />
-        
         {/* Photo Lightbox Modal */}
         <Dialog open={!!photoLightboxSrc} onOpenChange={(open) => !open && setPhotoLightboxSrc(null)}>
           <DialogContent className="max-w-3xl p-2 bg-black/90 border-none">
