@@ -147,8 +147,9 @@ export default function Home() {
       const url = buildApiUrl('/api/club-settings', clubId, apiBaseUrl);
       return apiRequest("PATCH", url, { aiOverviewEnabled: enabled });
     },
-    onSuccess: () => {
+    onSuccess: (_data, enabled) => {
       queryClient.invalidateQueries({ queryKey: ['/api/club-settings', clubId] });
+      toast({ title: "Saved", description: `AI Overview ${enabled ? "enabled" : "disabled"}.` });
     },
     onError: () => {
       toast({ title: "Save failed", description: "Could not update AI setting.", variant: "destructive" });
@@ -494,7 +495,7 @@ export default function Home() {
                 <Button
                   size="sm"
                   onClick={() => saveBudgetMutation.mutate({ foodSales: budgetFood || "0", barSales: budgetBar || "0", gamingSales: budgetGaming || "0" })}
-                  disabled={saveBudgetMutation.isPending}
+                  disabled={saveBudgetMutation.isPending || !budgetData}
                   data-testid="btn-save-budget"
                 >
                   {saveBudgetMutation.isPending ? "Saving…" : "Save Budget"}

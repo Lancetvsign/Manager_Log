@@ -602,11 +602,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                           </p>
                         )}
                       </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Enable AI analysis above to generate intelligent insights about your sales trends and operational data.
-                      </p>
-                    )}
+                    ) : null}
                   </div>
                 </DialogContent>
               </Dialog>
