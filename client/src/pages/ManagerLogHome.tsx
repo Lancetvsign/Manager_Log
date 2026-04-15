@@ -261,7 +261,7 @@ export default function Home() {
                     variant="ghost"
                     size="sm"
                     className="gap-1 text-muted-foreground"
-                    onClick={() => { safeDest ? window.location.href = safeDest : window.history.back(); }}
+                    onClick={() => { window.location.href = safeDest ?? "https://app.socialclubpro.com/"; }}
                     data-testid="btn-back-to-scp"
                   >
                     <ChevronLeft className="h-4 w-4" />
