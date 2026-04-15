@@ -244,28 +244,30 @@ export default function Home() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {returnUrl && (() => {
+              {(() => {
                 let safeDest: string | null = null;
-                try {
-                  const parsed = new URL(returnUrl);
-                  if (parsed.protocol === "https:" || parsed.protocol === "http:") {
-                    safeDest = returnUrl;
+                if (returnUrl) {
+                  try {
+                    const parsed = new URL(returnUrl);
+                    if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+                      safeDest = returnUrl;
+                    }
+                  } catch {
+                    safeDest = null;
                   }
-                } catch {
-                  safeDest = null;
                 }
-                return safeDest ? (
+                return (
                   <Button
                     variant="ghost"
                     size="sm"
                     className="gap-1 text-muted-foreground"
-                    onClick={() => { window.location.href = safeDest!; }}
+                    onClick={() => { safeDest ? window.location.href = safeDest : window.history.back(); }}
                     data-testid="btn-back-to-scp"
                   >
                     <ChevronLeft className="h-4 w-4" />
                     Back to SCP
                   </Button>
-                ) : null;
+                );
               })()}
               <div className="flex items-center space-x-4">
                 <img 
