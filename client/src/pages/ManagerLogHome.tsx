@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ManagerLogForm from "@/components/ManagerLogForm";
 import ManagerLogList from "@/components/ManagerLogList";
 import InsightsPage from "@/components/InsightsPage";
-import ThemeToggle from "@/components/ThemeToggle";
+import { useTheme } from "@/components/ThemeToggle";
 import EmailLogModal from "@/components/EmailLogModal";
 import { History, Plus, BarChart3, User, Settings, MapPin, Loader2, ChevronLeft, Mail } from "lucide-react";
 import logoImageDark from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
@@ -82,6 +82,7 @@ export default function Home() {
   const [zipInput, setZipInput] = useState("");
   // Optimistic local state for AI toggle — flips instantly without waiting for server
   const [aiChecked, setAiChecked] = useState(false);
+  const { isDark, toggleTheme } = useTheme();
 
   const queryClient = useQueryClient();
 
@@ -324,10 +325,10 @@ export default function Home() {
                 <Mail className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">Email Team</span>
               </Button>
+              <div className="w-px self-stretch bg-border mx-1" />
               <Button size="icon" variant="ghost" onClick={handleOpenSettings} data-testid="btn-settings">
                 <Settings className="h-4 w-4" />
               </Button>
-              <ThemeToggle />
             </div>
           </div>
         </div>
@@ -463,6 +464,26 @@ export default function Home() {
                   }}
                   disabled={toggleAiMutation.isPending}
                   data-testid="switch-ai-enabled"
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* ── Appearance ───────────────────────────── */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Appearance</p>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">Dark Mode</p>
+                  <p className="text-xs text-muted-foreground">
+                    Switch between light and dark color themes.
+                  </p>
+                </div>
+                <Switch
+                  checked={isDark}
+                  onCheckedChange={(checked) => toggleTheme(checked)}
+                  data-testid="switch-dark-mode"
                 />
               </div>
             </div>
