@@ -40,7 +40,6 @@ import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, parseISO, startOfWeek, endOfWeek, addDays, addWeeks, addMonths } from "date-fns";
 import {
@@ -273,20 +272,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     },
   });
 
-  const toggleAiMutation = useMutation({
-    mutationFn: async (enabled: boolean) => {
-      const url = buildApiUrl("/api/club-settings", clubId, apiBaseUrl);
-      const response = await apiRequest("PATCH", url, { aiOverviewEnabled: enabled });
-      return response.json();
-    },
-    onSuccess: (_, enabled) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/club-settings", clubId] });
-      // Clear cached AI overview when disabling to force fresh fetch on re-enable
-      if (!enabled) {
-        setAiOverview(null);
-      }
-    },
-  });
 
   const generateAiMutation = useMutation({
     mutationFn: async () => {
@@ -547,20 +532,12 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 pt-2">
-                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">Enable AI Analysis</p>
-                        <p className="text-xs text-muted-foreground">
-                          AI analysis uses credits. Enable only when needed.
-                        </p>
+                    {!clubSettings?.aiOverviewEnabled && (
+                      <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+                        <Sparkles className="h-4 w-4 shrink-0" />
+                        <span>AI Overview is disabled. Enable it in <strong className="text-foreground">Settings</strong> (gear icon) to generate insights.</span>
                       </div>
-                      <Switch
-                        checked={clubSettings?.aiOverviewEnabled ?? false}
-                        onCheckedChange={(checked) => toggleAiMutation.mutate(checked)}
-                        disabled={toggleAiMutation.isPending}
-                        data-testid="switch-ai-enabled"
-                      />
-                    </div>
+                    )}
 
                     {clubSettings?.aiOverviewEnabled ? (
                       <div className="space-y-4">

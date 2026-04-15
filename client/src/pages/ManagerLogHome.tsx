@@ -36,6 +36,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface LogEntry {
@@ -67,16 +70,42 @@ export default function Home() {
   // Settings dialog state
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [zipInput, setZipInput] = useState("");
-  
+  const [budgetFood, setBudgetFood] = useState("");
+  const [budgetBar, setBudgetBar] = useState("");
+  const [budgetGaming, setBudgetGaming] = useState("");
+
   const queryClient = useQueryClient();
 
+  interface ClubSettings {
+    weatherZipCode: string | null;
+    aiOverviewEnabled: boolean;
+  }
+
+  interface BudgetData {
+    foodSales: string;
+    barSales: string;
+    gamingSales: string;
+  }
+
   // Fetch current club settings — drives both the gate and the settings dialog
-  const { data: clubSettings, isLoading: isSettingsLoading } = useQuery<{ weatherZipCode: string | null }>({
+  const { data: clubSettings, isLoading: isSettingsLoading } = useQuery<ClubSettings>({
     queryKey: ['/api/club-settings', clubId],
     queryFn: async () => {
       const url = buildApiUrl('/api/club-settings', clubId, apiBaseUrl);
       const res = await fetch(url);
-      if (!res.ok) return { weatherZipCode: null };
+      if (!res.ok) return { weatherZipCode: null, aiOverviewEnabled: false };
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Fetch budget data for settings dialog
+  const { data: budgetData } = useQuery<BudgetData>({
+    queryKey: ['/api/club-budget', clubId],
+    queryFn: async () => {
+      const url = buildApiUrl('/api/club-budget', clubId, apiBaseUrl);
+      const res = await fetch(url);
+      if (!res.ok) return { foodSales: "0", barSales: "0", gamingSales: "0" };
       return res.json();
     },
     staleTime: 1000 * 60 * 5,
@@ -84,9 +113,12 @@ export default function Home() {
 
   const zipIsConfigured = !isSettingsLoading && !!clubSettings?.weatherZipCode?.trim();
 
-  // When settings dialog opens, seed input from saved value
+  // When settings dialog opens, seed all inputs from saved values
   const handleOpenSettings = () => {
     setZipInput(clubSettings?.weatherZipCode ?? "");
+    setBudgetFood(budgetData?.foodSales ?? "0");
+    setBudgetBar(budgetData?.barSales ?? "0");
+    setBudgetGaming(budgetData?.gamingSales ?? "0");
     setSettingsOpen(true);
   };
 
@@ -103,11 +135,37 @@ export default function Home() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/club-settings', clubId] });
-      setSettingsOpen(false);
-      toast({ title: "Settings saved", description: "Weather zip code updated." });
+      toast({ title: "Saved", description: "Weather location updated." });
     },
     onError: () => {
       toast({ title: "Save failed", description: "Could not save settings.", variant: "destructive" });
+    },
+  });
+
+  const toggleAiMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const url = buildApiUrl('/api/club-settings', clubId, apiBaseUrl);
+      return apiRequest("PATCH", url, { aiOverviewEnabled: enabled });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/club-settings', clubId] });
+    },
+    onError: () => {
+      toast({ title: "Save failed", description: "Could not update AI setting.", variant: "destructive" });
+    },
+  });
+
+  const saveBudgetMutation = useMutation({
+    mutationFn: async (budget: BudgetData) => {
+      const url = buildApiUrl('/api/club-budget', clubId, apiBaseUrl);
+      return apiRequest("PUT", url, budget);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/club-budget', clubId] });
+      toast({ title: "Saved", description: "Daily budget targets updated." });
+    },
+    onError: () => {
+      toast({ title: "Save failed", description: "Could not save budget.", variant: "destructive" });
     },
   });
 
@@ -350,40 +408,124 @@ export default function Home() {
 
       {/* Settings Dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
             <DialogDescription>Configure options for this club.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <Label htmlFor="weather-zip">Weather Location (Zip / Postal Code)</Label>
-              <Input
-                id="weather-zip"
-                placeholder="e.g. 80201 or M5H 2N2"
-                value={zipInput}
-                onChange={(e) => setZipInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && zipInput.trim()) saveZipMutation.mutate(zipInput.trim()); }}
-                data-testid="input-weather-zip"
-              />
-              <p className="text-xs text-muted-foreground">
-                This zip or postal code is required. Clearing it will lock the app until a new one is entered.
-              </p>
+          <div className="space-y-5 pt-1">
+
+            {/* ── Weather ─────────────────────────────── */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Weather</p>
+              <div className="space-y-2">
+                <Label htmlFor="weather-zip">Zip / Postal Code</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="weather-zip"
+                    placeholder="e.g. 80201 or M5H 2N2"
+                    value={zipInput}
+                    onChange={(e) => setZipInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && zipInput.trim()) saveZipMutation.mutate(zipInput.trim()); }}
+                    data-testid="input-weather-zip"
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={() => saveZipMutation.mutate(zipInput.trim() || null)}
+                    disabled={saveZipMutation.isPending || !zipInput.trim()}
+                    data-testid="btn-save-zip"
+                  >
+                    {saveZipMutation.isPending ? "Saving…" : "Save"}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Required. Clearing it will lock the app until a new one is entered.
+                </p>
+              </div>
             </div>
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => setSettingsOpen(false)}
-                disabled={saveZipMutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => saveZipMutation.mutate(zipInput.trim() || null)}
-                disabled={saveZipMutation.isPending || !zipInput.trim()}
-                data-testid="btn-save-zip"
-              >
-                {saveZipMutation.isPending ? "Saving..." : "Save"}
+
+            <Separator />
+
+            {/* ── Daily Budget Targets ─────────────────── */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Daily Budget Targets</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="budget-food" className="text-xs">Food ($)</Label>
+                  <Input
+                    id="budget-food"
+                    type="number"
+                    min="0"
+                    step="50"
+                    placeholder="0"
+                    value={budgetFood}
+                    onChange={(e) => setBudgetFood(e.target.value)}
+                    data-testid="input-budget-food"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="budget-bar" className="text-xs">Bar ($)</Label>
+                  <Input
+                    id="budget-bar"
+                    type="number"
+                    min="0"
+                    step="50"
+                    placeholder="0"
+                    value={budgetBar}
+                    onChange={(e) => setBudgetBar(e.target.value)}
+                    data-testid="input-budget-bar"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="budget-gaming" className="text-xs">Gaming ($)</Label>
+                  <Input
+                    id="budget-gaming"
+                    type="number"
+                    min="0"
+                    step="50"
+                    placeholder="0"
+                    value={budgetGaming}
+                    onChange={(e) => setBudgetGaming(e.target.value)}
+                    data-testid="input-budget-gaming"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  onClick={() => saveBudgetMutation.mutate({ foodSales: budgetFood || "0", barSales: budgetBar || "0", gamingSales: budgetGaming || "0" })}
+                  disabled={saveBudgetMutation.isPending}
+                  data-testid="btn-save-budget"
+                >
+                  {saveBudgetMutation.isPending ? "Saving…" : "Save Budget"}
+                </Button>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* ── AI Features ─────────────────────────── */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI Features</p>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">AI Overview</p>
+                  <p className="text-xs text-muted-foreground">
+                    Generates AI-powered sales insights on the Insights page. Uses Replit AI credits.
+                  </p>
+                </div>
+                <Switch
+                  checked={clubSettings?.aiOverviewEnabled ?? false}
+                  onCheckedChange={(checked) => toggleAiMutation.mutate(checked)}
+                  disabled={toggleAiMutation.isPending}
+                  data-testid="switch-ai-enabled"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-1">
+              <Button variant="outline" onClick={() => setSettingsOpen(false)}>
+                Close
               </Button>
             </div>
           </div>
