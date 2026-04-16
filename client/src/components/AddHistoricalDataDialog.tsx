@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { buildApiUrl } from "@/contexts/ManagerLogContext";
+import { useToast } from "@/hooks/use-toast";
 import { SalesDataTable } from "./SalesDataTable";
 import type { ManagerLog } from "@shared/schema";
 import {
@@ -41,6 +42,8 @@ export default function AddHistoricalDataDialog({
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
 }: AddHistoricalDataDialogProps) {
+  const { toast } = useToast();
+
   // Dialog state (internal or controlled)
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = controlledOpen !== undefined && controlledOnOpenChange !== undefined;
@@ -145,6 +148,10 @@ export default function AddHistoricalDataDialog({
       queryClient.invalidateQueries({ queryKey: ["/api/manager-logs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/manager-logs/by-date"] });
       queryClient.invalidateQueries({ queryKey: ["/api/historical-status"] });
+      toast({
+        title: "Historical data saved",
+        description: "Your entry has been saved. To view it in Insights, select \"Year to Date\" or a custom date range — historical data won't appear under \"Last 30 Days\".",
+      });
       handleOpenChange(false);
     },
   });
@@ -295,9 +302,18 @@ export default function AddHistoricalDataDialog({
       queryClient.invalidateQueries({ queryKey: ["/api/manager-logs/by-date"] });
       queryClient.invalidateQueries({ queryKey: ["/api/historical-status"] });
       if (result.failed === 0) {
+        toast({
+          title: `${result.success} records imported`,
+          description: "Your historical data has been saved. To view it in Insights, select \"Year to Date\" or a custom date range — historical data won't appear under \"Last 30 Days\".",
+        });
         setTimeout(() => {
           handleOpenChange(false);
         }, 2000);
+      } else if (result.success > 0) {
+        toast({
+          title: `${result.success} of ${result.success + result.failed} records imported`,
+          description: "To view the imported data in Insights, select \"Year to Date\" or a custom date range.",
+        });
       }
     },
   });

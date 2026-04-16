@@ -209,13 +209,24 @@ export class DatabaseStorage implements IStorage {
    * This ensures each club has at most one log per day
    */
   async upsertManagerLog(insertLog: InsertManagerLog): Promise<ManagerLog> {
+    const food = parseFloat(insertLog.foodSales ?? "0") || 0;
+    const bar = parseFloat(insertLog.barSales ?? "0") || 0;
+    const gaming = parseFloat(insertLog.gamingSales ?? "0") || 0;
+    const computedTotal = (food + bar + gaming).toFixed(2);
+    const logWithTotal: InsertManagerLog = {
+      ...insertLog,
+      totalSales: (insertLog.totalSales == null || insertLog.totalSales === "")
+        ? computedTotal
+        : insertLog.totalSales,
+    };
+
     const existingLog = await this.getManagerLogByDate(insertLog.logDate, insertLog.clubId);
     
     if (existingLog) {
-      const updatedLog = await this.updateManagerLog(existingLog.id, insertLog, insertLog.clubId);
+      const updatedLog = await this.updateManagerLog(existingLog.id, logWithTotal, insertLog.clubId);
       return updatedLog!;
     } else {
-      return await this.createManagerLog(insertLog);
+      return await this.createManagerLog(logWithTotal);
     }
   }
 
