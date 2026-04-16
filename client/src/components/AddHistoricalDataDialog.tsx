@@ -665,7 +665,7 @@ export default function AddHistoricalDataDialog({
                     const dates = csvPreviewData.map(r => r.date).sort();
                     const minDate = dates[0];
                     const maxDate = dates[dates.length - 1];
-                    setOpen(false);
+                    handleOpenChange(false);
                     onViewComparison(minDate, maxDate);
                   }}
                   data-testid="button-view-comparison"
