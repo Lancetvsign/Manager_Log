@@ -322,6 +322,16 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     };
   }, [metrics, comparisonMetrics, comparisonPeriod]);
 
+  const handleViewComparison = useCallback((importedStart: string, importedEnd: string) => {
+    const start = parseISO(importedStart);
+    const end = parseISO(importedEnd);
+    const currentYear = new Date().getFullYear();
+    setCustomStartDate(new Date(currentYear, start.getMonth(), start.getDate()));
+    setCustomEndDate(new Date(currentYear, end.getMonth(), end.getDate()));
+    setDatePreset("custom");
+    setComparisonPeriod("previousYear");
+  }, []);
+
   const resetFilters = useCallback(() => {
     setDatePreset(DEFAULT_DATE_PRESET);
     setCustomStartDate(undefined);
@@ -492,6 +502,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               <AddHistoricalDataDialog
                 clubId={clubId}
                 apiBaseUrl={apiBaseUrl}
+                onViewComparison={handleViewComparison}
                 trigger={
                   <Button variant="outline" size="sm" className="gap-1" data-testid="button-add-historical-insights">
                     <Plus className="h-4 w-4" />
@@ -816,6 +827,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
             <AddHistoricalDataDialog
               clubId={clubId}
               apiBaseUrl={apiBaseUrl}
+              onViewComparison={handleViewComparison}
               trigger={
                 <Button
                   variant="outline"

@@ -32,6 +32,7 @@ interface AddHistoricalDataDialogProps {
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  onViewComparison?: (startDate: string, endDate: string) => void;
 }
 
 export default function AddHistoricalDataDialog({
@@ -41,6 +42,7 @@ export default function AddHistoricalDataDialog({
   trigger,
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
+  onViewComparison,
 }: AddHistoricalDataDialogProps) {
   const { toast } = useToast();
 
@@ -304,11 +306,8 @@ export default function AddHistoricalDataDialog({
       if (result.failed === 0) {
         toast({
           title: `${result.success} records imported`,
-          description: "Your historical data has been saved. To view it in Insights, select \"Year to Date\" or a custom date range — historical data won't appear under \"Last 30 Days\".",
+          description: "Your historical data has been saved.",
         });
-        setTimeout(() => {
-          handleOpenChange(false);
-        }, 2000);
       } else if (result.success > 0) {
         toast({
           title: `${result.success} of ${result.success + result.failed} records imported`,
@@ -320,10 +319,38 @@ export default function AddHistoricalDataDialog({
 
   // Download sample CSV
   const downloadSampleCsv = useCallback(() => {
-    const sampleCsv = `date,food_sales,bar_sales,gaming_sales
-2025-01-01,1500.00,2000.00,500.00
-2025-01-02,1650.00,2100.00,475.00
-2025-01-03,1400.00,1850.00,525.00`;
+    const sampleCsv = `date,food,bar,gaming
+2025-01-01,1820.00,2640.00,890.00
+2025-01-02,1550.00,2190.00,710.00
+2025-01-03,1380.00,1850.00,520.00
+2025-01-04,2100.00,3020.00,1150.00
+2025-01-05,2350.00,3480.00,1380.00
+2025-01-06,1690.00,2410.00,850.00
+2025-01-07,1420.00,2080.00,620.00
+2025-01-08,1560.00,2250.00,760.00
+2025-01-09,1310.00,1920.00,580.00
+2025-01-10,1480.00,2110.00,640.00
+2025-01-11,2080.00,2980.00,1090.00
+2025-01-12,2410.00,3350.00,1280.00
+2025-01-13,1720.00,2530.00,870.00
+2025-01-14,1390.00,2040.00,590.00
+2025-01-15,1630.00,2380.00,800.00
+2025-01-16,1290.00,1880.00,550.00
+2025-01-17,1510.00,2170.00,680.00
+2025-01-18,2160.00,3090.00,1120.00
+2025-01-19,2490.00,3520.00,1340.00
+2025-01-20,1780.00,2590.00,920.00
+2025-01-21,1450.00,2110.00,660.00
+2025-01-22,1590.00,2310.00,790.00
+2025-01-23,1330.00,1960.00,570.00
+2025-01-24,1470.00,2080.00,650.00
+2025-01-25,2090.00,3010.00,1080.00
+2025-01-26,2380.00,3400.00,1260.00
+2025-01-27,1700.00,2480.00,860.00
+2025-01-28,1360.00,1990.00,600.00
+2025-01-29,1610.00,2350.00,780.00
+2025-01-30,1280.00,1850.00,540.00
+2025-01-31,1430.00,2050.00,630.00`;
     const blob = new Blob([sampleCsv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -606,29 +633,46 @@ export default function AddHistoricalDataDialog({
           )}
           
           {bulkImportResult && (
-            <div className={`rounded-lg p-3 flex items-start gap-2 ${
-              bulkImportResult.failed === 0 
-                ? "bg-green-500/10 border border-green-500/30" 
-                : "bg-amber-500/10 border border-amber-500/30"
-            }`}>
-              <CheckCircle className={`h-4 w-4 mt-0.5 ${
-                bulkImportResult.failed === 0 ? "text-green-600" : "text-amber-600"
-              }`} />
-              <div className="text-sm">
-                <p className={bulkImportResult.failed === 0 ? "text-green-600" : "text-amber-600"}>
-                  Imported {bulkImportResult.success} of {bulkImportResult.success + bulkImportResult.failed} records
-                </p>
-                {bulkImportResult.errors.length > 0 && (
-                  <ul className="mt-1 text-xs text-muted-foreground">
-                    {bulkImportResult.errors.slice(0, 3).map((err, i) => (
-                      <li key={i}>{err}</li>
-                    ))}
-                    {bulkImportResult.errors.length > 3 && (
-                      <li>...and {bulkImportResult.errors.length - 3} more errors</li>
-                    )}
-                  </ul>
-                )}
+            <div className="space-y-2">
+              <div className={`rounded-lg p-3 flex items-start gap-2 ${
+                bulkImportResult.failed === 0 
+                  ? "bg-green-500/10 border border-green-500/30" 
+                  : "bg-amber-500/10 border border-amber-500/30"
+              }`}>
+                <CheckCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${
+                  bulkImportResult.failed === 0 ? "text-green-600" : "text-amber-600"
+                }`} />
+                <div className="text-sm">
+                  <p className={bulkImportResult.failed === 0 ? "text-green-600" : "text-amber-600"}>
+                    Imported {bulkImportResult.success} of {bulkImportResult.success + bulkImportResult.failed} records
+                  </p>
+                  {bulkImportResult.errors.length > 0 && (
+                    <ul className="mt-1 text-xs text-muted-foreground">
+                      {bulkImportResult.errors.slice(0, 3).map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                      {bulkImportResult.errors.length > 3 && (
+                        <li>...and {bulkImportResult.errors.length - 3} more errors</li>
+                      )}
+                    </ul>
+                  )}
+                </div>
               </div>
+              {bulkImportResult.failed === 0 && onViewComparison && csvPreviewData.length > 0 && (
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    const dates = csvPreviewData.map(r => r.date).sort();
+                    const minDate = dates[0];
+                    const maxDate = dates[dates.length - 1];
+                    setOpen(false);
+                    onViewComparison(minDate, maxDate);
+                  }}
+                  data-testid="button-view-comparison"
+                >
+                  View year-over-year comparison
+                </Button>
+              )}
             </div>
           )}
           
