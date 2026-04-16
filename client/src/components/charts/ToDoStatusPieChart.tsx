@@ -23,6 +23,7 @@ import {
   Pie,
   Cell,
   Tooltip,
+  Label,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart3 } from "lucide-react";
@@ -61,38 +62,16 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
     return null;
   };
 
-  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value, index }: any) => {
+  const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, value }: any) => {
     if (value === 0) return null;
-    
+
     const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-    
-    // For small slices (less than 15% of chart), use external label
-    // For larger slices, position inside the arc
-    const RADIAN = Math.PI / 180;
     const isSmallSlice = percentage < 15;
-    
-    if (isSmallSlice) {
-      // External label with line
-      const radius = outerRadius + 20;
-      const x = cx + radius * Math.cos(-midAngle * RADIAN);
-      const y = cy + radius * Math.sin(-midAngle * RADIAN);
-      
-      return (
-        <text
-          x={x}
-          y={y}
-          fill="hsl(var(--foreground))"
-          textAnchor={x > cx ? "start" : "end"}
-          dominantBaseline="central"
-          className="text-xs font-medium"
-        >
-          {percentage}%
-        </text>
-      );
-    }
-    
-    // Standard label inside the arc
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    if (!isSmallSlice) return null;
+
+    // Only render an external label for small slices; large slices use the center Label
+    const RADIAN = Math.PI / 180;
+    const radius = outerRadius + 20;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
@@ -100,10 +79,10 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
       <text
         x={x}
         y={y}
-        fill="white"
-        textAnchor="middle"
+        fill="hsl(var(--foreground))"
+        textAnchor={x > cx ? "start" : "end"}
         dominantBaseline="central"
-        className="text-xs font-medium"
+        fontSize={11}
       >
         {percentage}%
       </text>
@@ -154,6 +133,19 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
+                <Label
+                  content={({ viewBox }: any) => {
+                    const { cx, cy } = viewBox;
+                    return (
+                      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
+                        <tspan fontSize={15} fontWeight="600" fill="hsl(var(--foreground))">
+                          {completionRate}%
+                        </tspan>
+                      </text>
+                    );
+                  }}
+                  position="center"
+                />
               </Pie>
               <Tooltip content={<CustomTooltip />} />
             </PieChart>
