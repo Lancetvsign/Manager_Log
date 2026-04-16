@@ -838,23 +838,22 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
           <CardContent className="py-16">
             <div className="text-center text-muted-foreground">
               <FileText className="h-16 w-16 mx-auto mb-4 opacity-30" />
-              <p className="text-xl font-medium mb-2">No log data found</p>
+              <p className="text-xl font-medium mb-2">No data in this time range</p>
               {metrics && metrics.totalLogsInDb > 0 ? (
                 <div className="text-sm">
-                  <p className="mb-3">Historical data exists but may be outside the current date range.</p>
+                  <p className="mb-3">Your logs exist — they're just outside the period you're viewing. Expand the date range to see them.</p>
                   <Button
                     variant="default"
                     size="sm"
                     onClick={() => setDatePreset("thisYear")}
                     data-testid="button-switch-to-year-to-date"
                   >
-                    Switch to Year to Date
+                    View all this year's data
                   </Button>
                 </div>
               ) : (
                 <p className="text-sm">
-                  No entries were found for this date range. Try expanding your dates or
-                  start logging daily activity.
+                  No logs found for this period. Start logging daily activity to see data here.
                 </p>
               )}
             </div>
