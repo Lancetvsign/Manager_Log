@@ -840,9 +840,17 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               <FileText className="h-16 w-16 mx-auto mb-4 opacity-30" />
               <p className="text-xl font-medium mb-2">No log data found</p>
               {metrics && metrics.totalLogsInDb > 0 ? (
-                <p className="text-sm">
-                  Historical data exists but may be outside the current date range. Try switching to <strong>Year to Date</strong> or a custom range to see it.
-                </p>
+                <div className="text-sm">
+                  <p className="mb-3">Historical data exists but may be outside the current date range.</p>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setDatePreset("thisYear")}
+                    data-testid="button-switch-to-year-to-date"
+                  >
+                    Switch to Year to Date
+                  </Button>
+                </div>
               ) : (
                 <p className="text-sm">
                   No entries were found for this date range. Try expanding your dates or
