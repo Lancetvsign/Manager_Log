@@ -37,7 +37,10 @@ interface EmbedUser {
 
 function App() {
   const [embedUser, setEmbedUser] = useState<EmbedUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return !!params.get("clubId") && !!params.get("signature");
+  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
