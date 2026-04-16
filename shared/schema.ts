@@ -814,6 +814,7 @@ export interface MetricsResponse {
   toDoStatus: ToDoStatus;
   topDays: TopDayData[];
   salesByCategory: SalesByCategory;
+  totalLogsInDb: number;
 }
 
 /**

@@ -1449,12 +1449,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           logId: log.id
         }));
 
+      // Count total manager logs for this club (not date-filtered)
+      // Used by the frontend to show a contextual hint when no logs match the date range
+      const totalLogsRow = await db
+        .select({ c: count() })
+        .from(managerLogs)
+        .where(eq(managerLogs.clubId, clubId));
+      const totalLogsInDb = Number(totalLogsRow?.[0]?.c ?? 0);
+
       const response: MetricsResponse = {
         summary,
         dailySales,
         toDoStatus,
         topDays,
-        salesByCategory
+        salesByCategory,
+        totalLogsInDb
       };
 
       res.json(response);
