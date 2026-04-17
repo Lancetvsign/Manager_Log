@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Pencil, Loader2, DollarSign } from "lucide-react";
+import { Pencil, Loader2, DollarSign, Trash2 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
 import { useToast } from "@/hooks/use-toast";
 
 interface DailySalesEntry {
+  id: number;
   date: string;
   dayOfWeek: string;
   foodSales: number;
@@ -31,6 +32,7 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
   const [editFood, setEditFood] = useState("");
   const [editBar, setEditBar] = useState("");
   const [editGaming, setEditGaming] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const updateMutation = useMutation({
     mutationFn: async (data: { date: string; foodSales: string; barSales: string; gamingSales: string }) => {
@@ -58,11 +60,34 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildApiUrl(`/api/manager-logs/${id}`, clubId, apiBaseUrl);
+      await apiRequest("DELETE", url);
+    },
+    onSuccess: (_data, deletedId) => {
+      queryClient.setQueryData(["/api/manager-logs", clubId], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter((log: { id: number }) => log.id !== deletedId);
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/manager-logs"] });
+      toast({ title: "Record deleted", description: "The sales record has been removed." });
+      setEditingEntry(null);
+      setConfirmDelete(false);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete the sales record.", variant: "destructive" });
+      setConfirmDelete(false);
+    },
+  });
+
   const openEditDialog = (entry: DailySalesEntry) => {
     setEditingEntry(entry);
     setEditFood(entry.foodSales.toFixed(2));
     setEditBar(entry.barSales.toFixed(2));
     setEditGaming(entry.gamingSales.toFixed(2));
+    setConfirmDelete(false);
   };
 
   const handleSave = () => {
@@ -73,6 +98,16 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
       barSales: editBar || "0",
       gamingSales: editGaming || "0",
     });
+  };
+
+  const handleDeleteClick = () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    if (editingEntry) {
+      deleteMutation.mutate(editingEntry.id);
+    }
   };
 
   const editTotal = (parseFloat(editFood || "0") || 0) + (parseFloat(editBar || "0") || 0) + (parseFloat(editGaming || "0") || 0);
@@ -110,7 +145,7 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
               </thead>
               <tbody>
                 {sortedData.map((entry) => (
-                  <tr key={entry.date} className="border-b last:border-b-0">
+                  <tr key={entry.id} className="border-b last:border-b-0">
                     <td className="p-3 font-medium">{entry.date}</td>
                     <td className="p-3 text-muted-foreground">{entry.dayOfWeek}</td>
                     <td className="p-3 text-right">${entry.foodSales.toFixed(2)}</td>
@@ -135,7 +170,7 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
         </CardContent>
       </Card>
 
-      <Dialog open={!!editingEntry} onOpenChange={(open) => { if (!open) setEditingEntry(null); }}>
+      <Dialog open={!!editingEntry} onOpenChange={(open) => { if (!open) { setEditingEntry(null); setConfirmDelete(false); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -191,10 +226,34 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
                 </Badge>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setEditingEntry(null)} disabled={updateMutation.isPending}>
+                <Button
+                  variant="outline"
+                  onClick={() => { setEditingEntry(null); setConfirmDelete(false); }}
+                  disabled={updateMutation.isPending || deleteMutation.isPending}
+                >
                   Cancel
                 </Button>
-                <Button onClick={handleSave} disabled={updateMutation.isPending}>
+                <Button
+                  variant={confirmDelete ? "destructive" : "ghost"}
+                  data-testid="button-delete-sales"
+                  onClick={handleDeleteClick}
+                  disabled={updateMutation.isPending || deleteMutation.isPending}
+                >
+                  {deleteMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : confirmDelete ? (
+                    "Confirm Delete?"
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </>
+                  )}
+                </Button>
+                <Button onClick={handleSave} disabled={updateMutation.isPending || deleteMutation.isPending}>
                   {updateMutation.isPending ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />

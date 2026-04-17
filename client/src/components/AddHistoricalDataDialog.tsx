@@ -75,6 +75,7 @@ export default function AddHistoricalDataDialog({
       const bar = parseFloat(log.barSales || "0") || 0;
       const gaming = parseFloat(log.gamingSales || "0") || 0;
       return {
+        id: log.id,
         date: log.logDate,
         dayOfWeek: format(d, "EEEE"),
         foodSales: food,
