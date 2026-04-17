@@ -815,6 +815,8 @@ export interface MetricsResponse {
   topDays: TopDayData[];
   salesByCategory: SalesByCategory;
   totalLogsInDb: number;
+  oldestLogDate?: string;
+  newestLogDate?: string;
 }
 
 /**

@@ -42,6 +42,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, parseISO, startOfWeek, endOfWeek, addDays, addWeeks, addMonths } from "date-fns";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, CartesianGrid } from "recharts";
 import {
   Calendar,
   DollarSign,
@@ -857,10 +858,18 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                   <Button
                     variant="default"
                     size="sm"
-                    onClick={() => setDatePreset("thisYear")}
+                    onClick={() => {
+                      if (metrics.oldestLogDate) {
+                        setCustomStartDate(new Date(metrics.oldestLogDate + "T12:00:00"));
+                        setCustomEndDate(new Date());
+                        setDatePreset("custom");
+                      } else {
+                        setDatePreset("thisYear");
+                      }
+                    }}
                     data-testid="button-switch-to-year-to-date"
                   >
-                    View all this year's data
+                    View all available data
                   </Button>
                 </div>
               ) : (
@@ -1036,6 +1045,88 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {maintenanceInsights?.dailyOpenCounts && maintenanceInsights.dailyOpenCounts.length > 0 && (
+              <Card data-testid="card-daily-open-counts" className="mt-4">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Open Items Per Logged Day
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-40">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={maintenanceInsights.dailyOpenCounts} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={(d) => format(new Date(d + "T12:00:00"), "MMM d")}
+                          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                          tickLine={false}
+                          axisLine={false}
+                          interval="preserveStartEnd"
+                        />
+                        <YAxis
+                          allowDecimals={false}
+                          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <RechartsTooltip
+                          contentStyle={{
+                            background: "hsl(var(--card))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "6px",
+                            fontSize: "12px",
+                          }}
+                          labelFormatter={(d) => format(new Date(d + "T12:00:00"), "MMM d, yyyy")}
+                          formatter={(v: number) => [v, "Open items"]}
+                        />
+                        <Bar dataKey="count" fill="hsl(var(--destructive))" radius={[2, 2, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">Number of running maintenance items open on each logged day</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {maintenanceInsights?.repeatedCarryovers && maintenanceInsights.repeatedCarryovers.filter(r => r.daysAppeared >= 3).length > 0 && (
+              <Card data-testid="card-repeated-carryovers" className="mt-4">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Persistent Open Items
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground mb-3">Items that were open across 3 or more logged days in the selected period</p>
+                  <div className="border rounded-lg divide-y">
+                    <div className="grid grid-cols-12 gap-2 p-3 bg-muted/50 text-sm font-medium">
+                      <div className="col-span-8">Item</div>
+                      <div className="col-span-4 text-right">Days Logged Open</div>
+                    </div>
+                    {maintenanceInsights.repeatedCarryovers
+                      .filter(r => r.daysAppeared >= 3)
+                      .map((item, index) => (
+                        <div
+                          key={item.id}
+                          className="grid grid-cols-12 gap-2 p-3 items-center"
+                          data-testid={`row-carryover-${index}`}
+                        >
+                          <div className="col-span-8 truncate">{item.title}</div>
+                          <div className="col-span-4 text-right">
+                            <Badge variant={item.daysAppeared >= 10 ? "destructive" : item.daysAppeared >= 5 ? "secondary" : "outline"}>
+                              {item.daysAppeared} days
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 </CardContent>
               </Card>
