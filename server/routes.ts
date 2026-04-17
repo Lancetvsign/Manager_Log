@@ -1674,6 +1674,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select({
           date: managerLogs.logDate,
           count: count(),
+          itemNames: sql<string[]>`array_agg(${runningMaintenanceSnapshots.title} ORDER BY ${runningMaintenanceSnapshots.title})`,
         })
         .from(runningMaintenanceSnapshots)
         .innerJoin(managerLogs, eq(managerLogs.id, runningMaintenanceSnapshots.logId))
@@ -1757,6 +1758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dailyOpenCounts: dailyOpenCounts.map(d => ({
           date: d.date,
           count: Number(d.count),
+          itemNames: d.itemNames ?? [],
         })),
         dailyCompletions: dailyCompletions.map(d => ({
           date: d.date,

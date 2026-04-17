@@ -92,7 +92,7 @@ interface MaintenanceInsights {
   openNow: number;
   completedInRange: number;
   avgDaysOpen: number;
-  dailyOpenCounts: { date: string; count: number }[];
+  dailyOpenCounts: { date: string; count: number; itemNames?: string[] }[];
   dailyCompletions: { date: string; count: number }[];
   topOldestOpen: { id: number; title: string; daysOpen: number }[];
   repeatedCarryovers: { id: number; title: string; daysAppeared: number }[];
@@ -373,6 +373,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       return {
         date: item.date,
         count: item.count,
+        itemNames: item.itemNames,
         prevCount: comparisonMap.get(compKey) ?? 0,
       };
     });
@@ -1151,14 +1152,46 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                           axisLine={false}
                         />
                         <RechartsTooltip
-                          contentStyle={{
-                            background: "hsl(var(--card))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "6px",
-                            fontSize: "12px",
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.length) return null;
+                            const itemNames = (payload[0]?.payload?.itemNames ?? []) as string[];
+                            return (
+                              <div style={{
+                                background: "hsl(var(--card))",
+                                border: "1px solid hsl(var(--border))",
+                                borderRadius: "6px",
+                                fontSize: "12px",
+                                padding: "8px 12px",
+                                maxWidth: "260px",
+                              }}>
+                                <p style={{ fontWeight: 600, marginBottom: 4, color: "hsl(var(--foreground))" }}>
+                                  {format(new Date(label + "T12:00:00"), "MMM d, yyyy")}
+                                </p>
+                                {payload.map((entry, i) => (
+                                  <p key={i} style={{ color: "hsl(var(--muted-foreground))", marginBottom: 2 }}>
+                                    {entry.name === "count"
+                                      ? "This period"
+                                      : comparisonPeriod === "previousPeriod"
+                                        ? "Prev period"
+                                        : "Last year"
+                                    }: <span style={{ fontWeight: 600, color: "hsl(var(--foreground))" }}>{entry.value as number}</span>
+                                  </p>
+                                ))}
+                                {itemNames.length > 0 && (
+                                  <>
+                                    <div style={{ borderTop: "1px solid hsl(var(--border))", marginTop: 6, marginBottom: 4 }} />
+                                    <div style={{ maxHeight: "140px", overflowY: "auto" }}>
+                                      {itemNames.map((name, i) => (
+                                        <p key={i} style={{ color: "hsl(var(--foreground))", marginBottom: 2, lineHeight: 1.4 }}>
+                                          {name}
+                                        </p>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            );
                           }}
-                          labelFormatter={(d) => format(new Date(d + "T12:00:00"), "MMM d, yyyy")}
-                          formatter={(v: number, name: string) => [v, name === "count" ? "This period" : comparisonPeriod === "previousPeriod" ? "Prev period" : "Last year"]}
                         />
                         <Bar dataKey="count" fill="hsl(var(--destructive))" radius={[2, 2, 0, 0]} />
                         {comparisonPeriod !== "none" && comparisonMaintenanceInsights && (
