@@ -354,10 +354,10 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     if (comparisonPeriod === "none" || !comparisonMaintenanceInsights?.dailyOpenCounts || !comparisonDateRange) {
       return maintenanceInsights.dailyOpenCounts;
     }
-    // Build a date-keyed map of comparison counts for O(1) lookup
-    const comparisonMap = new Map<string, number>();
+    // Build a date-keyed map of comparison counts + item names for O(1) lookup
+    const comparisonMap = new Map<string, { count: number; itemNames: string[] }>();
     comparisonMaintenanceInsights.dailyOpenCounts.forEach(item => {
-      comparisonMap.set(item.date, item.count);
+      comparisonMap.set(item.date, { count: item.count, itemNames: item.itemNames ?? [] });
     });
     // Calculate the day offset between the two periods so we look up the
     // corresponding comparison date for each current-period bar.
@@ -370,11 +370,14 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       const currentDate = new Date(item.date + "T12:00:00");
       const compDate = new Date(currentDate.getTime() - offsetDays * 24 * 60 * 60 * 1000);
       const compKey = format(compDate, "yyyy-MM-dd");
+      const compEntry = comparisonMap.get(compKey);
       return {
         date: item.date,
         count: item.count,
-        itemNames: item.itemNames,
-        prevCount: comparisonMap.get(compKey) ?? 0,
+        itemNames: item.itemNames ?? [],
+        prevCount: compEntry?.count ?? 0,
+        prevItemNames: compEntry?.itemNames ?? [],
+        prevDate: compKey,
       };
     });
   }, [maintenanceInsights, comparisonMaintenanceInsights, comparisonPeriod, dateRange, comparisonDateRange]);
@@ -1153,42 +1156,40 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                         />
                         <RechartsTooltip
                           content={({ active, payload, label }) => {
-                            if (!active || !payload?.length) return null;
-                            const itemNames = (payload[0]?.payload?.itemNames ?? []) as string[];
+                            if (!active || !payload || payload.length === 0) return null;
+                            const row = payload[0]?.payload as {
+                              date: string;
+                              count: number;
+                              itemNames?: string[];
+                              prevCount?: number;
+                              prevItemNames?: string[];
+                              prevDate?: string;
+                            } | undefined;
+                            const compLabel = comparisonPeriod === "previousPeriod" ? "Prev period" : "Last year";
                             return (
-                              <div style={{
-                                background: "hsl(var(--card))",
-                                border: "1px solid hsl(var(--border))",
-                                borderRadius: "6px",
-                                fontSize: "12px",
-                                padding: "8px 12px",
-                                maxWidth: "260px",
-                              }}>
-                                <p style={{ fontWeight: 600, marginBottom: 4, color: "hsl(var(--foreground))" }}>
-                                  {format(new Date(label + "T12:00:00"), "MMM d, yyyy")}
-                                </p>
-                                {payload.map((entry, i) => (
-                                  <p key={i} style={{ color: "hsl(var(--muted-foreground))", marginBottom: 2 }}>
-                                    {entry.name === "count"
-                                      ? "This period"
-                                      : comparisonPeriod === "previousPeriod"
-                                        ? "Prev period"
-                                        : "Last year"
-                                    }: <span style={{ fontWeight: 600, color: "hsl(var(--foreground))" }}>{entry.value as number}</span>
-                                  </p>
-                                ))}
-                                {itemNames.length > 0 && (
-                                  <>
-                                    <div style={{ borderTop: "1px solid hsl(var(--border))", marginTop: 6, marginBottom: 4 }} />
-                                    <div style={{ maxHeight: "140px", overflowY: "auto" }}>
-                                      {itemNames.map((name, i) => (
-                                        <p key={i} style={{ color: "hsl(var(--foreground))", marginBottom: 2, lineHeight: 1.4 }}>
-                                          {name}
-                                        </p>
-                                      ))}
+                              <div style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "6px", fontSize: "12px", padding: "8px 12px", maxWidth: 240 }}>
+                                <p style={{ fontWeight: 600, marginBottom: 6 }}>{label ? format(new Date(label + "T12:00:00"), "MMM d, yyyy") : ""}</p>
+                                {payload.map((entry) => {
+                                  const isComp = entry.dataKey === "prevCount";
+                                  const sectionLabel = isComp ? compLabel : "This period";
+                                  const names = isComp ? (row?.prevItemNames ?? []) : (row?.itemNames ?? []);
+                                  const dateLabel = isComp && row?.prevDate ? format(new Date(row.prevDate + "T12:00:00"), "MMM d, yyyy") : null;
+                                  return (
+                                    <div key={entry.dataKey as string} style={{ marginBottom: payload.length > 1 ? 6 : 0 }}>
+                                      <span style={{ color: "hsl(var(--muted-foreground))" }}>{sectionLabel}</span>
+                                      {dateLabel && <span style={{ color: "hsl(var(--muted-foreground))", fontStyle: "italic" }}> ({dateLabel})</span>}
+                                      {": "}
+                                      <span style={{ fontWeight: 600 }}>{entry.value as number}</span>
+                                      {names.length > 0 && (
+                                        <ul style={{ margin: "3px 0 0 8px", padding: 0, listStyle: "disc", color: "hsl(var(--foreground))" }}>
+                                          {names.map((n, i) => (
+                                            <li key={i} style={{ marginBottom: 1 }}>{n}</li>
+                                          ))}
+                                        </ul>
+                                      )}
                                     </div>
-                                  </>
-                                )}
+                                  );
+                                })}
                               </div>
                             );
                           }}
