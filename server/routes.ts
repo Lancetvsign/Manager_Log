@@ -2875,19 +2875,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PATCH /api/running-maintenance/:id - Update a maintenance item (e.g., mark complete)
+  // PATCH /api/running-maintenance/:id - Update a maintenance item (e.g., mark complete, correct dates)
   app.patch("/api/running-maintenance/:id", async (req, res) => {
     try {
       const id = Number(req.params.id);
       const clubId = getClubId(req);
-      const { status, title, description } = req.body;
+      const { status, title, description, dateAdded: dateAddedRaw, dateCompleted: dateCompletedRaw } = req.body;
 
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid item ID" });
       }
 
-      // Fetch the current item before any update so we know its dateAdded
-      // for determining which snapshots need re-building.
+      // Fetch the current item before any update so we know its existing dates
+      // for determining which snapshots need re-building when dates change.
       const existingRows = await db
         .select()
         .from(runningMaintenanceList)
@@ -2905,7 +2905,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingItem = existingRows[0];
 
       const updates: Record<string, any> = {};
-      
+      let dateChanged = false;
+      let newDateAdded: Date | undefined;
+
       if (status !== undefined) {
         if (status !== "open" && status !== "completed") {
           return res.status(400).json({ error: "Status must be 'open' or 'completed'" });
@@ -2914,11 +2916,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Set dateCompleted when marking as completed
         if (status === "completed") {
           updates.dateCompleted = new Date();
+          dateChanged = true;
         } else {
           updates.dateCompleted = null;
+          dateChanged = true;
         }
       }
-      
+
+      // Support direct date edits (e.g., correcting a wrong dateAdded or dateCompleted)
+      if (dateAddedRaw !== undefined) {
+        newDateAdded = new Date(dateAddedRaw);
+        if (isNaN(newDateAdded.getTime())) {
+          return res.status(400).json({ error: "Invalid dateAdded value" });
+        }
+        updates.dateAdded = newDateAdded;
+        dateChanged = true;
+      }
+
+      if (dateCompletedRaw !== undefined) {
+        if (dateCompletedRaw === null) {
+          updates.dateCompleted = null;
+        } else {
+          const parsedCompleted = new Date(dateCompletedRaw);
+          if (isNaN(parsedCompleted.getTime())) {
+            return res.status(400).json({ error: "Invalid dateCompleted value" });
+          }
+          updates.dateCompleted = parsedCompleted;
+        }
+        dateChanged = true;
+      }
+
       if (title !== undefined) updates.title = title.trim();
       if (description !== undefined) updates.description = description?.trim() || null;
 
@@ -2927,14 +2954,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Maintenance item not found" });
       }
 
-      // If status changed (complete ↔ open), existing log snapshots are stale:
-      // logs that previously showed this item as "open" may now be wrong.
-      // Re-snapshot all logs from the item's dateAdded forward so the Insights
-      // chart reflects the corrected history. Run async to avoid blocking the response.
-      if (status !== undefined && status !== existingItem.status) {
-        const fromDate = new Date(existingItem.dateAdded).toISOString().slice(0, 10);
+      // If status or any date field changed, existing log snapshots may be stale.
+      // Re-snapshot all logs from the earliest relevant boundary forward so the
+      // Insights chart reflects the corrected history. Run async to keep the response fast.
+      const statusChanged = status !== undefined && status !== existingItem.status;
+      if (statusChanged || dateChanged) {
+        // Collect candidate dates to find the earliest boundary that could have changed.
+        // We re-snapshot from min(all affected boundaries) to cover any scenario:
+        // dateAdded moving earlier, dateCompleted moving earlier, status flip, etc.
+        const candidates: string[] = [
+          new Date(existingItem.dateAdded).toISOString().slice(0, 10),
+        ];
+        if (newDateAdded) {
+          candidates.push(newDateAdded.toISOString().slice(0, 10));
+        }
+        if (existingItem.dateCompleted) {
+          candidates.push(new Date(existingItem.dateCompleted).toISOString().slice(0, 10));
+        }
+        const fromDate = candidates.sort()[0]; // earliest date
+
         reSnapshotLogsFromDate(clubId, fromDate).catch((err) =>
-          console.error("Re-snapshot error after status change:", err)
+          console.error("Re-snapshot error after maintenance item edit:", err)
         );
       }
 
