@@ -351,15 +351,32 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
 
   const mergedDailyOpenCounts = useMemo(() => {
     if (!maintenanceInsights?.dailyOpenCounts) return [];
-    if (comparisonPeriod === "none" || !comparisonMaintenanceInsights?.dailyOpenCounts) {
+    if (comparisonPeriod === "none" || !comparisonMaintenanceInsights?.dailyOpenCounts || !comparisonDateRange) {
       return maintenanceInsights.dailyOpenCounts;
     }
-    return maintenanceInsights.dailyOpenCounts.map((item, index) => ({
-      date: item.date,
-      count: item.count,
-      prevCount: comparisonMaintenanceInsights.dailyOpenCounts[index]?.count ?? 0,
-    }));
-  }, [maintenanceInsights, comparisonMaintenanceInsights, comparisonPeriod]);
+    // Build a date-keyed map of comparison counts for O(1) lookup
+    const comparisonMap = new Map<string, number>();
+    comparisonMaintenanceInsights.dailyOpenCounts.forEach(item => {
+      comparisonMap.set(item.date, item.count);
+    });
+    // Calculate the day offset between the two periods so we look up the
+    // corresponding comparison date for each current-period bar.
+    const currentStart = new Date(dateRange.startDate + "T12:00:00");
+    const compStart = new Date(comparisonDateRange.startDate + "T12:00:00");
+    const offsetMs = currentStart.getTime() - compStart.getTime();
+    const offsetDays = Math.round(offsetMs / (1000 * 60 * 60 * 24));
+
+    return maintenanceInsights.dailyOpenCounts.map(item => {
+      const currentDate = new Date(item.date + "T12:00:00");
+      const compDate = new Date(currentDate.getTime() - offsetDays * 24 * 60 * 60 * 1000);
+      const compKey = format(compDate, "yyyy-MM-dd");
+      return {
+        date: item.date,
+        count: item.count,
+        prevCount: comparisonMap.get(compKey) ?? 0,
+      };
+    });
+  }, [maintenanceInsights, comparisonMaintenanceInsights, comparisonPeriod, dateRange, comparisonDateRange]);
 
   const handleViewComparison = useCallback((importedStart: string, importedEnd: string) => {
     const start = parseISO(importedStart);
