@@ -861,7 +861,11 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                     onClick={() => {
                       if (metrics.oldestLogDate) {
                         setCustomStartDate(new Date(metrics.oldestLogDate + "T12:00:00"));
-                        setCustomEndDate(new Date());
+                        setCustomEndDate(
+                          metrics.newestLogDate
+                            ? new Date(metrics.newestLogDate + "T12:00:00")
+                            : new Date()
+                        );
                         setDatePreset("custom");
                       } else {
                         setDatePreset("thisYear");
