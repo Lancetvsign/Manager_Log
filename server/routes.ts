@@ -219,8 +219,12 @@ async function captureMaintenanceSnapshot(logId: number, clubId: string) {
  * Used to power Insights with historical data for trends and carryovers.
  * @param clubId - The club ID to filter items by
  * @param logId - The log ID to associate with the snapshot
+ * @param logDate - Optional date string (YYYY-MM-DD) to determine historical open status.
+ *                  When provided, captures items that were open *on that date*
+ *                  (dateAdded <= logDate AND dateCompleted IS NULL OR dateCompleted > logDate).
+ *                  When omitted, captures currently open items.
  */
-async function snapshotRunningMaintenanceForLog(clubId: string, logId: number) {
+async function snapshotRunningMaintenanceForLog(clubId: string, logId: number, logDate?: string) {
   try {
     // 1) Clear any existing snapshots for that log (idempotent)
     await db.delete(runningMaintenanceSnapshots).where(
@@ -230,19 +234,47 @@ async function snapshotRunningMaintenanceForLog(clubId: string, logId: number) {
       )
     );
 
-    // 2) Load all open running maintenance items (oldest → newest)
-    const openItems = await db
-      .select()
-      .from(runningMaintenanceList)
-      .where(
-        and(
-          eq(runningMaintenanceList.clubId, clubId),
-          eq(runningMaintenanceList.status, "open")
-        )
-      )
-      .orderBy(asc(runningMaintenanceList.dateAdded));
+    let openItems;
+    let referenceTime: number;
 
-    // 3) Insert snapshots
+    if (logDate) {
+      // Historical: find items that were open at end-of-day on logDate.
+      // Use an explicit UTC end-of-day so the boundary is deterministic regardless
+      // of the server's local timezone (logDate is always a YYYY-MM-DD date string).
+      const logDateEnd = new Date(logDate + "T23:59:59.999Z");
+      referenceTime = logDateEnd.getTime();
+
+      openItems = await db
+        .select()
+        .from(runningMaintenanceList)
+        .where(
+          and(
+            eq(runningMaintenanceList.clubId, clubId),
+            lte(runningMaintenanceList.dateAdded, logDateEnd),
+            or(
+              isNull(runningMaintenanceList.dateCompleted),
+              gt(runningMaintenanceList.dateCompleted, logDateEnd)
+            )
+          )
+        )
+        .orderBy(asc(runningMaintenanceList.dateAdded));
+    } else {
+      // Current: find items currently marked as open
+      referenceTime = Date.now();
+
+      openItems = await db
+        .select()
+        .from(runningMaintenanceList)
+        .where(
+          and(
+            eq(runningMaintenanceList.clubId, clubId),
+            eq(runningMaintenanceList.status, "open")
+          )
+        )
+        .orderBy(asc(runningMaintenanceList.dateAdded));
+    }
+
+    // 2) Insert snapshots
     if (openItems.length > 0) {
       await db.insert(runningMaintenanceSnapshots).values(
         openItems.map((item) => ({
@@ -251,8 +283,8 @@ async function snapshotRunningMaintenanceForLog(clubId: string, logId: number) {
           runningItemId: item.id,
           title: item.title,
           description: item.description ?? null,
-          status: item.status,
-          daysOpen: Math.max(1, Math.floor((Date.now() - new Date(item.dateAdded).getTime()) / 86400000)),
+          status: "open",
+          daysOpen: Math.max(1, Math.floor((referenceTime - new Date(item.dateAdded).getTime()) / 86400000)),
         }))
       );
     }
@@ -260,6 +292,45 @@ async function snapshotRunningMaintenanceForLog(clubId: string, logId: number) {
     console.log(`Captured running maintenance snapshot for log ${logId}: ${openItems.length} items`);
   } catch (error) {
     console.error("Error capturing running maintenance snapshot:", error);
+  }
+}
+
+/**
+ * Backfills running maintenance snapshots for all logs that don't yet have one.
+ * Uses each log's date to determine which items were open at that point in time.
+ * Safe to run multiple times (idempotent per log).
+ */
+async function backfillRunningMaintenanceSnapshots() {
+  try {
+    // Find all logs that have no running maintenance snapshots
+    const logsWithoutSnapshots = await db
+      .select({
+        id: managerLogs.id,
+        clubId: managerLogs.clubId,
+        logDate: managerLogs.logDate,
+      })
+      .from(managerLogs)
+      .leftJoin(
+        runningMaintenanceSnapshots,
+        eq(runningMaintenanceSnapshots.logId, managerLogs.id)
+      )
+      .where(isNull(runningMaintenanceSnapshots.logId))
+      .orderBy(managerLogs.logDate);
+
+    if (logsWithoutSnapshots.length === 0) {
+      console.log("Backfill: All logs already have running maintenance snapshots.");
+      return;
+    }
+
+    console.log(`Backfill: Found ${logsWithoutSnapshots.length} log(s) without running maintenance snapshots. Backfilling...`);
+
+    for (const log of logsWithoutSnapshots) {
+      await snapshotRunningMaintenanceForLog(log.clubId, log.id, log.logDate);
+    }
+
+    console.log(`Backfill: Completed running maintenance snapshot backfill for ${logsWithoutSnapshots.length} log(s).`);
+  } catch (error) {
+    console.error("Error during running maintenance snapshot backfill:", error);
   }
 }
 
@@ -495,9 +566,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const log = await storage.upsertManagerLog(validatedData);
       
-      // Capture maintenance snapshot for this log
+      // Capture maintenance snapshot for this log, using logDate for historical accuracy
       await captureMaintenanceSnapshot(log.id, validatedData.clubId);
-      await snapshotRunningMaintenanceForLog(validatedData.clubId, log.id);
+      await snapshotRunningMaintenanceForLog(validatedData.clubId, log.id, validatedData.logDate ?? undefined);
       
       res.status(201).json(log);
     } catch (error) {
@@ -545,9 +616,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const validatedData = insertManagerLogSchema.parse(entry);
           const log = await storage.upsertManagerLog(validatedData);
           
-          // Capture maintenance snapshot for this log
+          // Capture maintenance snapshot for this log, using logDate for historical accuracy
           await captureMaintenanceSnapshot(log.id, validatedData.clubId);
-          await snapshotRunningMaintenanceForLog(validatedData.clubId, log.id);
+          await snapshotRunningMaintenanceForLog(validatedData.clubId, log.id, validatedData.logDate ?? undefined);
           
           results.success++;
         } catch (error) {
@@ -3286,6 +3357,12 @@ Keep the tone professional but friendly. Focus on actionable insights.`;
       res.status(500).json({ error: "Failed to generate AI overview" });
     }
   });
+
+  // Backfill running maintenance snapshots for any historical logs that lack them.
+  // Runs asynchronously so it doesn't block server startup.
+  backfillRunningMaintenanceSnapshots().catch((err) =>
+    console.error("Startup backfill error:", err)
+  );
 
   const httpServer = createServer(app);
   return httpServer;
