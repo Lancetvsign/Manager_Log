@@ -247,6 +247,20 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     },
   });
 
+  const { data: comparisonMaintenanceInsights } = useQuery<MaintenanceInsights>({
+    queryKey: ["/api/insights/maintenance", clubId, comparisonDateRange?.startDate, comparisonDateRange?.endDate, "comparison"],
+    queryFn: async () => {
+      const url = buildApiUrl("/api/insights/maintenance", clubId, apiBaseUrl, {
+        start: new Date(comparisonDateRange!.startDate).toISOString(),
+        end: new Date(comparisonDateRange!.endDate).toISOString(),
+      });
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch comparison maintenance insights");
+      return response.json();
+    },
+    enabled: !!comparisonDateRange,
+  });
+
   // AI Overview state and queries
   interface ClubSettings {
     clubId: string;
@@ -322,6 +336,30 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
       ),
     };
   }, [metrics, comparisonMetrics, comparisonPeriod]);
+
+  const maintenanceComparisonChanges = useMemo(() => {
+    if (comparisonPeriod === "none" || !maintenanceInsights || !comparisonMaintenanceInsights) return null;
+    const calcChange = (current: number, previous: number): number => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+    return {
+      openNowChange: calcChange(maintenanceInsights.openNow, comparisonMaintenanceInsights.openNow),
+      completedInRangeChange: calcChange(maintenanceInsights.completedInRange, comparisonMaintenanceInsights.completedInRange),
+    };
+  }, [comparisonPeriod, maintenanceInsights, comparisonMaintenanceInsights]);
+
+  const mergedDailyOpenCounts = useMemo(() => {
+    if (!maintenanceInsights?.dailyOpenCounts) return [];
+    if (comparisonPeriod === "none" || !comparisonMaintenanceInsights?.dailyOpenCounts) {
+      return maintenanceInsights.dailyOpenCounts;
+    }
+    return maintenanceInsights.dailyOpenCounts.map((item, index) => ({
+      date: item.date,
+      count: item.count,
+      prevCount: comparisonMaintenanceInsights.dailyOpenCounts[index]?.count ?? 0,
+    }));
+  }, [maintenanceInsights, comparisonMaintenanceInsights, comparisonPeriod]);
 
   const handleViewComparison = useCallback((importedStart: string, importedEnd: string) => {
     const start = parseISO(importedStart);
@@ -990,7 +1028,8 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{maintenanceInsights?.openNow ?? 0}</div>
-                  <p className="text-xs text-muted-foreground">currently open maintenance items</p>
+                  <p className="text-xs text-muted-foreground">open at end of selected period</p>
+                  {renderComparisonIndicator(maintenanceComparisonChanges?.openNowChange, true)}
                 </CardContent>
               </Card>
 
@@ -1002,6 +1041,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                 <CardContent>
                   <div className="text-2xl font-bold">{maintenanceInsights?.completedInRange ?? 0}</div>
                   <p className="text-xs text-muted-foreground">completed in selected period</p>
+                  {renderComparisonIndicator(maintenanceComparisonChanges?.completedInRangeChange)}
                 </CardContent>
               </Card>
 
@@ -1054,18 +1094,30 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
               </Card>
             )}
 
-            {maintenanceInsights?.dailyOpenCounts && maintenanceInsights.dailyOpenCounts.length > 0 && (
+            {mergedDailyOpenCounts.length > 0 && (
               <Card data-testid="card-daily-open-counts" className="mt-4">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <BarChart3 className="h-4 w-4" />
                     Open Items Per Logged Day
+                    {comparisonPeriod !== "none" && comparisonMaintenanceInsights && (
+                      <div className="flex items-center gap-3 ml-auto text-xs text-muted-foreground font-normal">
+                        <span className="flex items-center gap-1">
+                          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: "hsl(var(--destructive))" }} />
+                          This period
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="inline-block w-3 h-3 rounded-sm opacity-50" style={{ background: "hsl(var(--destructive))" }} />
+                          {comparisonPeriod === "previousPeriod" ? "Prev period" : "Last year"}
+                        </span>
+                      </div>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="h-40">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={maintenanceInsights.dailyOpenCounts} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <BarChart data={mergedDailyOpenCounts} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                         <XAxis
                           dataKey="date"
@@ -1089,9 +1141,12 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                             fontSize: "12px",
                           }}
                           labelFormatter={(d) => format(new Date(d + "T12:00:00"), "MMM d, yyyy")}
-                          formatter={(v: number) => [v, "Open items"]}
+                          formatter={(v: number, name: string) => [v, name === "count" ? "This period" : comparisonPeriod === "previousPeriod" ? "Prev period" : "Last year"]}
                         />
                         <Bar dataKey="count" fill="hsl(var(--destructive))" radius={[2, 2, 0, 0]} />
+                        {comparisonPeriod !== "none" && comparisonMaintenanceInsights && (
+                          <Bar dataKey="prevCount" fill="hsl(var(--destructive))" fillOpacity={0.35} radius={[2, 2, 0, 0]} />
+                        )}
                       </BarChart>
                     </ResponsiveContainer>
                   </div>

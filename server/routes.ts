@@ -25,7 +25,7 @@ import { storage } from "./storage";
 import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems, runningMaintenanceList, runningMaintenanceSnapshots, emailSettings, clubs } from "@shared/schema";
 import OpenAI from "openai";
 import { db } from "./db";
-import { eq, desc, and, count, asc, gte, lte, sql, or, isNull, isNotNull } from "drizzle-orm";
+import { eq, desc, and, count, asc, gte, lte, gt, sql, or, isNull, isNotNull } from "drizzle-orm";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
 import { sendLogNotificationEmail, isEmailConfigured, logEmailConfigStatus } from "./email";
 import { getNotificationLists, seedDefaultNotificationLists } from "./notificationLists";
@@ -1515,14 +1515,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const endDate = new Date(end);
       endDate.setHours(23, 59, 59, 999);
 
-      // 1) OPEN NOW (live) - running_maintenance_list items with status='open'
+      // 1) OPEN AT END OF PERIOD — items that existed by endDate and were not completed before endDate
+      // This makes the metric meaningful for comparison: count items open at the end of each period.
+      // For the primary period (endDate = today), this equals the current open count.
+      // For past comparison periods, this returns the historical open count at that point in time.
       const openNowRow = await db
         .select({ c: count() })
         .from(runningMaintenanceList)
         .where(
           and(
             eq(runningMaintenanceList.clubId, clubId),
-            eq(runningMaintenanceList.status, "open")
+            lte(runningMaintenanceList.dateAdded, endDate),
+            or(
+              isNull(runningMaintenanceList.dateCompleted),
+              gt(runningMaintenanceList.dateCompleted, endDate)
+            )
           )
         );
       const openNow = Number(openNowRow?.[0]?.c ?? 0);
