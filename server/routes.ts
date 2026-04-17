@@ -334,6 +334,41 @@ async function backfillRunningMaintenanceSnapshots() {
   }
 }
 
+/**
+ * Re-snapshots all manager logs for a club logged on or after `fromDate` (YYYY-MM-DD).
+ * Called when a running maintenance item's status changes so existing snapshots reflect
+ * whether the item was open or closed at each log's date.
+ * Safe to run multiple times (each call deletes then rebuilds snapshots for each log).
+ */
+async function reSnapshotLogsFromDate(clubId: string, fromDate: string) {
+  try {
+    const affectedLogs = await db
+      .select({
+        id: managerLogs.id,
+        clubId: managerLogs.clubId,
+        logDate: managerLogs.logDate,
+      })
+      .from(managerLogs)
+      .where(
+        and(
+          eq(managerLogs.clubId, clubId),
+          gte(managerLogs.logDate, fromDate)
+        )
+      )
+      .orderBy(managerLogs.logDate);
+
+    if (affectedLogs.length === 0) return;
+
+    console.log(`Re-snapshotting ${affectedLogs.length} log(s) from ${fromDate} for club ${clubId} after maintenance item edit`);
+    for (const log of affectedLogs) {
+      await snapshotRunningMaintenanceForLog(log.clubId, log.id, log.logDate);
+    }
+    console.log(`Re-snapshot complete: ${affectedLogs.length} log(s) updated.`);
+  } catch (error) {
+    console.error("Error re-snapshotting logs after maintenance item edit:", error);
+  }
+}
+
 // ==================
 // WEATHER SERVICE
 // ==================
@@ -2851,6 +2886,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid item ID" });
       }
 
+      // Fetch the current item before any update so we know its dateAdded
+      // for determining which snapshots need re-building.
+      const existingRows = await db
+        .select()
+        .from(runningMaintenanceList)
+        .where(
+          and(
+            eq(runningMaintenanceList.id, id),
+            eq(runningMaintenanceList.clubId, clubId)
+          )
+        )
+        .limit(1);
+
+      if (existingRows.length === 0) {
+        return res.status(404).json({ error: "Maintenance item not found" });
+      }
+      const existingItem = existingRows[0];
+
       const updates: Record<string, any> = {};
       
       if (status !== undefined) {
@@ -2872,6 +2925,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updated = await storage.updateRunningMaintenanceItem(id, clubId, updates);
       if (!updated) {
         return res.status(404).json({ error: "Maintenance item not found" });
+      }
+
+      // If status changed (complete ↔ open), existing log snapshots are stale:
+      // logs that previously showed this item as "open" may now be wrong.
+      // Re-snapshot all logs from the item's dateAdded forward so the Insights
+      // chart reflects the corrected history. Run async to avoid blocking the response.
+      if (status !== undefined && status !== existingItem.status) {
+        const fromDate = new Date(existingItem.dateAdded).toISOString().slice(0, 10);
+        reSnapshotLogsFromDate(clubId, fromDate).catch((err) =>
+          console.error("Re-snapshot error after status change:", err)
+        );
       }
 
       res.json(updated);
