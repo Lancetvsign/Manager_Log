@@ -57,6 +57,7 @@ export default function AddHistoricalDataDialog({
 
   // Tab state
   const [mode, setMode] = useState<"view" | "single" | "bulk" | "maintenance">("single");
+  const [maintenanceFilter, setMaintenanceFilter] = useState<"all" | "open" | "completed">("all");
 
   // Fetch all logs for View Data tab
   const { data: allLogs, isLoading: isLoadingSales } = useQuery<ManagerLog[]>({
@@ -90,6 +91,13 @@ export default function AddHistoricalDataDialog({
       return db2 - da;
     });
   }, [allMaintenanceItems]);
+
+  const filteredMaintenanceItems = useMemo(() => {
+    if (maintenanceFilter === "all") return sortedMaintenanceItems;
+    return sortedMaintenanceItems.filter((item) =>
+      maintenanceFilter === "completed" ? item.status === "completed" : item.status !== "completed"
+    );
+  }, [sortedMaintenanceItems, maintenanceFilter]);
 
   const salesTableData = useMemo(() => {
     if (!allLogs) return [];
@@ -1106,21 +1114,44 @@ export default function AddHistoricalDataDialog({
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Wrench className="h-4 w-4 text-muted-foreground" />
-              Maintenance Items
-              {!isLoadingMaintenance && (
-                <span className="text-xs font-normal text-muted-foreground">({sortedMaintenanceItems.length} items)</span>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Wrench className="h-4 w-4 text-muted-foreground" />
+                Maintenance Items
+                {!isLoadingMaintenance && (
+                  <span className="text-xs font-normal text-muted-foreground">({filteredMaintenanceItems.length} items)</span>
+                )}
+              </h3>
+              {!isLoadingMaintenance && sortedMaintenanceItems.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {(["all", "open", "completed"] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setMaintenanceFilter(f)}
+                      className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                        maintenanceFilter === f
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover-elevate"
+                      }`}
+                    >
+                      {f.charAt(0).toUpperCase() + f.slice(1)}
+                    </button>
+                  ))}
+                </div>
               )}
-            </h3>
+            </div>
             {isLoadingMaintenance ? (
               <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span className="text-sm">Loading maintenance items...</span>
               </div>
-            ) : sortedMaintenanceItems.length === 0 ? (
+            ) : filteredMaintenanceItems.length === 0 ? (
               <div className="rounded-md border bg-muted/30 py-8 text-center">
-                <p className="text-sm text-muted-foreground">No maintenance items found.</p>
+                <p className="text-sm text-muted-foreground">
+                  {sortedMaintenanceItems.length === 0
+                    ? "No maintenance items found."
+                    : `No ${maintenanceFilter} maintenance items.`}
+                </p>
               </div>
             ) : (
               <div className="rounded-md border overflow-x-auto">
@@ -1135,7 +1166,7 @@ export default function AddHistoricalDataDialog({
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedMaintenanceItems.map((item) => (
+                    {filteredMaintenanceItems.map((item) => (
                       <tr key={item.id} className="border-b last:border-b-0">
                         <td className="p-3 font-medium max-w-[180px] truncate">{item.title}</td>
                         <td className="p-3 text-muted-foreground max-w-[200px] truncate">{item.description || "—"}</td>
