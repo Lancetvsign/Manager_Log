@@ -598,7 +598,7 @@ export default function AddHistoricalDataDialog({
       <Tabs value={mode} onValueChange={(v) => setMode(v as "view" | "single" | "bulk" | "maintenance")} className="pt-2">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="single">Single Entry</TabsTrigger>
-          <TabsTrigger value="bulk">Sales Import</TabsTrigger>
+          <TabsTrigger value="bulk">Sales</TabsTrigger>
           <TabsTrigger value="maintenance" className="gap-1">
             <Wrench className="h-3.5 w-3.5" />
             Maintenance
