@@ -55,15 +55,69 @@ export default function MaintenanceBulkImportDialog({
     onOpenChange(newOpen);
   }, [resetState, onOpenChange]);
 
+  const parseCSVLine = (text: string): string[][] => {
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let field = '';
+    let inQuotes = false;
+    let i = 0;
+    while (i < text.length) {
+      const ch = text[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (text[i + 1] === '"') {
+            field += '"';
+            i += 2;
+          } else {
+            inQuotes = false;
+            i++;
+          }
+        } else {
+          field += ch;
+          i++;
+        }
+      } else {
+        if (ch === '"') {
+          inQuotes = true;
+          i++;
+        } else if (ch === ',') {
+          row.push(field);
+          field = '';
+          i++;
+        } else if (ch === '\r' && text[i + 1] === '\n') {
+          row.push(field);
+          field = '';
+          rows.push(row);
+          row = [];
+          i += 2;
+        } else if (ch === '\n') {
+          row.push(field);
+          field = '';
+          rows.push(row);
+          row = [];
+          i++;
+        } else {
+          field += ch;
+          i++;
+        }
+      }
+    }
+    if (field || row.length > 0) {
+      row.push(field);
+      rows.push(row);
+    }
+    return rows;
+  };
+
   const parseCSV = useCallback((text: string) => {
-    const lines = text.trim().split('\n');
-    if (lines.length < 2) {
+    const allRows = parseCSVLine(text.trim());
+    if (allRows.length < 2) {
       setParseError("CSV must have a header row and at least one data row");
       setPreviewData([]);
       return;
     }
 
-    const header = lines[0].toLowerCase().split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const header = allRows[0].map(h => h.trim().toLowerCase());
     const titleIdx = header.findIndex(h => h === 'title' || h === 'item' || h === 'name');
     const descIdx = header.findIndex(h => h === 'description' || h === 'desc' || h === 'notes');
     const dateAddedIdx = header.findIndex(h => h === 'date_added' || h === 'dateadded' || h === 'date');
@@ -76,14 +130,11 @@ export default function MaintenanceBulkImportDialog({
     }
 
     const rows: ParsedRow[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
+    for (let i = 1; i < allRows.length; i++) {
+      const values = allRows[i];
+      if (values.every(v => v.trim() === '')) continue;
 
-      // Handle quoted values
-      const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-
-      const title = titleIdx >= 0 ? (values[titleIdx] || '').trim() : '';
+      const title = (values[titleIdx] || '').trim();
       const description = descIdx >= 0 ? (values[descIdx] || '').trim() : '';
       const dateAdded = dateAddedIdx >= 0 ? (values[dateAddedIdx] || '').trim() : '';
       const dateCompleted = dateCompletedIdx >= 0 ? (values[dateCompletedIdx] || '').trim() : '';
@@ -198,20 +249,10 @@ export default function MaintenanceBulkImportDialog({
   const errorRows = previewData.filter(r => r.error);
 
   const downloadSampleCsv = useCallback(() => {
-    const sample = `title,description,date_added,date_completed
-Replace HVAC filters in main dining area,Filters are past due - 6 month replacement cycle,2024-11-15,2024-12-02
-Fix leaking faucet in kitchen prep sink,Dripping constantly - wastes water and makes noise,2024-12-01,
-Repair walk-in cooler door seal,Seal is cracked causing temperature fluctuations,2025-01-10,2025-01-18
-Replace burnt-out lights in parking lot,Two fixtures out on east side,2025-02-03,
-Repaint exterior sign,Paint is peeling and fading,2025-03-12,
-Service fire suppression system,Annual inspection due,2025-04-01,2025-04-14`;
-    const blob = new Blob([sample], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = 'sample_maintenance_import.csv';
+    a.href = '/demo_maintenance.csv';
+    a.download = 'demo_maintenance.csv';
     a.click();
-    URL.revokeObjectURL(url);
   }, []);
 
   const fileInputId = "maintenance-bulk-csv-upload";
