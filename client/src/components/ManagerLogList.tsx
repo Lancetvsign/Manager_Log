@@ -268,11 +268,39 @@ export default function ManagerLogList({
     }
 
     if (searchTerm) {
-      filtered = filtered.filter(log =>
-        log.managerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.logDate.includes(searchTerm) ||
-        (log.dailyNotes?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
-      );
+      const MONTH_MAP: Record<string, string> = {
+        jan: '01', january: '01',
+        feb: '02', february: '02',
+        mar: '03', march: '03',
+        apr: '04', april: '04',
+        may: '05',
+        jun: '06', june: '06',
+        jul: '07', july: '07',
+        aug: '08', august: '08',
+        sep: '09', sept: '09', september: '09',
+        oct: '10', october: '10',
+        nov: '11', november: '11',
+        dec: '12', december: '12',
+      };
+
+      const normalized = searchTerm.trim().toLowerCase();
+
+      // Translate any month name/abbreviation in the search term to its two-digit number
+      const translated = normalized.replace(/[a-z]+/g, (word) => MONTH_MAP[word] ?? word);
+      // Also try with spaces replaced by dashes so "april 15" → "04-15" matches "2026-04-15"
+      const translatedDash = translated.replace(/\s+/g, '-');
+
+      filtered = filtered.filter(log => {
+        const lowerDate = log.logDate.toLowerCase();
+        const lowerManager = log.managerName.toLowerCase();
+        const lowerNotes = log.dailyNotes?.toLowerCase() ?? '';
+        return (
+          lowerDate.includes(translated) ||
+          lowerDate.includes(translatedDash) ||
+          lowerManager.includes(normalized) ||
+          lowerNotes.includes(normalized)
+        );
+      });
     }
 
     return filtered;
