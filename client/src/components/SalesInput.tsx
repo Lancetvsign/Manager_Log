@@ -171,9 +171,9 @@ export default function SalesInput({
     (parseFloat(localBudgetGaming) || 0);
 
   const totalSales =
-    (parseFloat(salesData.current.foodSales) || 0) +
-    (parseFloat(salesData.current.barSales) || 0) +
-    (parseFloat(salesData.current.gamingSales) || 0);
+    (parseFloat(salesData.current.food) || 0) +
+    (parseFloat(salesData.current.bar) || 0) +
+    (parseFloat(salesData.current.gaming) || 0);
 
   const cardHeader = (
     <CardHeader className={`flex flex-col gap-2${collapsible ? " cursor-pointer hover-elevate rounded-t-lg" : ""}`}>
