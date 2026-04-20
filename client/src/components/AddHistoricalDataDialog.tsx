@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { buildApiUrl } from "@/contexts/ManagerLogContext";
 import { useToast } from "@/hooks/use-toast";
+import { Progress } from "@/components/ui/progress";
 import { SalesDataTable } from "./SalesDataTable";
 import type { ManagerLog } from "@shared/schema";
 import {
@@ -324,6 +325,39 @@ export default function AddHistoricalDataDialog({
       });
     },
   });
+
+  // Simulated import progress (0–100)
+  const [importProgress, setImportProgress] = useState(0);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (bulkImportMutation.isPending) {
+      setImportProgress(0);
+      progressIntervalRef.current = setInterval(() => {
+        setImportProgress(prev => {
+          // Ease toward 85%: faster at first, slower as it approaches the cap
+          const remaining = 85 - prev;
+          const step = Math.max(0.4, remaining * 0.045);
+          return Math.min(85, prev + step);
+        });
+      }, 120);
+    } else {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      if (bulkImportMutation.isSuccess) {
+        setImportProgress(100);
+        const t = setTimeout(() => setImportProgress(0), 1800);
+        return () => clearTimeout(t);
+      } else {
+        setImportProgress(0);
+      }
+    }
+    return () => {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    };
+  }, [bulkImportMutation.isPending, bulkImportMutation.isSuccess]);
 
   // Download sample CSV
   const downloadSampleCsv = useCallback(() => {
@@ -696,6 +730,19 @@ export default function AddHistoricalDataDialog({
             </div>
           )}
           
+          {(bulkImportMutation.isPending || importProgress > 0) && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{importProgress >= 100 ? "Complete" : "Importing..."}</span>
+                <span>{Math.round(importProgress)}%</span>
+              </div>
+              <Progress
+                value={importProgress}
+                className="h-2 bg-secondary"
+              />
+            </div>
+          )}
+
           <Button
             className="w-full"
             disabled={csvPreviewData.length === 0 || csvPreviewData.some(r => r.error) || bulkImportMutation.isPending}
