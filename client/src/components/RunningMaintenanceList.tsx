@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { CheckCircle2, Plus, Loader2, Wrench, Clock, Camera, X } from "lucide-react";
+import { CheckCircle2, Plus, Loader2, Wrench, Clock, Camera, Upload } from "lucide-react";
 import type { RunningMaintenanceItem } from "@shared/schema";
+import MaintenanceBulkImportDialog from "./MaintenanceBulkImportDialog";
 
 interface RunningMaintenanceListProps {
   showCompleted?: boolean;
@@ -18,6 +19,7 @@ interface RunningMaintenanceListProps {
 
 export default function RunningMaintenanceList({ showCompleted = false }: RunningMaintenanceListProps) {
   const { clubId, apiBaseUrl } = useManagerLog();
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<"open" | "completed">("open");
@@ -151,9 +153,21 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
               Showing all open items · oldest to newest
             </p>
           </div>
-          <Badge variant="secondary" className="text-xs">
-            {openItems.length} open {openItems.length === 1 ? "item" : "items"}
-          </Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="secondary" className="text-xs">
+              {openItems.length} open {openItems.length === 1 ? "item" : "items"}
+            </Badge>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setBulkImportOpen(true)}
+              data-testid="button-maintenance-bulk-import"
+            >
+              <Upload className="h-3.5 w-3.5 mr-1.5" />
+              Bulk Import
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
@@ -387,6 +401,14 @@ export default function RunningMaintenanceList({ showCompleted = false }: Runnin
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Import Dialog */}
+      <MaintenanceBulkImportDialog
+        clubId={clubId}
+        apiBaseUrl={apiBaseUrl}
+        open={bulkImportOpen}
+        onOpenChange={setBulkImportOpen}
+      />
     </Card>
   );
 }

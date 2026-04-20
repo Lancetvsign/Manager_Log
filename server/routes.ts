@@ -2877,6 +2877,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/running-maintenance/bulk-import - Bulk import maintenance items from CSV data
+  app.post("/api/running-maintenance/bulk-import", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const { entries } = req.body;
+
+      if (!Array.isArray(entries) || entries.length === 0) {
+        return res.status(400).json({ error: "Request must include an 'entries' array with at least one entry" });
+      }
+
+      if (entries.length > 500) {
+        return res.status(400).json({ error: "Maximum 500 entries per bulk import" });
+      }
+
+      const results = { success: 0, failed: 0, errors: [] as string[] };
+      let earliestDateAdded: string | null = null;
+
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        try {
+          const title = String(entry.title || "").trim();
+          if (!title) {
+            results.failed++;
+            results.errors.push(`Row ${i + 1}: title is required`);
+            continue;
+          }
+
+          const description = entry.description ? String(entry.description).trim() || null : null;
+
+          // Parse dateAdded — defaults to today if not provided
+          let dateAdded: Date;
+          if (entry.dateAdded) {
+            const parsed = new Date(entry.dateAdded + "T12:00:00");
+            if (isNaN(parsed.getTime())) {
+              results.failed++;
+              results.errors.push(`Row ${i + 1}: invalid date_added "${entry.dateAdded}"`);
+              continue;
+            }
+            dateAdded = parsed;
+          } else {
+            dateAdded = new Date();
+          }
+
+          // Parse dateCompleted — if provided, item is completed
+          let dateCompleted: Date | null = null;
+          let status = "open";
+          if (entry.dateCompleted) {
+            const parsed = new Date(entry.dateCompleted + "T12:00:00");
+            if (isNaN(parsed.getTime())) {
+              results.failed++;
+              results.errors.push(`Row ${i + 1}: invalid date_completed "${entry.dateCompleted}"`);
+              continue;
+            }
+            dateCompleted = parsed;
+            status = "completed";
+          }
+
+          await db.insert(runningMaintenanceList).values({
+            clubId,
+            title,
+            description,
+            status,
+            dateAdded,
+            dateCompleted,
+          });
+
+          results.success++;
+
+          // Track earliest dateAdded for snapshot re-calculation
+          const dateAddedStr = dateAdded.toISOString().slice(0, 10);
+          if (!earliestDateAdded || dateAddedStr < earliestDateAdded) {
+            earliestDateAdded = dateAddedStr;
+          }
+        } catch (error) {
+          results.failed++;
+          results.errors.push(`Row ${i + 1}: Failed to save`);
+        }
+      }
+
+      // Re-snapshot all logs from the earliest dateAdded so Insights stays accurate
+      if (results.success > 0 && earliestDateAdded) {
+        reSnapshotLogsFromDate(clubId, earliestDateAdded).catch(err =>
+          console.error("Error re-snapshotting after maintenance bulk import:", err)
+        );
+      }
+
+      res.status(200).json(results);
+    } catch (error) {
+      console.error("Error in running maintenance bulk import:", error);
+      res.status(500).json({ error: "Failed to process bulk import" });
+    }
+  });
+
   // PATCH /api/running-maintenance/:id - Update a maintenance item (e.g., mark complete, correct dates)
   app.patch("/api/running-maintenance/:id", async (req, res) => {
     try {

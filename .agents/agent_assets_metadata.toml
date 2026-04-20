@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "8KQ7MmyCJbGJ9FHCadZvO"
+uri = "file://public/demo_maintenance.csv"
+type = "table"
+title = "Sample Maintenance Import CSV (30 items)"
