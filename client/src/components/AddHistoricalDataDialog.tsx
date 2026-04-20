@@ -13,7 +13,7 @@ import { buildApiUrl } from "@/contexts/ManagerLogContext";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { SalesDataTable } from "./SalesDataTable";
-import type { ManagerLog } from "@shared/schema";
+import type { ManagerLog, RunningMaintenanceItem } from "@shared/schema";
 import {
   Calendar,
   Loader2,
@@ -25,6 +25,7 @@ import {
   Info,
   TableProperties,
   Wrench,
+  DollarSign,
 } from "lucide-react";
 
 interface AddHistoricalDataDialogProps {
@@ -68,6 +69,27 @@ export default function AddHistoricalDataDialog({
     },
     enabled: open,
   });
+
+  // Fetch all running maintenance items for View Data tab
+  const { data: allMaintenanceItems, isLoading: isLoadingMaintenance } = useQuery<RunningMaintenanceItem[]>({
+    queryKey: ['/api/running-maintenance', clubId],
+    queryFn: async () => {
+      const url = buildApiUrl('/api/running-maintenance', clubId, apiBaseUrl);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch maintenance items');
+      return response.json();
+    },
+    enabled: open && mode === 'view',
+  });
+
+  const sortedMaintenanceItems = useMemo(() => {
+    if (!allMaintenanceItems) return [];
+    return [...allMaintenanceItems].sort((a, b) => {
+      const da = new Date(a.dateAdded).getTime();
+      const db2 = new Date(b.dateAdded).getTime();
+      return db2 - da;
+    });
+  }, [allMaintenanceItems]);
 
   const salesTableData = useMemo(() => {
     if (!allLogs) return [];
@@ -567,9 +589,9 @@ export default function AddHistoricalDataDialog({
   const dialogContent = (
     <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
       <DialogHeader>
-        <DialogTitle>Sales Data Manager</DialogTitle>
+        <DialogTitle>Data Import</DialogTitle>
         <DialogDescription>
-          View, verify, and manage all your sales data. Add individual entries or bulk import from CSV.
+          View, verify, and manage all your sales and maintenance data. Add individual entries or bulk import from CSV.
         </DialogDescription>
       </DialogHeader>
       
@@ -1064,8 +1086,72 @@ export default function AddHistoricalDataDialog({
           </Button>
         </TabsContent>
 
-        <TabsContent value="view" className="pt-4">
-          <SalesDataTable data={salesTableData} />
+        <TabsContent value="view" className="pt-4 space-y-6">
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              Sales Records
+              <span className="text-xs font-normal text-muted-foreground">({salesTableData.length} entries)</span>
+            </h3>
+            <SalesDataTable data={salesTableData} />
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Wrench className="h-4 w-4 text-muted-foreground" />
+              Maintenance Items
+              {!isLoadingMaintenance && (
+                <span className="text-xs font-normal text-muted-foreground">({sortedMaintenanceItems.length} items)</span>
+              )}
+            </h3>
+            {isLoadingMaintenance ? (
+              <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Loading maintenance items...</span>
+              </div>
+            ) : sortedMaintenanceItems.length === 0 ? (
+              <div className="rounded-md border bg-muted/30 py-8 text-center">
+                <p className="text-sm text-muted-foreground">No maintenance items found.</p>
+              </div>
+            ) : (
+              <div className="rounded-md border overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left font-medium p-3">Title</th>
+                      <th className="text-left font-medium p-3">Description</th>
+                      <th className="text-left font-medium p-3">Date Added</th>
+                      <th className="text-left font-medium p-3">Date Completed</th>
+                      <th className="text-left font-medium p-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedMaintenanceItems.map((item) => (
+                      <tr key={item.id} className="border-b last:border-b-0">
+                        <td className="p-3 font-medium max-w-[180px] truncate">{item.title}</td>
+                        <td className="p-3 text-muted-foreground max-w-[200px] truncate">{item.description || "—"}</td>
+                        <td className="p-3 text-muted-foreground">
+                          {item.dateAdded ? format(new Date(item.dateAdded), "MMM d, yyyy") : "—"}
+                        </td>
+                        <td className="p-3 text-muted-foreground">
+                          {item.dateCompleted ? format(new Date(item.dateCompleted), "MMM d, yyyy") : "—"}
+                        </td>
+                        <td className="p-3">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                            item.status === "completed"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                              : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                          }`}>
+                            {item.status === "completed" ? "Completed" : "Open"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </DialogContent>
