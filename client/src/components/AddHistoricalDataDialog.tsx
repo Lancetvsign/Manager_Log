@@ -704,24 +704,9 @@ export default function AddHistoricalDataDialog({
               </div>
               {bulkImportResult.failed === 0 && (
                 <div className="flex gap-2">
-                  {onViewComparison && csvPreviewData.length > 0 && (
-                    <Button
-                      className="flex-1"
-                      onClick={() => {
-                        const dates = csvPreviewData.map(r => r.date).sort();
-                        const minDate = dates[0];
-                        const maxDate = dates[dates.length - 1];
-                        handleOpenChange(false);
-                        onViewComparison(minDate, maxDate);
-                      }}
-                      data-testid="button-view-comparison"
-                    >
-                      View year-over-year comparison
-                    </Button>
-                  )}
                   <Button
                     variant="outline"
-                    className={onViewComparison && csvPreviewData.length > 0 ? "" : "w-full"}
+                    className="w-full"
                     onClick={() => handleOpenChange(false)}
                     data-testid="button-close-import-dialog"
                   >
