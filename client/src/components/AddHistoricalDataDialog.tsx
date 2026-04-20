@@ -223,6 +223,7 @@ export default function AddHistoricalDataDialog({
   const processFile = useCallback((file: File) => {
     setCsvFile(file);
     setBulkImportResult(null);
+    setImportProgress(0);
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -277,6 +278,7 @@ export default function AddHistoricalDataDialog({
     setCsvPreviewData([]);
     setCsvParseError(null);
     setBulkImportResult(null);
+    setImportProgress(0);
   }, []);
 
   // Bulk import mutation
