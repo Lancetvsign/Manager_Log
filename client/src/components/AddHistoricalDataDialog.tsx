@@ -198,6 +198,9 @@ export default function AddHistoricalDataDialog({
     setImportProgress(0);
     setMaintenanceFilter("all");
     setMaintenanceSearch("");
+    setEditingMaintItem(null);
+    setEditTitle("");
+    setEditDescription("");
   }, [defaultDate]);
 
   const handleOpenChange = useCallback(
