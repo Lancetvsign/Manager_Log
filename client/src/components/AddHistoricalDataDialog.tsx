@@ -59,7 +59,7 @@ export default function AddHistoricalDataDialog({
   const [mode, setMode] = useState<"view" | "single" | "bulk" | "maintenance">("single");
 
   // Fetch all logs for View Data tab
-  const { data: allLogs } = useQuery<ManagerLog[]>({
+  const { data: allLogs, isLoading: isLoadingSales } = useQuery<ManagerLog[]>({
     queryKey: ['/api/manager-logs', clubId],
     queryFn: async () => {
       const url = buildApiUrl('/api/manager-logs', clubId, apiBaseUrl);
@@ -1091,9 +1091,18 @@ export default function AddHistoricalDataDialog({
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />
               Sales Records
-              <span className="text-xs font-normal text-muted-foreground">({salesTableData.length} entries)</span>
+              {!isLoadingSales && (
+                <span className="text-xs font-normal text-muted-foreground">({salesTableData.length} entries)</span>
+              )}
             </h3>
-            <SalesDataTable data={salesTableData} />
+            {isLoadingSales ? (
+              <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Loading sales records...</span>
+              </div>
+            ) : (
+              <SalesDataTable data={salesTableData} />
+            )}
           </div>
 
           <div className="space-y-2">
