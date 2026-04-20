@@ -27,7 +27,7 @@ import {
   users, managerLogs, maintenanceItems, logAttachments, prepChecklistItems, runningMaintenanceList, notePhotos 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, lte, and, asc } from "drizzle-orm";
+import { eq, desc, gte, lte, and, asc, inArray } from "drizzle-orm";
 
 /**
  * Storage Interface
@@ -49,6 +49,7 @@ export interface IStorage {
   getManagerLogsByDateRange(startDate: string, endDate: string, clubId: string): Promise<ManagerLog[]>;
   updateManagerLog(id: number, updates: Partial<InsertManagerLog>, clubId: string): Promise<ManagerLog | undefined>;
   deleteManagerLog(id: number, clubId: string): Promise<boolean>;
+  bulkDeleteManagerLogs(ids: number[], clubId: string): Promise<number>;
   upsertManagerLog(log: InsertManagerLog): Promise<ManagerLog>;
   
   // Maintenance Item operations (indirectly scoped via managerLogId)
@@ -202,6 +203,14 @@ export class DatabaseStorage implements IStorage {
       .delete(managerLogs)
       .where(and(eq(managerLogs.id, id), eq(managerLogs.clubId, clubId)));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async bulkDeleteManagerLogs(ids: number[], clubId: string): Promise<number> {
+    if (ids.length === 0) return 0;
+    const result = await db
+      .delete(managerLogs)
+      .where(and(inArray(managerLogs.id, ids), eq(managerLogs.clubId, clubId)));
+    return result.rowCount ?? 0;
   }
 
   /**

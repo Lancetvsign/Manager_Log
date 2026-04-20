@@ -800,6 +800,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
+   * DELETE /api/manager-logs/bulk
+   * Deletes multiple log entries by ID, scoped to the club.
+   * @body ids - Array of log IDs to delete
+   */
+  app.delete("/api/manager-logs/bulk", async (req, res) => {
+    try {
+      const clubId = getClubId(req);
+      const { ids } = req.body as { ids: unknown };
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "ids must be a non-empty array" });
+      }
+      const numericIds = ids.map(Number).filter((n) => !isNaN(n) && n > 0);
+      if (numericIds.length === 0) {
+        return res.status(400).json({ error: "No valid IDs provided" });
+      }
+      const deleted = await storage.bulkDeleteManagerLogs(numericIds, clubId);
+      res.json({ deleted });
+    } catch (error) {
+      console.error("Error bulk deleting manager logs:", error);
+      res.status(500).json({ error: "Failed to bulk delete manager logs" });
+    }
+  });
+
+  /**
    * GET /api/manager-logs/range/:startDate/:endDate
    * Retrieves logs within a date range for a specific club.
    * @param startDate - Start date in YYYY-MM-DD format

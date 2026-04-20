@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Pencil, Loader2, DollarSign, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Pencil, Loader2, DollarSign, Trash2, AlertTriangle } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
@@ -33,6 +34,10 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
   const [editBar, setEditBar] = useState("");
   const [editGaming, setEditGaming] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Bulk delete state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
   const updateMutation = useMutation({
     mutationFn: async (data: { date: string; foodSales: string; barSales: string; gamingSales: string }) => {
@@ -82,6 +87,50 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
     },
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const url = buildApiUrl("/api/manager-logs/bulk", clubId, apiBaseUrl);
+      const response = await apiRequest("DELETE", url, { ids });
+      return response.json();
+    },
+    onSuccess: (result: { deleted: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/manager-logs"] });
+      setSelectedIds(new Set());
+      setShowBulkConfirm(false);
+      toast({
+        title: "Records deleted",
+        description: `${result.deleted} sales ${result.deleted === 1 ? "record" : "records"} have been removed.`,
+      });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete the selected records.", variant: "destructive" });
+      setShowBulkConfirm(false);
+    },
+  });
+
+  const sortedData = [...data].sort((a, b) => b.date.localeCompare(a.date));
+
+  const allSelected = sortedData.length > 0 && sortedData.every((e) => selectedIds.has(e.id));
+  const someSelected = sortedData.some((e) => selectedIds.has(e.id));
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedData.map((e) => e.id)));
+    }
+  };
+
+  const toggleRow = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const openEditDialog = (entry: DailySalesEntry) => {
     setEditingEntry(entry);
     setEditFood(entry.foodSales.toFixed(2));
@@ -112,8 +161,6 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
 
   const editTotal = (parseFloat(editFood || "0") || 0) + (parseFloat(editBar || "0") || 0) + (parseFloat(editGaming || "0") || 0);
 
-  const sortedData = [...data].sort((a, b) => b.date.localeCompare(a.date));
-
   if (sortedData.length === 0) {
     return (
       <Card>
@@ -128,12 +175,38 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
 
   return (
     <>
+      {/* Bulk delete toolbar */}
+      {someSelected && (
+        <div className="flex items-center justify-between gap-3 px-1 py-2">
+          <span className="text-sm text-muted-foreground">
+            {selectedIds.size} {selectedIds.size === 1 ? "record" : "records"} selected
+          </span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setShowBulkConfirm(true)}
+            disabled={bulkDeleteMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Selected ({selectedIds.size})
+          </Button>
+        </div>
+      )}
+
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
+                  <th className="p-3 w-10">
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={toggleAll}
+                      aria-label="Select all rows"
+                      data-testid="checkbox-select-all"
+                    />
+                  </th>
                   <th className="text-left font-medium p-3">Date</th>
                   <th className="text-left font-medium p-3">Day</th>
                   <th className="text-right font-medium p-3">Food</th>
@@ -145,7 +218,18 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
               </thead>
               <tbody>
                 {sortedData.map((entry) => (
-                  <tr key={entry.id} className="border-b last:border-b-0">
+                  <tr
+                    key={entry.id}
+                    className={`border-b last:border-b-0 ${selectedIds.has(entry.id) ? "bg-muted/40" : ""}`}
+                  >
+                    <td className="p-3">
+                      <Checkbox
+                        checked={selectedIds.has(entry.id)}
+                        onCheckedChange={() => toggleRow(entry.id)}
+                        aria-label={`Select ${entry.date}`}
+                        data-testid={`checkbox-row-${entry.date}`}
+                      />
+                    </td>
                     <td className="p-3 font-medium">{entry.date}</td>
                     <td className="p-3 text-muted-foreground">{entry.dayOfWeek}</td>
                     <td className="p-3 text-right">${entry.foodSales.toFixed(2)}</td>
@@ -170,6 +254,50 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
         </CardContent>
       </Card>
 
+      {/* Bulk delete confirmation dialog */}
+      <Dialog open={showBulkConfirm} onOpenChange={(open) => { if (!open) setShowBulkConfirm(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Delete {selectedIds.size} Sales {selectedIds.size === 1 ? "Record" : "Records"}?
+            </DialogTitle>
+            <DialogDescription>
+              This will permanently remove {selectedIds.size} sales {selectedIds.size === 1 ? "record" : "records"}.
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkConfirm(false)}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
+              disabled={bulkDeleteMutation.isPending}
+              data-testid="button-confirm-bulk-delete"
+            >
+              {bulkDeleteMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete {selectedIds.size} {selectedIds.size === 1 ? "Record" : "Records"}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Single record edit dialog */}
       <Dialog open={!!editingEntry} onOpenChange={(open) => { if (!open) { setEditingEntry(null); setConfirmDelete(false); } }}>
         <DialogContent>
           <DialogHeader>
