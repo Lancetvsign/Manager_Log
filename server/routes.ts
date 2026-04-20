@@ -2906,13 +2906,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const description = entry.description ? String(entry.description).trim() || null : null;
 
+          // Strict YYYY-MM-DD parser — rejects non-matching formats and invalid calendar dates
+          const STRICT_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+          const parseStrictDate = (str: string): Date | null => {
+            if (!STRICT_DATE_RE.test(str)) return null;
+            const [y, m, d] = str.split('-').map(Number);
+            const dt = new Date(y, m - 1, d, 12, 0, 0);
+            if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+            return dt;
+          };
+
           // Parse dateAdded — defaults to today if not provided
           let dateAdded: Date;
           if (entry.dateAdded) {
-            const parsed = new Date(entry.dateAdded + "T12:00:00");
-            if (isNaN(parsed.getTime())) {
+            const parsed = parseStrictDate(String(entry.dateAdded).trim());
+            if (!parsed) {
               results.failed++;
-              results.errors.push(`Row ${i + 1}: invalid date_added "${entry.dateAdded}"`);
+              results.errors.push(`Row ${i + 1}: invalid date_added "${entry.dateAdded}" (must be YYYY-MM-DD)`);
               continue;
             }
             dateAdded = parsed;
@@ -2924,10 +2934,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let dateCompleted: Date | null = null;
           let status = "open";
           if (entry.dateCompleted) {
-            const parsed = new Date(entry.dateCompleted + "T12:00:00");
-            if (isNaN(parsed.getTime())) {
+            const parsed = parseStrictDate(String(entry.dateCompleted).trim());
+            if (!parsed) {
               results.failed++;
-              results.errors.push(`Row ${i + 1}: invalid date_completed "${entry.dateCompleted}"`);
+              results.errors.push(`Row ${i + 1}: invalid date_completed "${entry.dateCompleted}" (must be YYYY-MM-DD)`);
               continue;
             }
             dateCompleted = parsed;
