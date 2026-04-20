@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, subDays } from "date-fns";
-import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronDown, Camera, X, Upload, Download, Info, Circle } from "lucide-react";
+import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronDown, Camera, X, Download, Info, Circle } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
@@ -24,7 +24,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ManagerLog, MaintenanceItem } from "@shared/schema";
 import { useManagerLog, buildApiUrl } from "@/contexts/ManagerLogContext";
-import MaintenanceBulkImportDialog from "./MaintenanceBulkImportDialog";
 
 interface EmailModalData {
   logId: number | null;
@@ -92,7 +91,6 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
   
   // Collapsible state for maintenance list
   const [maintenanceOpen, setMaintenanceOpen] = useState(true);
-  const [bulkImportOpen, setBulkImportOpen] = useState(false);
   
   // Photo lightbox state
   const [photoLightboxSrc, setPhotoLightboxSrc] = useState<string | null>(null);
@@ -1034,19 +1032,7 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
                   Showing all open items · oldest to newest
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => { e.stopPropagation(); setBulkImportOpen(true); }}
-                  data-testid="button-maintenance-bulk-import"
-                >
-                  <Upload className="h-3.5 w-3.5 mr-1.5" />
-                  Bulk Import
-                </Button>
-                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${maintenanceOpen ? 'rotate-180' : ''}`} />
-              </div>
+              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${maintenanceOpen ? 'rotate-180' : ''}`} />
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -1272,12 +1258,6 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
           </DialogContent>
         </Dialog>
 
-        <MaintenanceBulkImportDialog
-          open={bulkImportOpen}
-          onOpenChange={setBulkImportOpen}
-          clubId={clubId}
-          apiBaseUrl={apiBaseUrl}
-        />
     </form>
   );
 }

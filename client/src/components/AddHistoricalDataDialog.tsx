@@ -24,6 +24,7 @@ import {
   CheckCircle,
   Info,
   TableProperties,
+  Wrench,
 } from "lucide-react";
 
 interface AddHistoricalDataDialogProps {
@@ -54,7 +55,7 @@ export default function AddHistoricalDataDialog({
   const setOpen = isControlled ? controlledOnOpenChange : setInternalOpen;
 
   // Tab state
-  const [mode, setMode] = useState<"view" | "single" | "bulk">("single");
+  const [mode, setMode] = useState<"view" | "single" | "bulk" | "maintenance">("single");
 
   // Fetch all logs for View Data tab
   const { data: allLogs } = useQuery<ManagerLog[]>({
@@ -110,6 +111,17 @@ export default function AddHistoricalDataDialog({
     errors: string[];
   } | null>(null);
 
+  // Maintenance bulk import state
+  const [maintIsDragOver, setMaintIsDragOver] = useState(false);
+  const [maintFile, setMaintFile] = useState<File | null>(null);
+  const [maintPreviewData, setMaintPreviewData] = useState<Array<{
+    title: string; description: string; dateAdded: string; dateCompleted: string; error?: string;
+  }>>([]);
+  const [maintParseError, setMaintParseError] = useState<string | null>(null);
+  const [maintImportResult, setMaintImportResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
+  const [maintProgress, setMaintProgress] = useState(0);
+  const maintProgressRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const resetState = useCallback(() => {
     setMode("single");
     setHistoricalDate(defaultDate);
@@ -121,6 +133,11 @@ export default function AddHistoricalDataDialog({
     setCsvParseError(null);
     setBulkImportResult(null);
     setCalendarMonth(defaultDate || new Date());
+    setMaintFile(null);
+    setMaintPreviewData([]);
+    setMaintParseError(null);
+    setMaintImportResult(null);
+    setMaintProgress(0);
   }, [defaultDate]);
 
   // Handle dialog open/close
@@ -404,6 +421,141 @@ export default function AddHistoricalDataDialog({
     URL.revokeObjectURL(url);
   }, []);
 
+  // RFC 4180-compliant CSV parser (handles quoted fields with embedded commas)
+  const parseCSVRFC4180 = (text: string): string[][] => {
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let field = '';
+    let inQuotes = false;
+    let i = 0;
+    while (i < text.length) {
+      const ch = text[i];
+      if (inQuotes) {
+        if (ch === '"' && text[i + 1] === '"') { field += '"'; i += 2; }
+        else if (ch === '"') { inQuotes = false; i++; }
+        else { field += ch; i++; }
+      } else {
+        if (ch === '"') { inQuotes = true; i++; }
+        else if (ch === ',') { row.push(field); field = ''; i++; }
+        else if (ch === '\r' && text[i + 1] === '\n') { row.push(field); field = ''; rows.push(row); row = []; i += 2; }
+        else if (ch === '\n') { row.push(field); field = ''; rows.push(row); row = []; i++; }
+        else { field += ch; i++; }
+      }
+    }
+    if (field || row.length > 0) { row.push(field); rows.push(row); }
+    return rows;
+  };
+
+  const MAINT_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+  const parseMaintCSV = useCallback((text: string) => {
+    const allRows = parseCSVRFC4180(text.trim());
+    if (allRows.length < 2) { setMaintParseError("CSV must have a header row and at least one data row"); setMaintPreviewData([]); return; }
+    const header = allRows[0].map(h => h.trim().toLowerCase());
+    const titleIdx = header.findIndex(h => h === 'title' || h === 'item' || h === 'name');
+    const descIdx = header.findIndex(h => h === 'description' || h === 'desc' || h === 'notes');
+    const dateAddedIdx = header.findIndex(h => h === 'date_added' || h === 'dateadded' || h === 'date');
+    const dateCompletedIdx = header.findIndex(h => h === 'date_completed' || h === 'datecompleted' || h === 'completed');
+    if (titleIdx === -1) { setMaintParseError("CSV must have a 'title' column"); setMaintPreviewData([]); return; }
+    const rows: typeof maintPreviewData = [];
+    for (let i = 1; i < allRows.length; i++) {
+      const values = allRows[i];
+      if (values.every(v => v.trim() === '')) continue;
+      const title = (values[titleIdx] || '').trim();
+      const description = descIdx >= 0 ? (values[descIdx] || '').trim() : '';
+      const dateAdded = dateAddedIdx >= 0 ? (values[dateAddedIdx] || '').trim() : '';
+      const dateCompleted = dateCompletedIdx >= 0 ? (values[dateCompletedIdx] || '').trim() : '';
+      let error: string | undefined;
+      if (!title) error = "Title is required";
+      else if (dateAdded && !MAINT_DATE_RE.test(dateAdded)) error = "Invalid date_added (use YYYY-MM-DD)";
+      else if (dateCompleted && !MAINT_DATE_RE.test(dateCompleted)) error = "Invalid date_completed (use YYYY-MM-DD)";
+      rows.push({ title, description, dateAdded, dateCompleted, error });
+    }
+    if (rows.length === 0) { setMaintParseError("No valid data rows found"); setMaintPreviewData([]); return; }
+    setMaintParseError(null);
+    setMaintPreviewData(rows);
+  }, []);
+
+  const processMaintFile = useCallback((file: File) => {
+    setMaintFile(file);
+    setMaintImportResult(null);
+    setMaintProgress(0);
+    const reader = new FileReader();
+    reader.onload = (e) => parseMaintCSV(e.target?.result as string);
+    reader.onerror = () => { setMaintParseError("Failed to read file"); setMaintPreviewData([]); };
+    reader.readAsText(file);
+  }, [parseMaintCSV]);
+
+  const handleMaintFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processMaintFile(file);
+  }, [processMaintFile]);
+
+  const handleMaintDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); e.stopPropagation(); setMaintIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processMaintFile(file);
+  }, [processMaintFile]);
+
+  const handleMaintDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setMaintIsDragOver(true); }, []);
+  const handleMaintDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setMaintIsDragOver(false); }, []);
+
+  const clearMaintImport = useCallback(() => {
+    setMaintFile(null); setMaintPreviewData([]); setMaintParseError(null); setMaintImportResult(null); setMaintProgress(0);
+  }, []);
+
+  const maintBulkImportMutation = useMutation({
+    mutationFn: async (rows: typeof maintPreviewData) => {
+      const url = buildApiUrl("/api/running-maintenance/bulk-import", clubId, apiBaseUrl);
+      const response = await apiRequest("POST", url, {
+        entries: rows.map(r => ({
+          title: r.title,
+          description: r.description || undefined,
+          dateAdded: r.dateAdded || undefined,
+          dateCompleted: r.dateCompleted || undefined,
+        })),
+      });
+      return response.json();
+    },
+    onSuccess: (result: { success: number; failed: number; errors: string[] }) => {
+      setMaintImportResult(result);
+      queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance", clubId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/maintenance/open", clubId] });
+      if (result.failed === 0) {
+        toast({ title: `${result.success} items imported`, description: "Maintenance items have been added." });
+      } else if (result.success > 0) {
+        toast({ title: `${result.success} of ${result.success + result.failed} items imported`, description: `${result.failed} row(s) had errors.` });
+      }
+    },
+    onError: (error: Error) => {
+      toast({ title: "Import failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  useEffect(() => {
+    if (maintBulkImportMutation.isPending) {
+      setMaintProgress(0);
+      maintProgressRef.current = setInterval(() => {
+        setMaintProgress(prev => Math.min(85, prev + Math.max(0.5, (85 - prev) * 0.06)));
+      }, 120);
+    } else {
+      if (maintProgressRef.current) { clearInterval(maintProgressRef.current); maintProgressRef.current = null; }
+      if (maintBulkImportMutation.isSuccess) {
+        setMaintProgress(100);
+        const t = setTimeout(() => setMaintProgress(0), 1800);
+        return () => clearTimeout(t);
+      } else { setMaintProgress(0); }
+    }
+    return () => { if (maintProgressRef.current) clearInterval(maintProgressRef.current); };
+  }, [maintBulkImportMutation.isPending, maintBulkImportMutation.isSuccess]);
+
+  const downloadMaintSample = useCallback(() => {
+    const a = document.createElement('a');
+    a.href = '/demo_maintenance.csv';
+    a.download = 'demo_maintenance.csv';
+    a.click();
+  }, []);
+
   const [calendarMonth, setCalendarMonth] = useState<Date>(historicalDate || new Date());
 
   const years = Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - i);
@@ -421,10 +573,14 @@ export default function AddHistoricalDataDialog({
         </DialogDescription>
       </DialogHeader>
       
-      <Tabs value={mode} onValueChange={(v) => setMode(v as "view" | "single" | "bulk")} className="pt-2">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs value={mode} onValueChange={(v) => setMode(v as "view" | "single" | "bulk" | "maintenance")} className="pt-2">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="single">Single Entry</TabsTrigger>
-          <TabsTrigger value="bulk">Bulk Import</TabsTrigger>
+          <TabsTrigger value="bulk">Sales Import</TabsTrigger>
+          <TabsTrigger value="maintenance" className="gap-1">
+            <Wrench className="h-3.5 w-3.5" />
+            Maintenance
+          </TabsTrigger>
           <TabsTrigger value="view" className="gap-1">
             <TableProperties className="h-3.5 w-3.5" />
             View Data
@@ -751,6 +907,159 @@ export default function AddHistoricalDataDialog({
                 <Upload className="h-4 w-4 mr-2" />
                 Import {csvPreviewData.filter(r => !r.error).length} Records
               </>
+            )}
+          </Button>
+        </TabsContent>
+
+        <TabsContent value="maintenance" className="space-y-4 pt-4">
+          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="font-medium text-sm">Required CSV Format</p>
+              <Button type="button" variant="outline" size="sm" onClick={downloadMaintSample}>
+                <Download className="h-3 w-3 mr-1" />
+                Sample CSV
+              </Button>
+            </div>
+            <div className="bg-background rounded border overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium">title</th>
+                    <th className="px-3 py-2 text-left font-medium">description</th>
+                    <th className="px-3 py-2 text-left font-medium">date_added</th>
+                    <th className="px-3 py-2 text-left font-medium">date_completed</th>
+                  </tr>
+                </thead>
+                <tbody className="text-muted-foreground">
+                  <tr className="border-t border-muted">
+                    <td className="px-3 py-1.5">Replace HVAC filters</td>
+                    <td className="px-3 py-1.5">Quarterly replacement</td>
+                    <td className="px-3 py-1.5">2025-01-10</td>
+                    <td className="px-3 py-1.5">2025-01-18</td>
+                  </tr>
+                  <tr className="border-t border-muted">
+                    <td className="px-3 py-1.5">Fix leaking faucet</td>
+                    <td className="px-3 py-1.5">Kitchen prep sink</td>
+                    <td className="px-3 py-1.5">2025-02-01</td>
+                    <td className="px-3 py-1.5">(leave blank if open)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1"><Info className="h-3 w-3" />Only title is required</span>
+              <span className="flex items-center gap-1"><Info className="h-3 w-3" />Dates: YYYY-MM-DD format</span>
+              <span className="flex items-center gap-1"><Info className="h-3 w-3" />Leave date_completed blank for open items</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Upload CSV File</Label>
+            <div
+              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                maintIsDragOver ? "border-primary bg-primary/5" : "hover:border-primary/50"
+              }`}
+              onDragOver={handleMaintDragOver}
+              onDragLeave={handleMaintDragLeave}
+              onDrop={handleMaintDrop}
+            >
+              <input
+                type="file"
+                accept=".csv,.txt"
+                onChange={handleMaintFileChange}
+                className="hidden"
+                id="maintenance-bulk-csv-upload"
+                data-testid="input-maintenance-csv-upload"
+              />
+              <label htmlFor="maintenance-bulk-csv-upload" className="cursor-pointer">
+                <Upload className={`h-8 w-8 mx-auto mb-2 transition-colors ${maintIsDragOver ? "text-primary" : "text-muted-foreground"}`} />
+                <p className="text-sm text-muted-foreground">
+                  {maintFile ? maintFile.name : maintIsDragOver ? "Drop your CSV file here" : "Click to upload or drag and drop"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">CSV or TXT file</p>
+              </label>
+            </div>
+          </div>
+
+          {maintParseError && (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
+              <p className="text-sm text-destructive">{maintParseError}</p>
+            </div>
+          )}
+
+          {maintPreviewData.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Preview ({maintPreviewData.length} rows{maintPreviewData.filter(r => r.error).length > 0 ? `, ${maintPreviewData.filter(r => r.error).length} with errors` : ''})</Label>
+                <Button variant="ghost" size="sm" onClick={clearMaintImport}>Clear</Button>
+              </div>
+              <div className="max-h-48 overflow-auto border rounded-lg">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted sticky top-0">
+                    <tr>
+                      <th className="text-left p-2">Title</th>
+                      <th className="text-left p-2">Date Added</th>
+                      <th className="text-left p-2">Date Completed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {maintPreviewData.map((row, idx) => (
+                      <tr key={idx} className={row.error ? "bg-destructive/10" : ""}>
+                        <td className="p-2">
+                          {row.title}
+                          {row.error && <span className="text-xs text-destructive ml-1">({row.error})</span>}
+                        </td>
+                        <td className="p-2 text-muted-foreground">{row.dateAdded || "—"}</td>
+                        <td className="p-2 text-muted-foreground">{row.dateCompleted || "open"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {maintImportResult && (
+            <div className={`rounded-lg p-3 flex items-start gap-2 ${maintImportResult.failed === 0 ? "bg-green-500/10 border border-green-500/30" : "bg-amber-500/10 border border-amber-500/30"}`}>
+              <CheckCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${maintImportResult.failed === 0 ? "text-green-600" : "text-amber-600"}`} />
+              <div className="text-sm">
+                <p className={maintImportResult.failed === 0 ? "text-green-600" : "text-amber-600"}>
+                  Imported {maintImportResult.success} of {maintImportResult.success + maintImportResult.failed} items
+                </p>
+                {maintImportResult.errors.length > 0 && (
+                  <ul className="mt-1 text-xs text-muted-foreground">
+                    {maintImportResult.errors.slice(0, 3).map((err, i) => <li key={i}>{err}</li>)}
+                    {maintImportResult.errors.length > 3 && <li>...and {maintImportResult.errors.length - 3} more errors</li>}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+
+          {(maintBulkImportMutation.isPending || maintProgress > 0) && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{maintProgress >= 100 ? "Complete" : "Importing..."}</span>
+                <span>{Math.round(maintProgress)}%</span>
+              </div>
+              <Progress value={maintProgress} className="h-2 bg-secondary" />
+            </div>
+          )}
+
+          <Button
+            className="w-full"
+            disabled={maintPreviewData.filter(r => !r.error).length === 0 || maintBulkImportMutation.isPending}
+            onClick={() => {
+              const valid = maintPreviewData.filter(r => !r.error);
+              if (valid.length > 0) maintBulkImportMutation.mutate(valid);
+            }}
+            data-testid="button-maintenance-bulk-import-submit"
+          >
+            {maintBulkImportMutation.isPending ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importing...</>
+            ) : (
+              <><Upload className="h-4 w-4 mr-2" />Import {maintPreviewData.filter(r => !r.error).length} Items</>
             )}
           </Button>
         </TabsContent>
