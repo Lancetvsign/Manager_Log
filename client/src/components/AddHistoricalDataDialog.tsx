@@ -304,16 +304,20 @@ export default function AddHistoricalDataDialog({
 
       if (rowType === "sales") {
         const dateStr = dateIdx >= 0 ? (vals[dateIdx] || "").trim() : "";
+        const rawFood = foodIdx >= 0 ? (vals[foodIdx] || "").trim() : "";
+        const rawBar = barIdx >= 0 ? (vals[barIdx] || "").trim() : "";
+        const rawGaming = gamingIdx >= 0 ? (vals[gamingIdx] || "").trim() : "";
         let error: string | undefined;
         if (!dateStr) error = "Date is required for sales rows";
         else if (!DATE_RE.test(dateStr)) error = "Invalid date (use YYYY-MM-DD)";
+        else if (!rawFood && !rawBar && !rawGaming) error = "At least one sales amount (food, bar, gaming) is required";
 
         parsed.push({
           rowType: "sales",
           date: dateStr,
-          foodSales: foodIdx >= 0 ? parseFloat(vals[foodIdx]) || 0 : 0,
-          barSales: barIdx >= 0 ? parseFloat(vals[barIdx]) || 0 : 0,
-          gamingSales: gamingIdx >= 0 ? parseFloat(vals[gamingIdx]) || 0 : 0,
+          foodSales: parseFloat(rawFood) || 0,
+          barSales: parseFloat(rawBar) || 0,
+          gamingSales: parseFloat(rawGaming) || 0,
           error,
         });
       } else if (rowType === "maintenance") {
@@ -446,6 +450,7 @@ export default function AddHistoricalDataDialog({
       queryClient.invalidateQueries({ queryKey: ["/api/manager-logs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/manager-logs/by-date"] });
       queryClient.invalidateQueries({ queryKey: ["/api/historical-status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance"] });
       queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance", clubId] });
       queryClient.invalidateQueries({ queryKey: ["/api/maintenance/open", clubId] });
 
@@ -1018,15 +1023,35 @@ export default function AddHistoricalDataDialog({
               <Wrench className="h-5 w-5" />
               Edit Maintenance Item
             </DialogTitle>
-            {editingMaintItem && (
-              <DialogDescription>
-                {editingMaintItem.status === "completed" ? "Completed" : "Open"}
-                {editingMaintItem.dateAdded && ` · Added ${format(new Date(editingMaintItem.dateAdded), "MMM d, yyyy")}`}
-                {editingMaintItem.dateCompleted && ` · Completed ${format(new Date(editingMaintItem.dateCompleted), "MMM d, yyyy")}`}
-              </DialogDescription>
-            )}
+            <DialogDescription>
+              Update the title or description. Dates and status are read-only.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
+            {/* Read-only metadata row */}
+            {editingMaintItem && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                  editingMaintItem.status === "completed"
+                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                    : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                }`}>
+                  {editingMaintItem.status === "completed" ? "Completed" : "Open"}
+                </span>
+                <span className="text-muted-foreground">
+                  <span className="font-medium text-foreground">Added:</span>{" "}
+                  {editingMaintItem.dateAdded
+                    ? format(new Date(editingMaintItem.dateAdded), "MMM d, yyyy")
+                    : "—"}
+                </span>
+                <span className="text-muted-foreground">
+                  <span className="font-medium text-foreground">Completed:</span>{" "}
+                  {editingMaintItem.dateCompleted
+                    ? format(new Date(editingMaintItem.dateCompleted), "MMM d, yyyy")
+                    : "—"}
+                </span>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="edit-maint-title">Title</Label>
               <Input
