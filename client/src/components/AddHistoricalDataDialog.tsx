@@ -676,60 +676,92 @@ export default function AddHistoricalDataDialog({
         {/* ── Unified Import Tab ── */}
         <TabsContent value="import" className="space-y-4 pt-4">
           {/* Format guide */}
-          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+          <div className="bg-muted/50 rounded-lg p-4 space-y-4">
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <p className="font-medium text-sm">Combined CSV Format</p>
+              <p className="font-medium text-sm">CSV Format Guide</p>
               <Button type="button" variant="outline" size="sm" onClick={downloadSampleCsv}>
                 <Download className="h-3 w-3 mr-1" />
                 Sample CSV
               </Button>
             </div>
-            <div className="bg-background rounded border overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-medium">type</th>
-                    <th className="px-3 py-2 text-left font-medium">date</th>
-                    <th className="px-3 py-2 text-left font-medium">food / bar / gaming</th>
-                    <th className="px-3 py-2 text-left font-medium">title</th>
-                    <th className="px-3 py-2 text-left font-medium">date_added</th>
-                    <th className="px-3 py-2 text-left font-medium">date_completed</th>
-                  </tr>
-                </thead>
-                <tbody className="text-muted-foreground">
-                  <tr className="border-t border-muted">
-                    <td className="px-3 py-1.5 font-medium text-foreground">sales</td>
-                    <td className="px-3 py-1.5">2025-01-15</td>
-                    <td className="px-3 py-1.5">1820 / 2640 / 890</td>
-                    <td className="px-3 py-1.5 text-muted-foreground/50">—</td>
-                    <td className="px-3 py-1.5 text-muted-foreground/50">—</td>
-                    <td className="px-3 py-1.5 text-muted-foreground/50">—</td>
-                  </tr>
-                  <tr className="border-t border-muted">
-                    <td className="px-3 py-1.5 font-medium text-foreground">maintenance</td>
-                    <td className="px-3 py-1.5 text-muted-foreground/50">—</td>
-                    <td className="px-3 py-1.5 text-muted-foreground/50">—</td>
-                    <td className="px-3 py-1.5">Fix leaking faucet</td>
-                    <td className="px-3 py-1.5">2025-02-01</td>
-                    <td className="px-3 py-1.5">2025-02-10</td>
-                  </tr>
-                  <tr className="border-t border-muted">
-                    <td className="px-3 py-1.5 font-medium text-foreground">maintenance</td>
-                    <td className="px-3 py-1.5 text-muted-foreground/50">—</td>
-                    <td className="px-3 py-1.5 text-muted-foreground/50">—</td>
-                    <td className="px-3 py-1.5">Replace HVAC filters</td>
-                    <td className="px-3 py-1.5">2025-03-05</td>
-                    <td className="px-3 py-1.5 italic text-muted-foreground/60">(leave blank = Open)</td>
-                  </tr>
-                </tbody>
-              </table>
+
+            {/* Sales rows */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+                Sales rows — set <code className="bg-muted px-1 rounded">type</code> to <code className="bg-muted px-1 rounded">sales</code>
+              </p>
+              <div className="bg-background rounded border overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">date</th>
+                      <th className="px-3 py-2 text-left font-medium">food</th>
+                      <th className="px-3 py-2 text-left font-medium">bar</th>
+                      <th className="px-3 py-2 text-left font-medium">gaming</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-muted-foreground">
+                    <tr className="border-t border-muted">
+                      <td className="px-3 py-1.5">2025-01-15</td>
+                      <td className="px-3 py-1.5">1820.00</td>
+                      <td className="px-3 py-1.5">2640.00</td>
+                      <td className="px-3 py-1.5">890.00</td>
+                    </tr>
+                    <tr className="border-t border-muted">
+                      <td className="px-3 py-1.5">2025-01-16</td>
+                      <td className="px-3 py-1.5">1550.00</td>
+                      <td className="px-3 py-1.5">2190.00</td>
+                      <td className="px-3 py-1.5">710.00</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Info className="h-3 w-3 flex-shrink-0" />
+                Date format: YYYY-MM-DD · Numbers only, no $ symbols · At least one sales column required
+              </p>
             </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><Info className="h-3 w-3" />Set type to "sales" or "maintenance"</span>
-              <span className="flex items-center gap-1"><Info className="h-3 w-3" />Dates: YYYY-MM-DD format</span>
-              <span className="flex items-center gap-1"><Info className="h-3 w-3" />Fill in date_completed to import as Completed — leave blank to import as Open</span>
-              <span className="flex items-center gap-1"><Info className="h-3 w-3" />Both types can appear in the same file</span>
+
+            {/* Maintenance rows */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
+                Maintenance rows — set <code className="bg-muted px-1 rounded">type</code> to <code className="bg-muted px-1 rounded">maintenance</code>
+              </p>
+              <div className="bg-background rounded border overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">title</th>
+                      <th className="px-3 py-2 text-left font-medium">date_added</th>
+                      <th className="px-3 py-2 text-left font-medium">date_completed</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-muted-foreground">
+                    <tr className="border-t border-muted">
+                      <td className="px-3 py-1.5">Fix leaking faucet</td>
+                      <td className="px-3 py-1.5">2025-02-01</td>
+                      <td className="px-3 py-1.5">2025-02-10</td>
+                    </tr>
+                    <tr className="border-t border-muted">
+                      <td className="px-3 py-1.5">Replace HVAC filters</td>
+                      <td className="px-3 py-1.5">2025-03-05</td>
+                      <td className="px-3 py-1.5 italic text-muted-foreground/60">leave blank = Open</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Info className="h-3 w-3 flex-shrink-0" />
+                Title required · Fill in date_completed to import as Completed, leave blank to import as Open
+              </p>
             </div>
+
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Info className="h-3 w-3 flex-shrink-0" />
+              Both sales and maintenance rows can appear together in the same file — each row needs a <code className="bg-muted px-1 rounded">type</code> column
+            </p>
           </div>
 
           {/* Drop zone */}
