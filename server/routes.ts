@@ -633,9 +633,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      if (entries.length > 500) {
+      if (entries.length > 2000) {
         return res.status(400).json({ 
-          error: "Maximum 500 entries per bulk import" 
+          error: "Maximum 2000 entries per bulk import" 
         });
       }
 

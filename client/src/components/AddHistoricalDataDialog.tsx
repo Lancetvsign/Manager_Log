@@ -316,6 +316,13 @@ export default function AddHistoricalDataDialog({
         });
       }
     },
+    onError: (error: Error) => {
+      toast({
+        title: "Import failed",
+        description: error.message || "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   // Download sample CSV
