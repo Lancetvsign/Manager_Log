@@ -695,6 +695,7 @@ export default function AddHistoricalDataDialog({
                 <table className="w-full text-xs">
                   <thead className="bg-muted">
                     <tr>
+                      <th className="px-3 py-2 text-left font-medium">type</th>
                       <th className="px-3 py-2 text-left font-medium">date</th>
                       <th className="px-3 py-2 text-left font-medium">food</th>
                       <th className="px-3 py-2 text-left font-medium">bar</th>
@@ -703,12 +704,14 @@ export default function AddHistoricalDataDialog({
                   </thead>
                   <tbody className="text-muted-foreground">
                     <tr className="border-t border-muted">
+                      <td className="px-3 py-1.5 font-medium text-foreground">sales</td>
                       <td className="px-3 py-1.5">2025-01-15</td>
                       <td className="px-3 py-1.5">1820.00</td>
                       <td className="px-3 py-1.5">2640.00</td>
                       <td className="px-3 py-1.5">890.00</td>
                     </tr>
                     <tr className="border-t border-muted">
+                      <td className="px-3 py-1.5 font-medium text-foreground">sales</td>
                       <td className="px-3 py-1.5">2025-01-16</td>
                       <td className="px-3 py-1.5">1550.00</td>
                       <td className="px-3 py-1.5">2190.00</td>
@@ -733,6 +736,7 @@ export default function AddHistoricalDataDialog({
                 <table className="w-full text-xs">
                   <thead className="bg-muted">
                     <tr>
+                      <th className="px-3 py-2 text-left font-medium">type</th>
                       <th className="px-3 py-2 text-left font-medium">title</th>
                       <th className="px-3 py-2 text-left font-medium">date_added</th>
                       <th className="px-3 py-2 text-left font-medium">date_completed</th>
@@ -740,11 +744,13 @@ export default function AddHistoricalDataDialog({
                   </thead>
                   <tbody className="text-muted-foreground">
                     <tr className="border-t border-muted">
+                      <td className="px-3 py-1.5 font-medium text-foreground">maintenance</td>
                       <td className="px-3 py-1.5">Fix leaking faucet</td>
                       <td className="px-3 py-1.5">2025-02-01</td>
                       <td className="px-3 py-1.5">2025-02-10</td>
                     </tr>
                     <tr className="border-t border-muted">
+                      <td className="px-3 py-1.5 font-medium text-foreground">maintenance</td>
                       <td className="px-3 py-1.5">Replace HVAC filters</td>
                       <td className="px-3 py-1.5">2025-03-05</td>
                       <td className="px-3 py-1.5 italic text-muted-foreground/60">leave blank = Open</td>
