@@ -36,7 +36,7 @@
  * 5. Overlay lines added to sales trend chart
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -131,9 +131,50 @@ function buildSalesLabels(start: Date, end: Date, viewBy: "daily" | "weekly" | "
 export default function InsightsPage({ onViewLog }: InsightsPageProps) {
   const { clubId, clubName, apiBaseUrl } = useManagerLog();
 
-  const [datePreset, setDatePreset] = useState<DateRangePreset>(DEFAULT_DATE_PRESET);
-  const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
-  const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
+  const storageKey = `insights:${clubId}`;
+
+  const [datePreset, setDatePreset] = useState<DateRangePreset>(() => {
+    try {
+      const v = localStorage.getItem(`${storageKey}:preset`);
+      if (v && ["7days", "30days", "thisMonth", "thisYear", "custom"].includes(v)) {
+        return v as DateRangePreset;
+      }
+    } catch {}
+    return DEFAULT_DATE_PRESET;
+  });
+
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>(() => {
+    try {
+      const v = localStorage.getItem(`${storageKey}:customStart`);
+      if (v) return new Date(v + "T12:00:00");
+    } catch {}
+    return undefined;
+  });
+
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>(() => {
+    try {
+      const v = localStorage.getItem(`${storageKey}:customEnd`);
+      if (v) return new Date(v + "T12:00:00");
+    } catch {}
+    return undefined;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${storageKey}:preset`, datePreset);
+      if (customStartDate) {
+        localStorage.setItem(`${storageKey}:customStart`, format(customStartDate, "yyyy-MM-dd"));
+      } else {
+        localStorage.removeItem(`${storageKey}:customStart`);
+      }
+      if (customEndDate) {
+        localStorage.setItem(`${storageKey}:customEnd`, format(customEndDate, "yyyy-MM-dd"));
+      } else {
+        localStorage.removeItem(`${storageKey}:customEnd`);
+      }
+    } catch {}
+  }, [datePreset, customStartDate, customEndDate, storageKey]);
+
   const [chartType, setChartType] = useState<ChartType>(DEFAULT_CHART_TYPE);
 
   const [comparisonPeriod, setComparisonPeriod] = useState<ComparisonPeriod>("none");
@@ -398,7 +439,12 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     setCustomEndDate(undefined);
     setChartType(DEFAULT_CHART_TYPE);
     setComparisonPeriod("none");
-  }, []);
+    try {
+      localStorage.removeItem(`${storageKey}:preset`);
+      localStorage.removeItem(`${storageKey}:customStart`);
+      localStorage.removeItem(`${storageKey}:customEnd`);
+    } catch {}
+  }, [storageKey]);
 
   const exportToCSV = useCallback(() => {
     if (!metrics) return;
