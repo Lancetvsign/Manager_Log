@@ -693,6 +693,7 @@ export default function AddHistoricalDataDialog({
                     <th className="px-3 py-2 text-left font-medium">food / bar / gaming</th>
                     <th className="px-3 py-2 text-left font-medium">title</th>
                     <th className="px-3 py-2 text-left font-medium">date_added</th>
+                    <th className="px-3 py-2 text-left font-medium">date_completed</th>
                   </tr>
                 </thead>
                 <tbody className="text-muted-foreground">
@@ -702,6 +703,7 @@ export default function AddHistoricalDataDialog({
                     <td className="px-3 py-1.5">1820 / 2640 / 890</td>
                     <td className="px-3 py-1.5 text-muted-foreground/50">—</td>
                     <td className="px-3 py-1.5 text-muted-foreground/50">—</td>
+                    <td className="px-3 py-1.5 text-muted-foreground/50">—</td>
                   </tr>
                   <tr className="border-t border-muted">
                     <td className="px-3 py-1.5 font-medium text-foreground">maintenance</td>
@@ -709,6 +711,15 @@ export default function AddHistoricalDataDialog({
                     <td className="px-3 py-1.5 text-muted-foreground/50">—</td>
                     <td className="px-3 py-1.5">Fix leaking faucet</td>
                     <td className="px-3 py-1.5">2025-02-01</td>
+                    <td className="px-3 py-1.5">2025-02-10</td>
+                  </tr>
+                  <tr className="border-t border-muted">
+                    <td className="px-3 py-1.5 font-medium text-foreground">maintenance</td>
+                    <td className="px-3 py-1.5 text-muted-foreground/50">—</td>
+                    <td className="px-3 py-1.5 text-muted-foreground/50">—</td>
+                    <td className="px-3 py-1.5">Replace HVAC filters</td>
+                    <td className="px-3 py-1.5">2025-03-05</td>
+                    <td className="px-3 py-1.5 italic text-muted-foreground/60">(leave blank = Open)</td>
                   </tr>
                 </tbody>
               </table>
@@ -716,7 +727,7 @@ export default function AddHistoricalDataDialog({
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span className="flex items-center gap-1"><Info className="h-3 w-3" />Set type to "sales" or "maintenance"</span>
               <span className="flex items-center gap-1"><Info className="h-3 w-3" />Dates: YYYY-MM-DD format</span>
-              <span className="flex items-center gap-1"><Info className="h-3 w-3" />Leave unused columns blank</span>
+              <span className="flex items-center gap-1"><Info className="h-3 w-3" />Fill in date_completed to import as Completed — leave blank to import as Open</span>
               <span className="flex items-center gap-1"><Info className="h-3 w-3" />Both types can appear in the same file</span>
             </div>
           </div>
