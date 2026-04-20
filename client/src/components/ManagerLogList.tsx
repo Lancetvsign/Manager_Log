@@ -74,11 +74,13 @@ export default function ManagerLogList({
   initialSelectedLogId,
   onLogSelected 
 }: ManagerLogListProps) {
+  const PAGE_SIZE = 20;
   const { clubId, apiBaseUrl } = useManagerLog();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLog, setSelectedLog] = useState<ManagerLog | null>(null);
   const [dateFilter, setDateFilter] = useState<DateRangeFilter>("all");
   const [specificDate, setSpecificDate] = useState<Date | undefined>(undefined);
+  const [currentPage, setCurrentPage] = useState(1);
   
   const { data: apiLogs, isLoading, error } = useQuery<ManagerLog[]>({
     queryKey: ['/api/manager-logs', clubId],
@@ -277,6 +279,13 @@ export default function ManagerLogList({
   };
 
   const filteredLogs = getFilteredLogs();
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, dateFilter, specificDate]);
+
+  const totalPages = Math.ceil(filteredLogs.length / PAGE_SIZE);
+  const paginatedLogs = filteredLogs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const calculateTotal = (food: string | null, bar: string | null, gaming: string | null) => {
     return (parseFloat(food || "0") || 0) + (parseFloat(bar || "0") || 0) + (parseFloat(gaming || "0") || 0);
@@ -911,7 +920,7 @@ export default function ManagerLogList({
             </CardContent>
           </Card>
         ) : (
-          filteredLogs.map((log) => (
+          paginatedLogs.map((log) => (
             <Card key={log.id} className="hover-elevate" data-testid={`card-log-${log.id}`}>
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -964,6 +973,33 @@ export default function ManagerLogList({
           ))
         )}
       </div>
+
+      {/* Pagination controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4" data-testid="pagination-controls">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            data-testid="button-prev-page"
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground" data-testid="pagination-label">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            data-testid="button-next-page"
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
