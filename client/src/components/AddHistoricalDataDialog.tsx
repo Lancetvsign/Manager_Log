@@ -26,6 +26,7 @@ import {
   TableProperties,
   Wrench,
   DollarSign,
+  Search,
 } from "lucide-react";
 
 interface AddHistoricalDataDialogProps {
@@ -58,6 +59,7 @@ export default function AddHistoricalDataDialog({
   // Tab state
   const [mode, setMode] = useState<"view" | "single" | "bulk" | "maintenance">("single");
   const [maintenanceFilter, setMaintenanceFilter] = useState<"all" | "open" | "completed">("all");
+  const [maintenanceSearch, setMaintenanceSearch] = useState("");
 
   // Fetch all logs for View Data tab
   const { data: allLogs, isLoading: isLoadingSales } = useQuery<ManagerLog[]>({
@@ -93,11 +95,21 @@ export default function AddHistoricalDataDialog({
   }, [allMaintenanceItems]);
 
   const filteredMaintenanceItems = useMemo(() => {
-    if (maintenanceFilter === "all") return sortedMaintenanceItems;
-    return sortedMaintenanceItems.filter((item) =>
-      maintenanceFilter === "completed" ? item.status === "completed" : item.status !== "completed"
-    );
-  }, [sortedMaintenanceItems, maintenanceFilter]);
+    let items = sortedMaintenanceItems;
+    if (maintenanceFilter !== "all") {
+      items = items.filter((item) =>
+        maintenanceFilter === "completed" ? item.status === "completed" : item.status !== "completed"
+      );
+    }
+    const query = maintenanceSearch.trim().toLowerCase();
+    if (query) {
+      items = items.filter((item) =>
+        item.title.toLowerCase().includes(query) ||
+        (item.description ?? "").toLowerCase().includes(query)
+      );
+    }
+    return items;
+  }, [sortedMaintenanceItems, maintenanceFilter, maintenanceSearch]);
 
   const salesTableData = useMemo(() => {
     if (!allLogs) return [];
@@ -1123,20 +1135,31 @@ export default function AddHistoricalDataDialog({
                 )}
               </h3>
               {!isLoadingMaintenance && sortedMaintenanceItems.length > 0 && (
-                <div className="flex items-center gap-1">
-                  {(["all", "open", "completed"] as const).map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => setMaintenanceFilter(f)}
-                      className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
-                        maintenanceFilter === f
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-muted-foreground border-border hover-elevate"
-                      }`}
-                    >
-                      {f.charAt(0).toUpperCase() + f.slice(1)}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                    <Input
+                      placeholder="Search by title or description..."
+                      value={maintenanceSearch}
+                      onChange={(e) => setMaintenanceSearch(e.target.value)}
+                      className="pl-7 h-7 text-xs w-48"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {(["all", "open", "completed"] as const).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setMaintenanceFilter(f)}
+                        className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                          maintenanceFilter === f
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background text-muted-foreground border-border hover-elevate"
+                        }`}
+                      >
+                        {f.charAt(0).toUpperCase() + f.slice(1)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -1150,6 +1173,8 @@ export default function AddHistoricalDataDialog({
                 <p className="text-sm text-muted-foreground">
                   {sortedMaintenanceItems.length === 0
                     ? "No maintenance items found."
+                    : maintenanceSearch.trim()
+                    ? `No ${maintenanceFilter === "all" ? "" : maintenanceFilter + " "}maintenance items match "${maintenanceSearch.trim()}".`
                     : `No ${maintenanceFilter} maintenance items.`}
                 </p>
               </div>
