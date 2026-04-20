@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Minus, Target, Plus, DollarSign } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Target, Plus, DollarSign, ChevronDown } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import AddHistoricalDataDialog from "./AddHistoricalDataDialog";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
@@ -49,6 +50,9 @@ interface SalesInputProps {
   budget?: BudgetData;
   onBudgetSave?: (budget: BudgetData) => void;
   hasLastWeekData?: boolean;
+  collapsible?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const calculateChange = (current: string, comparison: string) => {
@@ -89,6 +93,9 @@ export default function SalesInput({
   budget,
   onBudgetSave,
   hasLastWeekData,
+  collapsible = false,
+  isOpen = true,
+  onOpenChange,
 }: SalesInputProps) {
   const [comparisonMode, setComparisonMode] = useState<"lastYear" | "lastWeek" | "budget">("lastYear");
   const [localBudgetFood, setLocalBudgetFood] = useState(budget?.foodSales || "");
@@ -163,13 +170,36 @@ export default function SalesInput({
     (parseFloat(localBudgetBar) || 0) +
     (parseFloat(localBudgetGaming) || 0);
 
+  const totalSales =
+    (parseFloat(salesData.current.foodSales) || 0) +
+    (parseFloat(salesData.current.barSales) || 0) +
+    (parseFloat(salesData.current.gamingSales) || 0);
+
+  const cardHeader = (
+    <CardHeader className={`flex flex-col gap-2${collapsible ? " cursor-pointer hover-elevate rounded-t-lg" : ""}`}>
+      <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
+        <CardTitle className="text-lg">{title}</CardTitle>
+        {collapsible && (
+          <div className="flex items-center gap-3">
+            {!isOpen && (
+              <span className="text-sm text-muted-foreground font-medium">
+                Total: ${totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            )}
+            <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          </div>
+        )}
+      </div>
+    </CardHeader>
+  );
+
   return (
+    <Collapsible open={collapsible ? isOpen : true} onOpenChange={collapsible ? onOpenChange : undefined}>
     <Card data-testid="card-sales">
-      <CardHeader className="flex flex-col gap-2">
-        <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
-          <CardTitle className="text-lg">{title}</CardTitle>
-        </div>
-      </CardHeader>
+      {collapsible ? (
+        <CollapsibleTrigger asChild>{cardHeader}</CollapsibleTrigger>
+      ) : cardHeader}
+      <CollapsibleContent>
       <CardContent className="space-y-6">
         {/* Daily Budget Section */}
         <div className="rounded-lg border p-4 space-y-4">
@@ -508,6 +538,8 @@ export default function SalesInput({
         </div>
 
       </CardContent>
+      </CollapsibleContent>
     </Card>
+    </Collapsible>
   );
 }

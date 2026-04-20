@@ -89,7 +89,9 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
     onEmailModalChange?.(open);
   };
   
-  // Collapsible state for maintenance list
+  // Collapsible state for sections
+  const [salesOpen, setSalesOpen] = useState(true);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [maintenanceOpen, setMaintenanceOpen] = useState(true);
   
   // Photo lightbox state
@@ -984,34 +986,51 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
         budget={budgetData}
         onBudgetSave={(b) => budgetMutation.mutate(b)}
         hasLastWeekData={hasLastWeekData}
+        collapsible={true}
+        isOpen={salesOpen}
+        onOpenChange={setSalesOpen}
       />
 
 
       {/* Operational Notes (was Sales Notes) */}
-      <Card data-testid="card-sales-notes">
-        <CardHeader>
-          <CardTitle className="text-lg">Operational Notes</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Textarea
-            value={salesNotes}
-            onChange={(e) => setSalesNotes(e.target.value)}
-            placeholder="Enter notes about sales performance, promotions, special events..."
-            className="min-h-24"
-            disabled={isPastLog}
-            data-testid="textarea-sales-notes"
-          />
-          <div className="border-t pt-4">
-            <NotePhotos
-              logId={existingLogId}
-              noteType="operational"
-              disabled={isPastLog}
-              currentDate={dateString}
-              onLogCreated={(id) => setExistingLogId(id)}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <Collapsible open={notesOpen} onOpenChange={setNotesOpen}>
+        <Card data-testid="card-sales-notes">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer hover-elevate rounded-t-lg">
+              <div className="flex flex-col gap-1">
+                <CardTitle className="text-lg">Operational Notes</CardTitle>
+                {!notesOpen && (
+                  <span className="text-xs text-muted-foreground font-normal">
+                    {salesNotes.trim() ? salesNotes.trim().slice(0, 60) + (salesNotes.trim().length > 60 ? '…' : '') : 'No notes'}
+                  </span>
+                )}
+              </div>
+              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 flex-shrink-0 ${notesOpen ? 'rotate-180' : ''}`} />
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-4">
+              <Textarea
+                value={salesNotes}
+                onChange={(e) => setSalesNotes(e.target.value)}
+                placeholder="Enter notes about sales performance, promotions, special events..."
+                className="min-h-24"
+                disabled={isPastLog}
+                data-testid="textarea-sales-notes"
+              />
+              <div className="border-t pt-4">
+                <NotePhotos
+                  logId={existingLogId}
+                  noteType="operational"
+                  disabled={isPastLog}
+                  currentDate={dateString}
+                  onLogCreated={(id) => setExistingLogId(id)}
+                />
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Running Maintenance List - Collapsible */}
       <Collapsible open={maintenanceOpen} onOpenChange={setMaintenanceOpen}>
