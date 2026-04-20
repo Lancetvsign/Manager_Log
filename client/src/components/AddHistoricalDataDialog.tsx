@@ -1048,7 +1048,7 @@ export default function AddHistoricalDataDialog({
                   <span className="font-medium text-foreground">Completed:</span>{" "}
                   {editingMaintItem.dateCompleted
                     ? format(new Date(editingMaintItem.dateCompleted), "MMM d, yyyy")
-                    : "—"}
+                    : "Open"}
                 </span>
               </div>
             )}
