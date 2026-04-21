@@ -223,7 +223,7 @@ export default function SalesInput({
               <Input
                 id="budget-food-sales"
                 type="number"
-                placeholder="0.00"
+                placeholder="0"
                 value={localBudgetFood}
                 onChange={(e) => setLocalBudgetFood(e.target.value)}
                 onBlur={saveBudgetOnBlur}
@@ -238,7 +238,7 @@ export default function SalesInput({
               <Input
                 id="budget-bar-sales"
                 type="number"
-                placeholder="0.00"
+                placeholder="0"
                 value={localBudgetBar}
                 onChange={(e) => setLocalBudgetBar(e.target.value)}
                 onBlur={saveBudgetOnBlur}
@@ -253,7 +253,7 @@ export default function SalesInput({
               <Input
                 id="budget-gaming-sales"
                 type="number"
-                placeholder="0.00"
+                placeholder="0"
                 value={localBudgetGaming}
                 onChange={(e) => setLocalBudgetGaming(e.target.value)}
                 onBlur={saveBudgetOnBlur}
@@ -303,7 +303,7 @@ export default function SalesInput({
               <Input
                 id="food-sales"
                 type="number"
-                placeholder="0.00"
+                placeholder="0"
                 value={salesData.current.food}
                 onChange={(e) => onSalesChange('food', e.target.value)}
                 disabled={disabled}
@@ -327,7 +327,7 @@ export default function SalesInput({
               <Input
                 id="bar-sales"
                 type="number"
-                placeholder="0.00"
+                placeholder="0"
                 value={salesData.current.bar}
                 onChange={(e) => onSalesChange('bar', e.target.value)}
                 disabled={disabled}
@@ -351,7 +351,7 @@ export default function SalesInput({
               <Input
                 id="gaming-sales"
                 type="number"
-                placeholder="0.00"
+                placeholder="0"
                 value={salesData.current.gaming}
                 onChange={(e) => onSalesChange('gaming', e.target.value)}
                 disabled={disabled}
