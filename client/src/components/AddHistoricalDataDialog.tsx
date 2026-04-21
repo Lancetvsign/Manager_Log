@@ -36,6 +36,7 @@ interface AddHistoricalDataDialogProps {
   clubId: string;
   apiBaseUrl?: string;
   defaultDate?: Date;
+  defaultTab?: "view" | "single" | "import";
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -68,6 +69,7 @@ export default function AddHistoricalDataDialog({
   clubId,
   apiBaseUrl,
   defaultDate,
+  defaultTab,
   trigger,
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
@@ -80,7 +82,7 @@ export default function AddHistoricalDataDialog({
   const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = isControlled ? controlledOnOpenChange : setInternalOpen;
 
-  const [mode, setMode] = useState<"view" | "single" | "import">("single");
+  const [mode, setMode] = useState<"view" | "single" | "import">(defaultTab ?? "single");
   const [maintenanceSearch, setMaintenanceSearch] = useState("");
 
   // Maintenance edit state
@@ -231,7 +233,7 @@ export default function AddHistoricalDataDialog({
   // ── Reset ──────────────────────────────────────────────────────────────────
 
   const resetState = useCallback(() => {
-    setMode("single");
+    setMode(defaultTab ?? "single");
     setHistoricalDate(defaultDate);
     setHistoricalFood("");
     setHistoricalBar("");
@@ -257,7 +259,7 @@ export default function AddHistoricalDataDialog({
     setEditBar("");
     setEditGaming("");
     setConfirmSalesDelete(false);
-  }, [defaultDate]);
+  }, [defaultDate, defaultTab]);
 
   const handleOpenChange = useCallback(
     (newOpen: boolean) => {

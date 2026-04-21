@@ -22,7 +22,8 @@ import ManagerLogList from "@/components/ManagerLogList";
 import InsightsPage from "@/components/InsightsPage";
 import { useTheme } from "@/components/ThemeToggle";
 import EmailLogModal from "@/components/EmailLogModal";
-import { History, Plus, BarChart3, User, Settings, MapPin, Loader2, ChevronLeft, Mail } from "lucide-react";
+import { History, Plus, BarChart3, User, Settings, MapPin, Loader2, ChevronLeft, Mail, Database } from "lucide-react";
+import AddHistoricalDataDialog from "@/components/AddHistoricalDataDialog";
 import logoImageDark from "@assets/download_1758015677430-BXYXiYbN_(1)_1764694504617.png";
 import logoImageLight from "@assets/Restaurant_Manager's_Log_Daily_operations_tracking_with_weathe_1764696079981.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -79,6 +80,7 @@ export default function Home() {
 
   // Settings dialog state
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [salesDataOpen, setSalesDataOpen] = useState(false);
   const [zipInput, setZipInput] = useState("");
   // Optimistic local state for AI toggle — flips instantly without waiting for server
   const [aiChecked, setAiChecked] = useState(false);
@@ -488,6 +490,30 @@ export default function Home() {
               </div>
             </div>
 
+            <Separator />
+
+            {/* ── Data ─────────────────────────────────── */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Data</p>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">Sales Data</p>
+                  <p className="text-xs text-muted-foreground">
+                    View, add, edit, or import historical sales records.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setSettingsOpen(false); setSalesDataOpen(true); }}
+                  data-testid="btn-open-sales-data"
+                >
+                  <Database className="h-4 w-4 mr-2" />
+                  Manage
+                </Button>
+              </div>
+            </div>
+
             <div className="flex justify-end pt-1">
               <Button variant="outline" onClick={() => setSettingsOpen(false)}>
                 Close
@@ -496,6 +522,15 @@ export default function Home() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Sales Data Manager (opened from Settings) */}
+      <AddHistoricalDataDialog
+        clubId={clubId}
+        apiBaseUrl={apiBaseUrl}
+        open={salesDataOpen}
+        onOpenChange={setSalesDataOpen}
+        defaultTab="view"
+      />
     </div>
   );
 }
