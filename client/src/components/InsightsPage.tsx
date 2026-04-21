@@ -963,9 +963,20 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                   </Button>
                 </div>
               ) : (
-                <p className="text-sm">
-                  No logs found for this period. Start logging daily activity to see data here.
-                </p>
+                <div className="text-sm">
+                  <p className="mb-3">No logs found for this period. Start logging daily activity to see data here.</p>
+                  <AddHistoricalDataDialog
+                    clubId={clubId}
+                    apiBaseUrl={apiBaseUrl}
+                    onViewComparison={handleViewComparison}
+                    trigger={
+                      <Button variant="outline" size="sm" className="gap-1 border-dashed">
+                        <Plus className="h-4 w-4" />
+                        Add Historical Data
+                      </Button>
+                    }
+                  />
+                </div>
               )}
             </div>
           </CardContent>
