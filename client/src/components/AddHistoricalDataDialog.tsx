@@ -87,6 +87,7 @@ export default function AddHistoricalDataDialog({
   const [editingMaintItem, setEditingMaintItem] = useState<RunningMaintenanceItem | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editStatus, setEditStatus] = useState<"open" | "completed">("open");
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
@@ -523,9 +524,9 @@ export default function AddHistoricalDataDialog({
   // ── Maintenance edit mutation ──────────────────────────────────────────────
 
   const updateMaintenanceMutation = useMutation({
-    mutationFn: async ({ id, title, description }: { id: number; title: string; description: string }) => {
+    mutationFn: async ({ id, title, description, status }: { id: number; title: string; description: string; status: "open" | "completed" }) => {
       const url = buildApiUrl(`/api/running-maintenance/${id}`, clubId, apiBaseUrl);
-      const response = await apiRequest("PATCH", url, { title, description, clubId });
+      const response = await apiRequest("PATCH", url, { title, description, status, clubId });
       return response.json();
     },
     onSuccess: () => {
@@ -542,6 +543,7 @@ export default function AddHistoricalDataDialog({
     setEditingMaintItem(item);
     setEditTitle(item.title);
     setEditDescription(item.description || "");
+    setEditStatus(item.status as "open" | "completed");
   };
 
   // ── Calendar helpers ───────────────────────────────────────────────────────
@@ -1083,32 +1085,46 @@ export default function AddHistoricalDataDialog({
               Edit Maintenance Item
             </DialogTitle>
             <DialogDescription>
-              Update the title or description. Dates and status are read-only.
+              Update the title, description, or status of this maintenance item.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            {/* Read-only metadata row */}
+            {/* Status toggle + metadata row */}
             {editingMaintItem && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                  editingMaintItem.status === "completed"
-                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                    : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                }`}>
-                  {editingMaintItem.status === "completed" ? "Completed" : "Open"}
-                </span>
-                <span className="text-muted-foreground">
-                  <span className="font-medium text-foreground">Added:</span>{" "}
-                  {editingMaintItem.dateAdded
-                    ? format(new Date(editingMaintItem.dateAdded), "MMM d, yyyy")
-                    : "—"}
-                </span>
-                <span className="text-muted-foreground">
-                  <span className="font-medium text-foreground">Completed:</span>{" "}
-                  {editingMaintItem.dateCompleted
-                    ? format(new Date(editingMaintItem.dateCompleted), "MMM d, yyyy")
-                    : "Open"}
-                </span>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={editStatus === "open" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setEditStatus("open")}
+                  >
+                    Open
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={editStatus === "completed" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setEditStatus("completed")}
+                  >
+                    Completed
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <span>
+                    <span className="font-medium text-foreground">Added:</span>{" "}
+                    {editingMaintItem.dateAdded
+                      ? format(new Date(editingMaintItem.dateAdded), "MMM d, yyyy")
+                      : "—"}
+                  </span>
+                  {editingMaintItem.dateCompleted && (
+                    <span>
+                      <span className="font-medium text-foreground">Completed:</span>{" "}
+                      {format(new Date(editingMaintItem.dateCompleted), "MMM d, yyyy")}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
             <div className="space-y-2">
@@ -1145,6 +1161,7 @@ export default function AddHistoricalDataDialog({
                       id: editingMaintItem.id,
                       title: editTitle.trim(),
                       description: editDescription.trim(),
+                      status: editStatus,
                     });
                   }
                 }}
