@@ -98,15 +98,21 @@ export default function SalesInput({
   onOpenChange,
 }: SalesInputProps) {
   const [comparisonMode, setComparisonMode] = useState<"lastYear" | "lastWeek" | "budget">("lastYear");
-  const [localBudgetFood, setLocalBudgetFood] = useState(budget?.foodSales || "");
-  const [localBudgetBar, setLocalBudgetBar] = useState(budget?.barSales || "");
-  const [localBudgetGaming, setLocalBudgetGaming] = useState(budget?.gamingSales || "");
+  const stripDecimals = (val: string | null | undefined) => {
+    if (!val) return "";
+    const n = parseFloat(val);
+    return isNaN(n) ? val : n.toString();
+  };
+
+  const [localBudgetFood, setLocalBudgetFood] = useState(stripDecimals(budget?.foodSales));
+  const [localBudgetBar, setLocalBudgetBar] = useState(stripDecimals(budget?.barSales));
+  const [localBudgetGaming, setLocalBudgetGaming] = useState(stripDecimals(budget?.gamingSales));
 
   useEffect(() => {
     if (budget) {
-      setLocalBudgetFood(budget.foodSales || "");
-      setLocalBudgetBar(budget.barSales || "");
-      setLocalBudgetGaming(budget.gamingSales || "");
+      setLocalBudgetFood(stripDecimals(budget.foodSales));
+      setLocalBudgetBar(stripDecimals(budget.barSales));
+      setLocalBudgetGaming(stripDecimals(budget.gamingSales));
     }
   }, [budget?.foodSales, budget?.barSales, budget?.gamingSales]);
 

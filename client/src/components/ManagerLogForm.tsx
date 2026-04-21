@@ -315,9 +315,9 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
       setWeeklyNumber(existingLog.weeklyNumber ? String(parseInt(existingLog.weeklyNumber, 10)) : "");
       setSalesData({
         current: {
-          food: existingLog.foodSales || "",
-          bar: existingLog.barSales || "",
-          gaming: existingLog.gamingSales || ""
+          food: existingLog.foodSales ? parseFloat(existingLog.foodSales).toString() : "",
+          bar: existingLog.barSales ? parseFloat(existingLog.barSales).toString() : "",
+          gaming: existingLog.gamingSales ? parseFloat(existingLog.gamingSales).toString() : ""
         },
         lastYear: {
           food: comparisonLog?.foodSales || "",
