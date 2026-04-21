@@ -13,7 +13,6 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { buildApiUrl } from "@/contexts/ManagerLogContext";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
-import { SalesDataTable } from "./SalesDataTable";
 import type { ManagerLog, RunningMaintenanceItem } from "@shared/schema";
 import {
   Calendar,
@@ -82,7 +81,6 @@ export default function AddHistoricalDataDialog({
   const setOpen = isControlled ? controlledOnOpenChange : setInternalOpen;
 
   const [mode, setMode] = useState<"view" | "single" | "import">("single");
-  const [maintenanceFilter, setMaintenanceFilter] = useState<"all" | "open" | "completed">("all");
   const [maintenanceSearch, setMaintenanceSearch] = useState("");
 
   // Maintenance edit state
@@ -142,24 +140,6 @@ export default function AddHistoricalDataDialog({
       return new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime();
     });
   }, [allMaintenanceItems]);
-
-  const filteredMaintenanceItems = useMemo(() => {
-    let items = sortedMaintenanceItems;
-    if (maintenanceFilter !== "all") {
-      items = items.filter((item) =>
-        maintenanceFilter === "completed" ? item.status === "completed" : item.status !== "completed"
-      );
-    }
-    const query = maintenanceSearch.trim().toLowerCase();
-    if (query) {
-      items = items.filter(
-        (item) =>
-          item.title.toLowerCase().includes(query) ||
-          (item.description ?? "").toLowerCase().includes(query)
-      );
-    }
-    return items;
-  }, [sortedMaintenanceItems, maintenanceFilter, maintenanceSearch]);
 
   const salesTableData = useMemo(() => {
     if (!allLogs) return [];
@@ -262,7 +242,6 @@ export default function AddHistoricalDataDialog({
     setImportParseError(null);
     setImportResult(null);
     setImportProgress(0);
-    setMaintenanceFilter("all");
     setMaintenanceSearch("");
     setEditingMaintItem(null);
     setEditTitle("");
