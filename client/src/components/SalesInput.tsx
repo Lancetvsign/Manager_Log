@@ -531,6 +531,12 @@ export default function SalesInput({
                   clubId={clubId}
                   apiBaseUrl={apiBaseUrl}
                   defaultDate={historicalCompareDate ? parseISO(historicalCompareDate) : undefined}
+                  trigger={
+                    <Button variant="outline" size="sm" className="gap-1 border-dashed">
+                      <Plus className="h-3 w-3" />
+                      Add Past Sales
+                    </Button>
+                  }
                 />
               </div>
             </div>
