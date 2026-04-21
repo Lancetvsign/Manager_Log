@@ -929,25 +929,6 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
             )}
           </div>
 
-          <div className="border-t pt-4 flex flex-wrap gap-2">
-            <AddHistoricalDataDialog
-              clubId={clubId}
-              apiBaseUrl={apiBaseUrl}
-              onViewComparison={handleViewComparison}
-              trigger={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1 border-dashed"
-                  data-testid="button-add-historical"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Past Sales for Comparison
-                </Button>
-              }
-            />
-          </div>
-
         </CardContent>
       </Card>
 
