@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,6 +96,19 @@ export default function AddHistoricalDataDialog({
   const [selectedMaintIds, setSelectedMaintIds] = useState<Set<number>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
+  // Unified log view state
+  const [unifiedTypeFilter, setUnifiedTypeFilter] = useState<"all" | "sales" | "maintenance">("all");
+
+  // Sales edit state (unified view)
+  const [editingSalesEntry, setEditingSalesEntry] = useState<{
+    id: number; date: string; dayOfWeek: string;
+    foodSales: number; barSales: number; gamingSales: number; totalSales: number;
+  } | null>(null);
+  const [editFood, setEditFood] = useState("");
+  const [editBar, setEditBar] = useState("");
+  const [editGaming, setEditGaming] = useState("");
+  const [confirmSalesDelete, setConfirmSalesDelete] = useState(false);
+
   // ── Queries ────────────────────────────────────────────────────────────────
 
   const { data: allLogs, isLoading: isLoadingSales } = useQuery<ManagerLog[]>({
@@ -166,6 +179,49 @@ export default function AddHistoricalDataDialog({
     });
   }, [allLogs]);
 
+  // Lookup maps for unified log view
+  const logByDate = useMemo(() => {
+    const map = new Map<string, (typeof salesTableData)[0]>();
+    salesTableData.forEach((s) => map.set(s.date, s));
+    return map;
+  }, [salesTableData]);
+
+  const maintByDate = useMemo(() => {
+    const map = new Map<string, RunningMaintenanceItem[]>();
+    sortedMaintenanceItems.forEach((item) => {
+      if (!item.dateAdded) return;
+      const date = String(item.dateAdded).slice(0, 10);
+      if (!map.has(date)) map.set(date, []);
+      map.get(date)!.push(item);
+    });
+    return map;
+  }, [sortedMaintenanceItems]);
+
+  const unifiedDates = useMemo(() => {
+    const allDates = new Set<string>([
+      ...(allLogs?.map((l) => l.logDate) ?? []),
+      ...sortedMaintenanceItems
+        .map((i) => (i.dateAdded ? String(i.dateAdded).slice(0, 10) : null))
+        .filter(Boolean) as string[],
+    ]);
+    let dates = Array.from(allDates);
+    if (unifiedTypeFilter === "sales") dates = dates.filter((d) => logByDate.has(d));
+    if (unifiedTypeFilter === "maintenance") dates = dates.filter((d) => maintByDate.has(d));
+    const q = maintenanceSearch.trim().toLowerCase();
+    if (q) {
+      dates = dates.filter((date) => {
+        if (date.includes(q)) return true;
+        const items = maintByDate.get(date) ?? [];
+        return items.some(
+          (i) =>
+            i.title.toLowerCase().includes(q) ||
+            (i.description ?? "").toLowerCase().includes(q)
+        );
+      });
+    }
+    return dates.sort((a, b) => b.localeCompare(a));
+  }, [allLogs, sortedMaintenanceItems, logByDate, maintByDate, unifiedTypeFilter, maintenanceSearch]);
+
   // ── Single entry state ─────────────────────────────────────────────────────
 
   const [historicalDate, setHistoricalDate] = useState<Date | undefined>(defaultDate);
@@ -214,6 +270,12 @@ export default function AddHistoricalDataDialog({
     setConfirmDelete(false);
     setSelectedMaintIds(new Set());
     setShowBulkDeleteDialog(false);
+    setUnifiedTypeFilter("all");
+    setEditingSalesEntry(null);
+    setEditFood("");
+    setEditBar("");
+    setEditGaming("");
+    setConfirmSalesDelete(false);
   }, [defaultDate]);
 
   const handleOpenChange = useCallback(
@@ -585,6 +647,50 @@ export default function AddHistoricalDataDialog({
     onError: () => {
       toast({ title: "Error", description: "Failed to delete some items.", variant: "destructive" });
       setShowBulkDeleteDialog(false);
+    },
+  });
+
+  const updateSalesMutation = useMutation({
+    mutationFn: async (data: { date: string; food: string; bar: string; gaming: string }) => {
+      const url = buildApiUrl("/api/manager-logs/historical", clubId, apiBaseUrl);
+      const dateObj = new Date(data.date + "T12:00:00");
+      const dayOfWeek = dateObj.toLocaleDateString("en-US", { weekday: "long" });
+      const response = await apiRequest("POST", url, {
+        logDate: data.date,
+        dayOfWeek,
+        foodSales: data.food,
+        barSales: data.bar,
+        gamingSales: data.gaming,
+        clubId,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/manager-logs", clubId] });
+      toast({ title: "Sales updated", description: "The sales data has been saved." });
+      setEditingSalesEntry(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update sales data.", variant: "destructive" });
+    },
+  });
+
+  const deleteSalesMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildApiUrl(`/api/manager-logs/${id}`, clubId, apiBaseUrl);
+      await apiRequest("DELETE", url);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/manager-logs", clubId] });
+      toast({ title: "Record deleted", description: "The sales record has been removed." });
+      setEditingSalesEntry(null);
+      setConfirmSalesDelete(false);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete the sales record.", variant: "destructive" });
+      setConfirmSalesDelete(false);
     },
   });
 
@@ -998,179 +1104,298 @@ export default function AddHistoricalDataDialog({
         </TabsContent>
 
         {/* ── View Data Tab ── */}
-        <TabsContent value="view" className="pt-4 space-y-6">
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              Sales Records
-              {!isLoadingSales && (
-                <span className="text-xs font-normal text-muted-foreground">({salesTableData.length} entries)</span>
-              )}
-            </h3>
-            {isLoadingSales ? (
-              <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Loading sales records...</span>
-              </div>
-            ) : (
-              <SalesDataTable data={salesTableData} />
-            )}
-          </div>
+        <TabsContent value="view" className="pt-4 space-y-4">
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Wrench className="h-4 w-4 text-muted-foreground" />
-                Maintenance Items
-                {!isLoadingMaintenance && (
-                  <span className="text-xs font-normal text-muted-foreground">
-                    ({filteredMaintenanceItems.length}{filteredMaintenanceItems.length !== sortedMaintenanceItems.length ? ` of ${sortedMaintenanceItems.length}` : ""} items)
-                  </span>
-                )}
-              </h3>
-              {!isLoadingMaintenance && sortedMaintenanceItems.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="relative">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                    <Input
-                      placeholder="Search..."
-                      value={maintenanceSearch}
-                      onChange={(e) => setMaintenanceSearch(e.target.value)}
-                      className="pl-7 h-7 text-xs w-40"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {(["all", "open", "completed"] as const).map((f) => (
-                      <button
-                        key={f}
-                        onClick={() => setMaintenanceFilter(f)}
-                        className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
-                          maintenanceFilter === f
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-background text-muted-foreground border-border hover-elevate"
-                        }`}
-                      >
-                        {f.charAt(0).toUpperCase() + f.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+          {/* Controls bar */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-[160px]">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Search by date or maintenance title..."
+                value={maintenanceSearch}
+                onChange={(e) => setMaintenanceSearch(e.target.value)}
+                className="pl-7 h-8 text-sm"
+              />
             </div>
-
-            {/* Bulk-select toolbar */}
-            {selectedMaintIds.size > 0 && (
-              <div className="flex items-center gap-3 px-3 py-2 rounded-md bg-muted/60 border">
-                <span className="text-sm text-muted-foreground flex-1">
-                  {selectedMaintIds.size} item{selectedMaintIds.size !== 1 ? "s" : ""} selected
-                </span>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setShowBulkDeleteDialog(true)}
+            <div className="flex items-center gap-1">
+              {(["all", "sales", "maintenance"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setUnifiedTypeFilter(f)}
+                  className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                    unifiedTypeFilter === f
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover-elevate"
+                  }`}
                 >
-                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                  Delete Selected ({selectedMaintIds.size})
-                </Button>
-              </div>
+                  {f === "all" ? "All" : f === "sales" ? "Sales" : "Maintenance"}
+                </button>
+              ))}
+            </div>
+            {selectedMaintIds.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowBulkDeleteDialog(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                Delete ({selectedMaintIds.size})
+              </Button>
             )}
-
-            {isLoadingMaintenance ? (
-              <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Loading maintenance items...</span>
-              </div>
-            ) : filteredMaintenanceItems.length === 0 ? (
-              <div className="rounded-md border bg-muted/30 py-8 text-center">
-                <p className="text-sm text-muted-foreground">
-                  {sortedMaintenanceItems.length === 0
-                    ? "No maintenance items found."
-                    : maintenanceSearch.trim()
-                    ? `No ${maintenanceFilter !== "all" ? maintenanceFilter + " " : ""}maintenance items match "${maintenanceSearch.trim()}".`
-                    : `No ${maintenanceFilter} maintenance items.`}
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-md border overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="p-3 w-10">
-                        <input
-                          type="checkbox"
-                          className="cursor-pointer"
-                          checked={filteredMaintenanceItems.length > 0 && filteredMaintenanceItems.every((i) => selectedMaintIds.has(i.id))}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedMaintIds(new Set(filteredMaintenanceItems.map((i) => i.id)));
-                            } else {
-                              setSelectedMaintIds(new Set());
-                            }
-                          }}
-                          aria-label="Select all"
-                        />
-                      </th>
-                      <th className="text-left font-medium p-3">Title</th>
-                      <th className="text-left font-medium p-3">Description</th>
-                      <th className="text-left font-medium p-3">Date Added</th>
-                      <th className="text-left font-medium p-3">Date Completed</th>
-                      <th className="text-left font-medium p-3">Status</th>
-                      <th className="text-center font-medium p-3 w-16">Edit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredMaintenanceItems.map((item) => (
-                      <tr key={item.id} className={`border-b last:border-b-0 ${selectedMaintIds.has(item.id) ? "bg-muted/40" : ""}`}>
-                        <td className="p-3">
-                          <input
-                            type="checkbox"
-                            className="cursor-pointer"
-                            checked={selectedMaintIds.has(item.id)}
-                            onChange={(e) => {
-                              const next = new Set(selectedMaintIds);
-                              if (e.target.checked) next.add(item.id);
-                              else next.delete(item.id);
-                              setSelectedMaintIds(next);
-                            }}
-                            aria-label={`Select ${item.title}`}
-                          />
-                        </td>
-                        <td className="p-3 font-medium max-w-[160px] truncate">{item.title}</td>
-                        <td className="p-3 text-muted-foreground max-w-[180px] truncate">{item.description || "—"}</td>
-                        <td className="p-3 text-muted-foreground whitespace-nowrap">
-                          {item.dateAdded ? format(new Date(item.dateAdded), "MMM d, yyyy") : "—"}
-                        </td>
-                        <td className="p-3 text-muted-foreground whitespace-nowrap">
-                          {item.dateCompleted ? format(new Date(item.dateCompleted), "MMM d, yyyy") : "—"}
-                        </td>
-                        <td className="p-3">
-                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                            item.status === "completed"
-                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                              : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                          }`}>
-                            {item.status === "completed" ? "Completed" : "Open"}
-                          </span>
-                        </td>
-                        <td className="p-3 text-center">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openMaintEdit(item)}
-                            data-testid={`button-edit-maint-${item.id}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
+              {unifiedDates.length} day{unifiedDates.length !== 1 ? "s" : ""}
+            </span>
           </div>
+
+          {/* Unified date-grouped log */}
+          {(isLoadingSales || isLoadingMaintenance) ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Loading records...</span>
+            </div>
+          ) : unifiedDates.length === 0 ? (
+            <div className="rounded-md border bg-muted/30 py-12 text-center">
+              <p className="text-sm text-muted-foreground">
+                {maintenanceSearch.trim()
+                  ? `No records match "${maintenanceSearch.trim()}".`
+                  : "No records found."}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {unifiedDates.map((date) => {
+                const salesEntry = logByDate.get(date);
+                const maintItems = maintByDate.get(date) ?? [];
+                const d = new Date(date + "T12:00:00");
+                const fmt = (n: number) =>
+                  "$" + n.toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                return (
+                  <div key={date} className="rounded-md border bg-card">
+                    {/* Date header */}
+                    <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/30 rounded-t-md">
+                      <span className="text-sm font-semibold">{format(d, "MMM d, yyyy")}</span>
+                      <span className="text-xs text-muted-foreground">{format(d, "EEEE")}</span>
+                    </div>
+
+                    <div className="divide-y">
+                      {/* Sales row */}
+                      {unifiedTypeFilter !== "maintenance" && (
+                        <div className="flex items-center gap-3 px-4 py-3">
+                          <DollarSign className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                          {salesEntry ? (
+                            <>
+                              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm flex-1 min-w-0">
+                                <span className="text-muted-foreground">
+                                  Food <span className="font-medium text-foreground">{fmt(salesEntry.foodSales)}</span>
+                                </span>
+                                <span className="text-muted-foreground">
+                                  Bar <span className="font-medium text-foreground">{fmt(salesEntry.barSales)}</span>
+                                </span>
+                                <span className="text-muted-foreground">
+                                  Gaming <span className="font-medium text-foreground">{fmt(salesEntry.gamingSales)}</span>
+                                </span>
+                                <span className="font-medium">
+                                  Total <span className="text-primary">{fmt(salesEntry.totalSales)}</span>
+                                </span>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setEditingSalesEntry(salesEntry);
+                                  setEditFood(String(salesEntry.foodSales));
+                                  setEditBar(String(salesEntry.barSales));
+                                  setEditGaming(String(salesEntry.gamingSales));
+                                  setConfirmSalesDelete(false);
+                                }}
+                                aria-label="Edit sales entry"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          ) : (
+                            <span className="text-sm text-muted-foreground italic">No sales entry</span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Maintenance rows */}
+                      {unifiedTypeFilter !== "sales" &&
+                        maintItems.map((item) => (
+                          <div
+                            key={item.id}
+                            className={`flex items-center gap-3 px-4 py-2.5 ${selectedMaintIds.has(item.id) ? "bg-muted/30" : ""}`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="cursor-pointer flex-shrink-0"
+                              checked={selectedMaintIds.has(item.id)}
+                              onChange={(e) => {
+                                const next = new Set(selectedMaintIds);
+                                if (e.target.checked) next.add(item.id);
+                                else next.delete(item.id);
+                                setSelectedMaintIds(next);
+                              }}
+                              aria-label={`Select ${item.title}`}
+                            />
+                            <Wrench className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm font-medium block truncate">{item.title}</span>
+                              {item.description && (
+                                <span className="text-xs text-muted-foreground block truncate">{item.description}</span>
+                              )}
+                            </div>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium flex-shrink-0 ${
+                                item.status === "completed"
+                                  ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                  : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                              }`}
+                            >
+                              {item.status === "completed" ? "Completed" : "Open"}
+                            </span>
+                            {item.dateCompleted && (
+                              <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block">
+                                Done {format(new Date(item.dateCompleted), "MMM d")}
+                              </span>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openMaintEdit(item)}
+                              data-testid={`button-edit-maint-${item.id}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
+
+      {/* Sales edit dialog */}
+      <Dialog open={!!editingSalesEntry} onOpenChange={(open) => { if (!open) { setEditingSalesEntry(null); setConfirmSalesDelete(false); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Edit Sales — {editingSalesEntry ? format(new Date(editingSalesEntry.date + "T12:00:00"), "MMM d, yyyy") : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Update or delete the sales record for this date.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-food">Food Sales</Label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <Input
+                    id="edit-food"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editFood}
+                    onChange={(e) => setEditFood(e.target.value)}
+                    className="pl-6"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-bar">Bar Sales</Label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <Input
+                    id="edit-bar"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editBar}
+                    onChange={(e) => setEditBar(e.target.value)}
+                    className="pl-6"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-gaming">Gaming Sales</Label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <Input
+                    id="edit-gaming"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editGaming}
+                    onChange={(e) => setEditGaming(e.target.value)}
+                    className="pl-6"
+                  />
+                </div>
+              </div>
+            </div>
+            {editingSalesEntry && (
+              <p className="text-xs text-muted-foreground">
+                Total:{" "}
+                <span className="font-medium text-foreground">
+                  ${(
+                    (parseFloat(editFood) || 0) +
+                    (parseFloat(editBar) || 0) +
+                    (parseFloat(editGaming) || 0)
+                  ).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2 flex-wrap">
+            <Button
+              variant={confirmSalesDelete ? "destructive" : "outline"}
+              size="sm"
+              onClick={() => {
+                if (confirmSalesDelete && editingSalesEntry) {
+                  deleteSalesMutation.mutate(editingSalesEntry.id);
+                } else {
+                  setConfirmSalesDelete(true);
+                }
+              }}
+              disabled={deleteSalesMutation.isPending}
+            >
+              {deleteSalesMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              {confirmSalesDelete ? "Confirm Delete" : "Delete Record"}
+            </Button>
+            <div className="flex gap-2 ml-auto">
+              <Button variant="outline" size="sm" onClick={() => { setEditingSalesEntry(null); setConfirmSalesDelete(false); }}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (!editingSalesEntry) return;
+                  updateSalesMutation.mutate({
+                    date: editingSalesEntry.date,
+                    food: editFood,
+                    bar: editBar,
+                    gaming: editGaming,
+                  });
+                }}
+                disabled={updateSalesMutation.isPending}
+              >
+                {updateSalesMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                Save Changes
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Maintenance edit dialog (nested, uses Radix portal so it renders outside) */}
       <Dialog open={!!editingMaintItem} onOpenChange={(open) => { if (!open) { setEditingMaintItem(null); setConfirmDelete(false); } }}>
