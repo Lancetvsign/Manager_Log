@@ -311,8 +311,8 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
       setKitchenManagerName(existingLog.kitchenManagerName || "");
       setDailyNotes(existingLog.dailyNotes || "");
       setSalesNotes(existingLog.salesNotes || "");
-      setDailyNumber(existingLog.dailyNumber || "");
-      setWeeklyNumber(existingLog.weeklyNumber || "");
+      setDailyNumber(existingLog.dailyNumber ? String(parseInt(existingLog.dailyNumber, 10)) : "");
+      setWeeklyNumber(existingLog.weeklyNumber ? String(parseInt(existingLog.weeklyNumber, 10)) : "");
       setSalesData({
         current: {
           food: existingLog.foodSales || "",
