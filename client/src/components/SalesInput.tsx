@@ -272,28 +272,11 @@ export default function SalesInput({
 
         {/* Today's Sales Section */}
         <div className="rounded-lg border p-4 space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-1.5">
             <span className="text-sm font-semibold flex items-center gap-1.5 uppercase tracking-wide text-muted-foreground">
               <DollarSign className="h-4 w-4" />
               Today's Sales
             </span>
-            {clubId && (
-              <AddHistoricalDataDialog
-                clubId={clubId}
-                apiBaseUrl={apiBaseUrl}
-                trigger={
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 border-dashed"
-                    data-testid="button-add-historical-comparison"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Add Data
-                  </Button>
-                }
-              />
-            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
