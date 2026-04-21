@@ -92,8 +92,9 @@ export default function AddHistoricalDataDialog({
   const [editStatus, setEditStatus] = useState<"open" | "completed">("open");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // Maintenance bulk-select state
+  // Unified bulk-select state
   const [selectedMaintIds, setSelectedMaintIds] = useState<Set<number>>(new Set());
+  const [selectedSalesIds, setSelectedSalesIds] = useState<Set<number>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   // Unified log view state
@@ -269,6 +270,7 @@ export default function AddHistoricalDataDialog({
     setEditStatus("open");
     setConfirmDelete(false);
     setSelectedMaintIds(new Set());
+    setSelectedSalesIds(new Set());
     setShowBulkDeleteDialog(false);
     setUnifiedTypeFilter("all");
     setEditingSalesEntry(null);
@@ -629,23 +631,31 @@ export default function AddHistoricalDataDialog({
     },
   });
 
-  const bulkDeleteMaintenanceMutation = useMutation({
-    mutationFn: async (ids: number[]) => {
-      await Promise.all(
-        ids.map((id) => {
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async ({ maintIds, salesIds }: { maintIds: number[]; salesIds: number[] }) => {
+      await Promise.all([
+        ...maintIds.map((id) => {
           const url = buildApiUrl(`/api/running-maintenance/${id}`, clubId, apiBaseUrl);
           return apiRequest("DELETE", url);
-        })
-      );
+        }),
+        ...salesIds.map((id) => {
+          const url = buildApiUrl(`/api/manager-logs/${id}`, clubId, apiBaseUrl);
+          return apiRequest("DELETE", url);
+        }),
+      ]);
     },
-    onSuccess: () => {
+    onSuccess: (_, { maintIds, salesIds }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance", clubId] });
-      toast({ title: "Maintenance items deleted", description: `${selectedMaintIds.size} item${selectedMaintIds.size !== 1 ? "s" : ""} removed.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/manager-logs", clubId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/metrics"] });
+      const total = maintIds.length + salesIds.length;
+      toast({ title: "Records deleted", description: `${total} record${total !== 1 ? "s" : ""} removed.` });
       setSelectedMaintIds(new Set());
+      setSelectedSalesIds(new Set());
       setShowBulkDeleteDialog(false);
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to delete some items.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to delete some records.", variant: "destructive" });
       setShowBulkDeleteDialog(false);
     },
   });
@@ -1132,14 +1142,14 @@ export default function AddHistoricalDataDialog({
                 </button>
               ))}
             </div>
-            {selectedMaintIds.size > 0 && (
+            {(selectedMaintIds.size + selectedSalesIds.size) > 0 && (
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => setShowBulkDeleteDialog(true)}
               >
                 <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                Delete ({selectedMaintIds.size})
+                Delete ({selectedMaintIds.size + selectedSalesIds.size})
               </Button>
             )}
             <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
@@ -1181,7 +1191,23 @@ export default function AddHistoricalDataDialog({
                     <div className="divide-y">
                       {/* Sales row */}
                       {unifiedTypeFilter !== "maintenance" && (
-                        <div className="flex items-center gap-3 px-4 py-3">
+                        <div className={`flex items-center gap-3 px-4 py-3 ${salesEntry && selectedSalesIds.has(salesEntry.id) ? "bg-muted/30" : ""}`}>
+                          {salesEntry ? (
+                            <input
+                              type="checkbox"
+                              className="cursor-pointer flex-shrink-0"
+                              checked={selectedSalesIds.has(salesEntry.id)}
+                              onChange={(e) => {
+                                const next = new Set(selectedSalesIds);
+                                if (e.target.checked) next.add(salesEntry.id);
+                                else next.delete(salesEntry.id);
+                                setSelectedSalesIds(next);
+                              }}
+                              aria-label={`Select sales entry for ${date}`}
+                            />
+                          ) : (
+                            <span className="w-4 flex-shrink-0" />
+                          )}
                           <DollarSign className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                           {salesEntry ? (
                             <>
@@ -1525,29 +1551,34 @@ export default function AddHistoricalDataDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Delete {selectedMaintIds.size} Maintenance Item{selectedMaintIds.size !== 1 ? "s" : ""}?
+              Delete {selectedMaintIds.size + selectedSalesIds.size} Record{(selectedMaintIds.size + selectedSalesIds.size) !== 1 ? "s" : ""}?
             </DialogTitle>
             <DialogDescription>
-              This action cannot be undone. The selected item{selectedMaintIds.size !== 1 ? "s" : ""} will be permanently removed.
+              {selectedSalesIds.size > 0 && selectedMaintIds.size > 0
+                ? `${selectedSalesIds.size} sales record${selectedSalesIds.size !== 1 ? "s" : ""} and ${selectedMaintIds.size} maintenance item${selectedMaintIds.size !== 1 ? "s" : ""} will be permanently removed.`
+                : selectedSalesIds.size > 0
+                ? `${selectedSalesIds.size} sales record${selectedSalesIds.size !== 1 ? "s" : ""} will be permanently removed.`
+                : `${selectedMaintIds.size} maintenance item${selectedMaintIds.size !== 1 ? "s" : ""} will be permanently removed.`}
+              {" "}This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 pt-2">
             <Button
               variant="outline"
               onClick={() => setShowBulkDeleteDialog(false)}
-              disabled={bulkDeleteMaintenanceMutation.isPending}
+              disabled={bulkDeleteMutation.isPending}
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
-              onClick={() => bulkDeleteMaintenanceMutation.mutate(Array.from(selectedMaintIds))}
-              disabled={bulkDeleteMaintenanceMutation.isPending}
+              onClick={() => bulkDeleteMutation.mutate({ maintIds: Array.from(selectedMaintIds), salesIds: Array.from(selectedSalesIds) })}
+              disabled={bulkDeleteMutation.isPending}
             >
-              {bulkDeleteMaintenanceMutation.isPending ? (
+              {bulkDeleteMutation.isPending ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</>
               ) : (
-                `Delete ${selectedMaintIds.size} Item${selectedMaintIds.size !== 1 ? "s" : ""}`
+                `Delete ${selectedMaintIds.size + selectedSalesIds.size} Record${(selectedMaintIds.size + selectedSalesIds.size) !== 1 ? "s" : ""}`
               )}
             </Button>
           </div>
