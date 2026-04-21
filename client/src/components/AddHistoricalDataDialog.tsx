@@ -210,6 +210,10 @@ export default function AddHistoricalDataDialog({
     setEditingMaintItem(null);
     setEditTitle("");
     setEditDescription("");
+    setEditStatus("open");
+    setConfirmDelete(false);
+    setSelectedMaintIds(new Set());
+    setShowBulkDeleteDialog(false);
   }, [defaultDate]);
 
   const handleOpenChange = useCallback(
