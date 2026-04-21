@@ -970,7 +970,7 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
                     apiBaseUrl={apiBaseUrl}
                     onViewComparison={handleViewComparison}
                     trigger={
-                      <Button variant="outline" size="sm" className="gap-1 border-dashed">
+                      <Button variant="outline" size="sm" className="gap-1 border-dashed font-semibold">
                         <Plus className="h-4 w-4" />
                         Add Historical Data
                       </Button>
