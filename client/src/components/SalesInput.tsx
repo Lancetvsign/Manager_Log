@@ -265,7 +265,7 @@ export default function SalesInput({
           <div className="border-t pt-3">
             <div className="flex justify-between items-center">
               <span className="font-medium">Budget Total:</span>
-              <span className="text-xl font-bold">${localBudgetTotal.toFixed(2)}</span>
+              <span className="text-xl font-bold">${localBudgetTotal.toFixed(0)}</span>
             </div>
           </div>
         </div>
@@ -373,7 +373,7 @@ export default function SalesInput({
             <div className="flex justify-between items-center">
               <span className="font-medium">Total Sales:</span>
               <span className="text-xl font-bold" data-testid="text-total-sales">
-                ${currentTotal.toFixed(2)}
+                ${currentTotal.toFixed(0)}
               </span>
             </div>
           </div>
