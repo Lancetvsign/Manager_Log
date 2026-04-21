@@ -1568,6 +1568,14 @@ export default function AddHistoricalDataDialog({
     </DialogContent>
   );
 
+  if (isControlled) {
+    return (
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        {dialogContent}
+      </Dialog>
+    );
+  }
+
   if (trigger) {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
