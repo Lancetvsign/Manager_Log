@@ -1387,9 +1387,9 @@ export default function AddHistoricalDataDialog({
                   if (!editingSalesEntry) return;
                   updateSalesMutation.mutate({
                     date: editingSalesEntry.date,
-                    food: editFood,
-                    bar: editBar,
-                    gaming: editGaming,
+                    food: editFood.trim() || "0",
+                    bar: editBar.trim() || "0",
+                    gaming: editGaming.trim() || "0",
                   });
                 }}
                 disabled={updateSalesMutation.isPending}
