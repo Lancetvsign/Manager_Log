@@ -29,6 +29,8 @@ import {
   DollarSign,
   Search,
   Pencil,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 
 interface AddHistoricalDataDialogProps {
@@ -88,6 +90,11 @@ export default function AddHistoricalDataDialog({
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editStatus, setEditStatus] = useState<"open" | "completed">("open");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Maintenance bulk-select state
+  const [selectedMaintIds, setSelectedMaintIds] = useState<Set<number>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
@@ -539,11 +546,50 @@ export default function AddHistoricalDataDialog({
     },
   });
 
+  const deleteMaintenanceMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildApiUrl(`/api/running-maintenance/${id}`, clubId, apiBaseUrl);
+      await apiRequest("DELETE", url);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance", clubId] });
+      toast({ title: "Maintenance item deleted", description: "The item has been removed." });
+      setEditingMaintItem(null);
+      setConfirmDelete(false);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete maintenance item.", variant: "destructive" });
+      setConfirmDelete(false);
+    },
+  });
+
+  const bulkDeleteMaintenanceMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await Promise.all(
+        ids.map((id) => {
+          const url = buildApiUrl(`/api/running-maintenance/${id}`, clubId, apiBaseUrl);
+          return apiRequest("DELETE", url);
+        })
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/running-maintenance", clubId] });
+      toast({ title: "Maintenance items deleted", description: `${selectedMaintIds.size} item${selectedMaintIds.size !== 1 ? "s" : ""} removed.` });
+      setSelectedMaintIds(new Set());
+      setShowBulkDeleteDialog(false);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete some items.", variant: "destructive" });
+      setShowBulkDeleteDialog(false);
+    },
+  });
+
   const openMaintEdit = (item: RunningMaintenanceItem) => {
     setEditingMaintItem(item);
     setEditTitle(item.title);
     setEditDescription(item.description || "");
     setEditStatus(item.status as "open" | "completed");
+    setConfirmDelete(false);
   };
 
   // ── Calendar helpers ───────────────────────────────────────────────────────
@@ -1008,6 +1054,23 @@ export default function AddHistoricalDataDialog({
               )}
             </div>
 
+            {/* Bulk-select toolbar */}
+            {selectedMaintIds.size > 0 && (
+              <div className="flex items-center gap-3 px-3 py-2 rounded-md bg-muted/60 border">
+                <span className="text-sm text-muted-foreground flex-1">
+                  {selectedMaintIds.size} item{selectedMaintIds.size !== 1 ? "s" : ""} selected
+                </span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowBulkDeleteDialog(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  Delete Selected ({selectedMaintIds.size})
+                </Button>
+              </div>
+            )}
+
             {isLoadingMaintenance ? (
               <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1028,6 +1091,21 @@ export default function AddHistoricalDataDialog({
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50">
+                      <th className="p-3 w-10">
+                        <input
+                          type="checkbox"
+                          className="cursor-pointer"
+                          checked={filteredMaintenanceItems.length > 0 && filteredMaintenanceItems.every((i) => selectedMaintIds.has(i.id))}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedMaintIds(new Set(filteredMaintenanceItems.map((i) => i.id)));
+                            } else {
+                              setSelectedMaintIds(new Set());
+                            }
+                          }}
+                          aria-label="Select all"
+                        />
+                      </th>
                       <th className="text-left font-medium p-3">Title</th>
                       <th className="text-left font-medium p-3">Description</th>
                       <th className="text-left font-medium p-3">Date Added</th>
@@ -1038,7 +1116,21 @@ export default function AddHistoricalDataDialog({
                   </thead>
                   <tbody>
                     {filteredMaintenanceItems.map((item) => (
-                      <tr key={item.id} className="border-b last:border-b-0">
+                      <tr key={item.id} className={`border-b last:border-b-0 ${selectedMaintIds.has(item.id) ? "bg-muted/40" : ""}`}>
+                        <td className="p-3">
+                          <input
+                            type="checkbox"
+                            className="cursor-pointer"
+                            checked={selectedMaintIds.has(item.id)}
+                            onChange={(e) => {
+                              const next = new Set(selectedMaintIds);
+                              if (e.target.checked) next.add(item.id);
+                              else next.delete(item.id);
+                              setSelectedMaintIds(next);
+                            }}
+                            aria-label={`Select ${item.title}`}
+                          />
+                        </td>
                         <td className="p-3 font-medium max-w-[160px] truncate">{item.title}</td>
                         <td className="p-3 text-muted-foreground max-w-[180px] truncate">{item.description || "—"}</td>
                         <td className="p-3 text-muted-foreground whitespace-nowrap">
@@ -1077,7 +1169,7 @@ export default function AddHistoricalDataDialog({
       </Tabs>
 
       {/* Maintenance edit dialog (nested, uses Radix portal so it renders outside) */}
-      <Dialog open={!!editingMaintItem} onOpenChange={(open) => { if (!open) setEditingMaintItem(null); }}>
+      <Dialog open={!!editingMaintItem} onOpenChange={(open) => { if (!open) { setEditingMaintItem(null); setConfirmDelete(false); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1146,32 +1238,89 @@ export default function AddHistoricalDataDialog({
                 rows={3}
               />
             </div>
-            <div className="flex justify-end gap-2 pt-2 border-t">
+            <div className="flex items-center justify-between gap-2 pt-2 border-t">
               <Button
-                variant="outline"
-                onClick={() => setEditingMaintItem(null)}
-                disabled={updateMaintenanceMutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button
+                variant={confirmDelete ? "destructive" : "ghost"}
+                size="sm"
                 onClick={() => {
-                  if (editingMaintItem) {
-                    updateMaintenanceMutation.mutate({
-                      id: editingMaintItem.id,
-                      title: editTitle.trim(),
-                      description: editDescription.trim(),
-                      status: editStatus,
-                    });
+                  if (!confirmDelete) {
+                    setConfirmDelete(true);
+                  } else if (editingMaintItem) {
+                    deleteMaintenanceMutation.mutate(editingMaintItem.id);
                   }
                 }}
-                disabled={!editTitle.trim() || updateMaintenanceMutation.isPending}
+                disabled={deleteMaintenanceMutation.isPending || updateMaintenanceMutation.isPending}
               >
-                {updateMaintenanceMutation.isPending ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
-                ) : "Save Changes"}
+                {deleteMaintenanceMutation.isPending ? (
+                  <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Deleting...</>
+                ) : confirmDelete ? (
+                  <><AlertTriangle className="h-3.5 w-3.5 mr-1.5" />Confirm Delete?</>
+                ) : (
+                  <><Trash2 className="h-3.5 w-3.5 mr-1.5" />Delete</>
+                )}
               </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingMaintItem(null)}
+                  disabled={updateMaintenanceMutation.isPending || deleteMaintenanceMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (editingMaintItem) {
+                      updateMaintenanceMutation.mutate({
+                        id: editingMaintItem.id,
+                        title: editTitle.trim(),
+                        description: editDescription.trim(),
+                        status: editStatus,
+                      });
+                    }
+                  }}
+                  disabled={!editTitle.trim() || updateMaintenanceMutation.isPending || deleteMaintenanceMutation.isPending}
+                >
+                  {updateMaintenanceMutation.isPending ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+                  ) : "Save Changes"}
+                </Button>
+              </div>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk-delete confirmation dialog */}
+      <Dialog open={showBulkDeleteDialog} onOpenChange={(open) => { if (!open) setShowBulkDeleteDialog(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Delete {selectedMaintIds.size} Maintenance Item{selectedMaintIds.size !== 1 ? "s" : ""}?
+            </DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. The selected item{selectedMaintIds.size !== 1 ? "s" : ""} will be permanently removed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkDeleteDialog(false)}
+              disabled={bulkDeleteMaintenanceMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => bulkDeleteMaintenanceMutation.mutate(Array.from(selectedMaintIds))}
+              disabled={bulkDeleteMaintenanceMutation.isPending}
+            >
+              {bulkDeleteMaintenanceMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</>
+              ) : (
+                `Delete ${selectedMaintIds.size} Item${selectedMaintIds.size !== 1 ? "s" : ""}`
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
