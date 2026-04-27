@@ -1336,45 +1336,42 @@ export default function AddHistoricalDataDialog({
               <div className="space-y-1.5">
                 <Label htmlFor="edit-food">Food Sales</Label>
                 <div className="relative">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none">$</span>
                   <Input
                     id="edit-food"
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={editFood}
                     onChange={(e) => setEditFood(e.target.value)}
-                    className="pl-6"
+                    className="pl-7"
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="edit-bar">Bar Sales</Label>
                 <div className="relative">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none">$</span>
                   <Input
                     id="edit-bar"
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={editBar}
                     onChange={(e) => setEditBar(e.target.value)}
-                    className="pl-6"
+                    className="pl-7"
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="edit-gaming">Gaming Sales</Label>
                 <div className="relative">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none">$</span>
                   <Input
                     id="edit-gaming"
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={editGaming}
                     onChange={(e) => setEditGaming(e.target.value)}
-                    className="pl-6"
+                    className="pl-7"
                   />
                 </div>
               </div>
