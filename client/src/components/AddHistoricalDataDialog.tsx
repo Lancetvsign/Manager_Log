@@ -1384,7 +1384,7 @@ export default function AddHistoricalDataDialog({
                     (parseFloat(editFood) || 0) +
                     (parseFloat(editBar) || 0) +
                     (parseFloat(editGaming) || 0)
-                  ).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ).toLocaleString("en-CA", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </span>
               </p>
             )}
