@@ -218,7 +218,7 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
     },
   });
 
-  const hasLastWeekData = !!(lastWeekLog && (lastWeekLog.foodSales !== null && lastWeekLog.foodSales !== undefined && lastWeekLog.foodSales !== ""));
+  const hasLastWeekData = !!lastWeekLog;
 
   const { data: maintenanceItems, isLoading: isLoadingMaintenance } = useQuery<MaintenanceItem[]>({
     queryKey: ['/api/manager-logs', existingLogId, 'maintenance', clubId],

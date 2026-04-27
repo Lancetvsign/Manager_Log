@@ -1123,6 +1123,39 @@ export default function AddHistoricalDataDialog({
                 </button>
               ))}
             </div>
+            {(() => {
+              const visibleSalesIds = unifiedTypeFilter !== "maintenance"
+                ? unifiedDates.map(d => logByDate.get(d)).filter(Boolean).map(s => s!.id)
+                : [];
+              const visibleMaintIds = unifiedTypeFilter !== "sales"
+                ? unifiedDates.flatMap(d => (maintByDate.get(d) ?? []).map(i => i.id))
+                : [];
+              const totalVisible = visibleSalesIds.length + visibleMaintIds.length;
+              const totalSelected = selectedSalesIds.size + selectedMaintIds.size;
+              const isAllSelected = totalVisible > 0 && totalSelected === totalVisible;
+              return totalVisible > 0 ? (
+                <button
+                  onClick={() => {
+                    if (isAllSelected) {
+                      setSelectedSalesIds(new Set());
+                      setSelectedMaintIds(new Set());
+                    } else {
+                      setSelectedSalesIds(new Set(visibleSalesIds));
+                      setSelectedMaintIds(new Set(visibleMaintIds));
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border transition-colors bg-background text-muted-foreground border-border hover-elevate"
+                >
+                  <input
+                    type="checkbox"
+                    readOnly
+                    checked={isAllSelected}
+                    className="h-3 w-3 pointer-events-none"
+                  />
+                  {isAllSelected ? "Deselect All" : "Select All"}
+                </button>
+              ) : null;
+            })()}
             {(selectedMaintIds.size + selectedSalesIds.size) > 0 && (
               <Button
                 variant="destructive"
