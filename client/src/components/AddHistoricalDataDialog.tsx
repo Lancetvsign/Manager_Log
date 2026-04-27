@@ -1335,43 +1335,43 @@ export default function AddHistoricalDataDialog({
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="edit-food">Food Sales</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none">$</span>
-                  <Input
+                <div className="flex items-center h-9 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                  <span className="pl-3 pr-1 text-muted-foreground shrink-0">$</span>
+                  <input
                     id="edit-food"
                     type="text"
                     inputMode="decimal"
                     value={editFood}
                     onChange={(e) => setEditFood(e.target.value)}
-                    className="pl-7"
+                    className="flex-1 bg-transparent pr-3 py-2 focus:outline-none placeholder:text-muted-foreground min-w-0"
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="edit-bar">Bar Sales</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none">$</span>
-                  <Input
+                <div className="flex items-center h-9 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                  <span className="pl-3 pr-1 text-muted-foreground shrink-0">$</span>
+                  <input
                     id="edit-bar"
                     type="text"
                     inputMode="decimal"
                     value={editBar}
                     onChange={(e) => setEditBar(e.target.value)}
-                    className="pl-7"
+                    className="flex-1 bg-transparent pr-3 py-2 focus:outline-none placeholder:text-muted-foreground min-w-0"
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="edit-gaming">Gaming Sales</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none">$</span>
-                  <Input
+                <div className="flex items-center h-9 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                  <span className="pl-3 pr-1 text-muted-foreground shrink-0">$</span>
+                  <input
                     id="edit-gaming"
                     type="text"
                     inputMode="decimal"
                     value={editGaming}
                     onChange={(e) => setEditGaming(e.target.value)}
-                    className="pl-7"
+                    className="flex-1 bg-transparent pr-3 py-2 focus:outline-none placeholder:text-muted-foreground min-w-0"
                   />
                 </div>
               </div>
