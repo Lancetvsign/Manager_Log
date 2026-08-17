@@ -957,39 +957,41 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
           <div className="h-[164px] rounded-xl border border-border bg-card p-4">
             <div className="flex h-full flex-col">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Managers on Duty</div>
-              <div className="mt-3 grid flex-1 content-center gap-1.5">
-                <div className="flex items-center gap-2">
-                  <div className="w-14 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">AM</div>
-                  <Input
-                    value={amManagerName}
-                    onChange={(e) => setAmManagerName(e.target.value)}
-                    placeholder="Name"
-                    disabled={isPastLog}
-                    className="h-8 bg-background/50"
-                    data-testid="input-am-manager"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-14 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">PM</div>
-                  <Input
-                    value={pmManagerName}
-                    onChange={(e) => setPmManagerName(e.target.value)}
-                    placeholder="Name"
-                    disabled={isPastLog}
-                    className="h-8 bg-background/50"
-                    data-testid="input-pm-manager"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-14 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Kitchen</div>
-                  <Input
-                    value={kitchenManagerName}
-                    onChange={(e) => setKitchenManagerName(e.target.value)}
-                    placeholder="Name"
-                    disabled={isPastLog}
-                    className="h-8 bg-background/50"
-                    data-testid="input-kitchen-manager"
-                  />
+              <div className="mt-3 h-[107px]">
+                <div className="grid h-full grid-rows-3 content-center gap-1.5 py-1">
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/60 px-3 py-1">
+                    <div className="w-12 shrink-0 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-foreground">AM</div>
+                    <Input
+                      value={amManagerName}
+                      onChange={(e) => setAmManagerName(e.target.value)}
+                      placeholder="Name"
+                      disabled={isPastLog}
+                      className="h-7 min-w-0 flex-1 border-0 bg-transparent p-0 text-sm focus-visible:ring-0"
+                      data-testid="input-am-manager"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/60 px-3 py-1">
+                    <div className="w-12 shrink-0 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-foreground">PM</div>
+                    <Input
+                      value={pmManagerName}
+                      onChange={(e) => setPmManagerName(e.target.value)}
+                      placeholder="Name"
+                      disabled={isPastLog}
+                      className="h-7 min-w-0 flex-1 border-0 bg-transparent p-0 text-sm focus-visible:ring-0"
+                      data-testid="input-pm-manager"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/60 px-3 py-1">
+                    <div className="w-12 shrink-0 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-foreground">Kitchen</div>
+                    <Input
+                      value={kitchenManagerName}
+                      onChange={(e) => setKitchenManagerName(e.target.value)}
+                      placeholder="Name"
+                      disabled={isPastLog}
+                      className="h-7 min-w-0 flex-1 border-0 bg-transparent p-0 text-sm focus-visible:ring-0"
+                      data-testid="input-kitchen-manager"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

@@ -544,7 +544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "date query param must be yyyy-mm-dd" });
       }
 
-      const secret = process.env.DRAWING_API_SECRET;
+      const secret = process.env.DRAWING_APP_SECRET || process.env.DRAWING_API_SECRET;
       if (!secret) {
         // Integration not configured yet — degrade gracefully
         return res.json(empty);
