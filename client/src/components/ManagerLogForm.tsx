@@ -60,6 +60,7 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
   const [salesNotes, setSalesNotes] = useState("");
   const [dailyNumber, setDailyNumber] = useState("");
   const [weeklyNumber, setWeeklyNumber] = useState("");
+  const [drawingAutoFilled, setDrawingAutoFilled] = useState(false);
   const [salesData, setSalesData] = useState({
     current: { food: "", bar: "", gaming: "" },
     lastYear: { food: "", bar: "", gaming: "" },
@@ -188,7 +189,7 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
 
   // Fetch drawing numbers from the Drawing App (auto-fill; degrades gracefully if unavailable).
   // The server resolves the club name from clubId so the client never sends club-identifying info.
-  const { data: drawingNumbers } = useQuery<{ found: boolean; daily: number | null; weekly: number | null }>({
+  const { data: drawingNumbers, isLoading: isLoadingDrawing } = useQuery<{ found: boolean; daily: number | null; weekly: number | null }>({
     queryKey: ['/api/drawing-numbers', dateString, clubId],
     queryFn: async () => {
       const url = buildApiUrl('/api/drawing-numbers', clubId, apiBaseUrl, { date: dateString });
@@ -372,15 +373,23 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
     });
   }, [existingLog, comparisonLog, lastWeekLog, dateString]);
 
+  // Reset drawingAutoFilled when the date changes so the badge clears between dates.
+  useEffect(() => {
+    setDrawingAutoFilled(false);
+  }, [dateString]);
+
   // Auto-fill drawing numbers from the Drawing App.
   // Uses functional setState so values the manager already typed are never overwritten.
   // Deps include comparisonLog/lastWeekLog because the form-hydration effect above
   // resets fields when those queries resolve — this re-applies the fill afterward.
   useEffect(() => {
-    if (isPastLog || isLoadingLog || !drawingNumbers?.found) return;
+    if (isPastLog || isLoadingLog || !drawingNumbers) return;
     const { daily, weekly } = drawingNumbers;
+    // Mark auto-filled if at least one value is available from the Drawing App
+    const anyAvailable = daily != null || weekly != null;
     if (daily != null) setDailyNumber(prev => (prev === "" ? String(daily) : prev));
     if (weekly != null) setWeeklyNumber(prev => (prev === "" ? String(weekly) : prev));
+    if (anyAvailable) setDrawingAutoFilled(true);
   }, [drawingNumbers, dateString, isPastLog, isLoadingLog, existingLog, comparisonLog, lastWeekLog]);
 
   useEffect(() => {
@@ -919,34 +928,66 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
           {/* Column 3: Drawing - 12rem width */}
           <div className="h-[164px] rounded-xl border border-border bg-card p-4">
             <div className="flex h-full flex-col">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Drawing</div>
+              <div className="flex items-center justify-between">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Drawing</div>
+                {!isPastLog && !isLoadingDrawing && drawingAutoFilled && (
+                  <span className="text-[9px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded px-1.5 py-0.5 leading-none">
+                    From Drawing App
+                  </span>
+                )}
+                {!isPastLog && !isLoadingDrawing && drawingNumbers != null && drawingNumbers.daily == null && drawingNumbers.weekly == null && (
+                  <span className="text-[9px] text-muted-foreground/70">Enter manually</span>
+                )}
+              </div>
               <div className="mt-3 h-[107px] px-4">
                 <div className="grid h-full grid-rows-2 content-center gap-2.5 py-2">
                   <div className="flex items-center justify-between rounded-lg border border-border bg-muted/60 px-3 py-2">
-                    <div className="text-[10px] font-semibold uppercase tracking-wide text-foreground">Daily</div>
-                    <Input
-                      type="number"
-                      step="1"
-                      value={dailyNumber}
-                      onChange={(e) => setDailyNumber(e.target.value)}
-                      placeholder="—"
-                      disabled={isPastLog}
-                      className="w-14 text-right text-base font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
-                      data-testid="input-daily-number"
-                    />
+                    <div className="flex items-center gap-1">
+                      <div className="text-[10px] font-semibold uppercase tracking-wide text-foreground">Daily</div>
+                      {!isPastLog && !isLoadingDrawing && drawingNumbers != null && drawingNumbers.daily == null && drawingNumbers.weekly != null && (
+                        <span className="text-[8px] text-muted-foreground/60">enter</span>
+                      )}
+                    </div>
+                    {isLoadingDrawing && !isPastLog ? (
+                      <div className="w-14 flex justify-end">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground/50" />
+                      </div>
+                    ) : (
+                      <Input
+                        type="number"
+                        step="1"
+                        value={dailyNumber}
+                        onChange={(e) => setDailyNumber(e.target.value)}
+                        placeholder="—"
+                        disabled={isPastLog}
+                        className="w-14 text-right text-base font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none"
+                        data-testid="input-daily-number"
+                      />
+                    )}
                   </div>
                   <div className="flex items-center justify-between rounded-lg border border-border bg-muted/60 px-3 py-2">
-                    <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weekly</div>
-                    <Input
-                      type="number"
-                      step="1"
-                      value={weeklyNumber}
-                      onChange={(e) => setWeeklyNumber(e.target.value)}
-                      placeholder="—"
-                      disabled={isPastLog}
-                      className="w-14 text-right text-base font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none text-muted-foreground"
-                      data-testid="input-weekly-number"
-                    />
+                    <div className="flex items-center gap-1">
+                      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weekly</div>
+                      {!isPastLog && !isLoadingDrawing && drawingNumbers != null && drawingNumbers.weekly == null && drawingNumbers.daily != null && (
+                        <span className="text-[8px] text-muted-foreground/60">enter</span>
+                      )}
+                    </div>
+                    {isLoadingDrawing && !isPastLog ? (
+                      <div className="w-14 flex justify-end">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground/50" />
+                      </div>
+                    ) : (
+                      <Input
+                        type="number"
+                        step="1"
+                        value={weeklyNumber}
+                        onChange={(e) => setWeeklyNumber(e.target.value)}
+                        placeholder="—"
+                        disabled={isPastLog}
+                        className="w-14 text-right text-base font-semibold bg-transparent border-0 p-0 focus-visible:ring-0 leading-none text-muted-foreground"
+                        data-testid="input-weekly-number"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
