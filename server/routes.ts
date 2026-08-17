@@ -22,7 +22,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems, runningMaintenanceList, runningMaintenanceSnapshots, emailSettings, clubs } from "@shared/schema";
+import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems, runningMaintenanceList, runningMaintenanceSnapshots, emailSettings, clubs, drawingNumbers } from "@shared/schema";
 import OpenAI from "openai";
 import { db } from "./db";
 import { eq, desc, and, count, asc, gte, lte, gt, sql, or, isNull, isNotNull } from "drizzle-orm";
@@ -527,8 +527,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========================
+  // DRAWING APP ENDPOINT
+  // ========================
+
   /**
-   * GET /api/drawing-numbers
+   * GET /api/drawing-numbers (Drawing App backend)
+   * -----------------------------------------------
+   * When this request arrives with `Authorization: Bearer <DRAWING_APP_SECRET>`, it is treated
+   * as an inbound call from the Manager Log proxy — acting as the Drawing App's own backend.
+   * The middleware in index.ts already bypassed requireSignedRequest for these requests.
+   *
+   * @query club - Club name (string)
+   * @query date - Date in yyyy-mm-dd format
+   *
+   * Returns: { club, daily, weekly }  HTTP 200
+   *          { error }                HTTP 400 / 401 / 404
+   */
+  app.get("/api/drawing-numbers", async (req, res, next) => {
+    const authHeader = req.headers.authorization ?? "";
+    if (!authHeader.startsWith("Bearer ")) {
+      // Not a Drawing App endpoint request — fall through to the Manager Log proxy below
+      return next();
+    }
+
+    // --- Drawing App endpoint logic ---
+    const secret = process.env.DRAWING_APP_SECRET;
+    const token = authHeader.slice(7);
+    if (!secret || token !== secret) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const club = (req.query.club as string) || "";
+    const date = (req.query.date as string) || "";
+
+    if (!club || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: "club and date (yyyy-mm-dd) query params are required" });
+    }
+
+    try {
+      const [row] = await db
+        .select()
+        .from(drawingNumbers)
+        .where(
+          and(
+            sql`lower(${drawingNumbers.clubName}) = lower(${club})`,
+            eq(drawingNumbers.drawDate, date)
+          )
+        )
+        .limit(1);
+
+      if (!row) {
+        return res.status(404).json({ error: "No drawing numbers found for this club/date" });
+      }
+
+      const toNum = (v: unknown): number | null => {
+        if (typeof v === "number" && Number.isFinite(v)) return v;
+        if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) return Number(v);
+        return null;
+      };
+
+      return res.json({
+        club,           // echo the requested club name exactly as received
+        daily: toNum(row.dailyNumber),
+        weekly: toNum(row.weeklyNumber),
+      });
+    } catch (error) {
+      console.error("[drawing-numbers] Error querying drawing numbers:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // ========================
+  // DRAWING APP PROXY
+  // ========================
+
+  /**
+   * GET /api/drawing-numbers (Manager Log proxy)
+   * ---------------------------------------------
    * Proxies the Drawings app to fetch daily/weekly drawing numbers for a club+date.
    * The shared secret (DRAWING_APP_SECRET) stays server-side and is never exposed to clients.
    * Always fails safe: any upstream problem returns found:false rather than another club's data.

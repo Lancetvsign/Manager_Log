@@ -965,6 +965,34 @@ export interface ChartExportConfig {
 }
 
 /**
+ * DRAWING_NUMBERS TABLE
+ * ---------------------
+ * Stores daily and weekly drawing numbers entered via the Drawing App.
+ * These are fetched by the Manager Log to auto-fill the drawing number fields
+ * when a manager opens today's log.
+ *
+ * Key Design Decisions:
+ * - Keyed by (club_name, draw_date) since the Drawing App receives a club name, not an ID
+ * - Separate from manager_logs so drawing operators can enter numbers independently
+ */
+export const drawingNumbers = pgTable("drawing_numbers", {
+  id: serial("id").primaryKey(),
+  clubName: text("club_name").notNull(),
+  drawDate: date("draw_date").notNull(),
+  dailyNumber: numeric("daily_number", { precision: 10, scale: 2 }),
+  weeklyNumber: numeric("weekly_number", { precision: 10, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDrawingNumberSchema = createInsertSchema(drawingNumbers).pick({
+  clubName: true,
+  drawDate: true,
+  dailyNumber: true,
+  weeklyNumber: true,
+});
+
+/**
  * Collapsible section state
  * Stored in localStorage for persistence across sessions
  */

@@ -11,6 +11,12 @@ app.use("/api", (req, res, next) => {
   if (req.path === "/auth/verify-embed") {
     return next();
   }
+  // Drawing App endpoint: requests from the Manager Log proxy carry a Bearer token
+  // (DRAWING_APP_SECRET) instead of HMAC headers. Skip signed-request verification
+  // so the drawing-app logic in routes.ts can validate the Bearer token itself.
+  if (req.path === "/drawing-numbers" && typeof req.headers.authorization === "string" && req.headers.authorization.startsWith("Bearer ")) {
+    return next();
+  }
   return requireSignedRequest(req, res, next);
 });
 
