@@ -92,11 +92,9 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
   if (total === 0) {
     return (
       <Card data-testid="card-todo-chart">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Maintenance List Status
-          </CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+          <CardTitle className="text-sm font-medium">Maintenance List Status</CardTitle>
+          <BarChart3 className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent className="pt-2">
           <div className="h-36 flex items-center justify-center text-muted-foreground">
@@ -109,11 +107,9 @@ export default function ToDoStatusPieChart({ status }: ToDoStatusPieChartProps) 
 
   return (
     <Card data-testid="card-todo-chart">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5" />
-          Maintenance List Status
-        </CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+        <CardTitle className="text-sm font-medium">Maintenance List Status</CardTitle>
+        <BarChart3 className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent className="pt-2">
         <div className="h-36">
