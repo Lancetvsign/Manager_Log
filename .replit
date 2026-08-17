@@ -44,3 +44,8 @@ integrations = ["javascript_mem_db:1.0.0", "javascript_database:1.0.0", "javascr
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+DRAWING_APP_URL = "https://draw.socialclubpro.com"

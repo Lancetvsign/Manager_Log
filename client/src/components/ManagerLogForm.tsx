@@ -186,18 +186,19 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
     enabled: !!lastWeekDateString,
   });
 
-  // Fetch drawing numbers from the Drawings app for this club+date.
-  // Fail-safe: returns found:false whenever the upstream app has no data or is unreachable.
+  // Fetch drawing numbers from the Drawing App (auto-fill; degrades gracefully if unavailable).
+  // The server resolves the club name from clubId so the client never sends club-identifying info.
   const { data: drawingNumbers } = useQuery<{ found: boolean; daily: number | null; weekly: number | null }>({
     queryKey: ['/api/drawing-numbers', dateString, clubId],
     queryFn: async () => {
       const url = buildApiUrl('/api/drawing-numbers', clubId, apiBaseUrl, { date: dateString });
-      const response = await fetch(url);
-      if (!response.ok) return { found: false, daily: null, weekly: null };
-      return response.json();
+      const res = await fetch(url);
+      if (!res.ok) return { found: false, daily: null, weekly: null };
+      return res.json();
     },
     enabled: !!dateString,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 1000 * 60 * 5,
+    retry: false,
   });
 
   interface BudgetData {
@@ -371,8 +372,8 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
     });
   }, [existingLog, comparisonLog, lastWeekLog, dateString]);
 
-  // Auto-fill drawing numbers from the Drawings app. Functional setState ensures
-  // existing log values and anything the manager typed are never overwritten.
+  // Auto-fill drawing numbers from the Drawing App.
+  // Uses functional setState so values the manager already typed are never overwritten.
   // Deps include comparisonLog/lastWeekLog because the form-hydration effect above
   // resets fields when those queries resolve — this re-applies the fill afterward.
   useEffect(() => {
