@@ -363,39 +363,34 @@ export default function SalesTrendChart({
 
   return (
     <Card data-testid="card-sales-trend">
-      <CardHeader>
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Sales Trend
-          </CardTitle>
-          <div className="flex items-center gap-1">
-            {chartTypes.map(({ type, icon: Icon, label }) => (
-              <Button
-                key={type}
-                variant={chartType === type ? "default" : "outline"}
-                size="sm"
-                onClick={() => onChartTypeChange(type)}
-                className="gap-1"
-                data-testid={`button-chart-${type}`}
-              >
-                <Icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{label}</span>
-              </Button>
-            ))}
-            <ChartOptionsPopover
-              options={options}
-              onOptionsChange={setOptions}
-              showCornerStyle={chartType === "bar"}
-              showSmoothing={chartType === "line" || chartType === "area"}
-            />
-            <ChartExportButton
-              chartRef={chartRef}
-              title="Sales Trend"
-              dateRange={dateRange}
-              clubName={clubName}
-            />
-          </div>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+        <CardTitle className="text-sm font-medium">Sales Trend</CardTitle>
+        <div className="flex items-center gap-1">
+          {chartTypes.map(({ type, icon: Icon, label }) => (
+            <Button
+              key={type}
+              variant={chartType === type ? "default" : "outline"}
+              size="sm"
+              onClick={() => onChartTypeChange(type)}
+              className="gap-1"
+              data-testid={`button-chart-${type}`}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="hidden sm:inline">{label}</span>
+            </Button>
+          ))}
+          <ChartOptionsPopover
+            options={options}
+            onOptionsChange={setOptions}
+            showCornerStyle={chartType === "bar"}
+            showSmoothing={chartType === "line" || chartType === "area"}
+          />
+          <ChartExportButton
+            chartRef={chartRef}
+            title="Sales Trend"
+            dateRange={dateRange}
+            clubName={clubName}
+          />
         </div>
       </CardHeader>
       <CardContent ref={chartRef}>{renderChart()}</CardContent>

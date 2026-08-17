@@ -101,11 +101,9 @@ export default function SalesBreakdownChart({ salesByCategory }: SalesBreakdownC
   if (total === 0 || data.length === 0) {
     return (
       <Card data-testid="card-sales-breakdown">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PieChartIcon className="h-5 w-5" />
-            Sales Breakdown
-          </CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+          <CardTitle className="text-sm font-medium">Sales Breakdown</CardTitle>
+          <PieChartIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent className="pt-2">
           <div className="h-36 flex items-center justify-center text-muted-foreground">
@@ -118,11 +116,9 @@ export default function SalesBreakdownChart({ salesByCategory }: SalesBreakdownC
 
   return (
     <Card data-testid="card-sales-breakdown">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <PieChartIcon className="h-5 w-5" />
-          Sales Breakdown
-        </CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+        <CardTitle className="text-sm font-medium">Sales Breakdown</CardTitle>
+        <PieChartIcon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent className="pt-2">
         <div className="h-36">

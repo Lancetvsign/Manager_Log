@@ -463,11 +463,8 @@ export default function SalesChart({
     <Card data-testid="card-sales-chart">
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Sales
-            </CardTitle>
+          <div className="flex flex-row items-center justify-between space-y-0 gap-1">
+            <CardTitle className="text-sm font-medium">Sales</CardTitle>
             <div className="flex items-center gap-1">
               {chartTypes.map(({ type, icon: Icon, label }) => (
                 <Button

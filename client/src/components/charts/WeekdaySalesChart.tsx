@@ -115,11 +115,9 @@ export default function WeekdaySalesChart({
   if (data.length === 0) {
     return (
       <Card data-testid="card-weekday-sales">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarRange className="h-5 w-5" />
-            Sales by Weekday
-          </CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+          <CardTitle className="text-sm font-medium">Sales by Weekday</CardTitle>
+          <CalendarRange className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="h-[250px] flex items-center justify-center text-muted-foreground">
@@ -132,25 +130,20 @@ export default function WeekdaySalesChart({
 
   return (
     <Card data-testid="card-weekday-sales">
-      <CardHeader>
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <CardTitle className="flex items-center gap-2">
-            <CalendarRange className="h-5 w-5" />
-            Sales by Weekday
-          </CardTitle>
-          <div className="flex items-center gap-1">
-            <ChartOptionsPopover
-              options={options}
-              onOptionsChange={setOptions}
-              showCornerStyle={true}
-            />
-            <ChartExportButton
-              chartRef={chartRef}
-              title="Sales by Weekday"
-              dateRange={dateRange}
-              clubName={clubName}
-            />
-          </div>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+        <CardTitle className="text-sm font-medium">Sales by Weekday</CardTitle>
+        <div className="flex items-center gap-1">
+          <ChartOptionsPopover
+            options={options}
+            onOptionsChange={setOptions}
+            showCornerStyle={true}
+          />
+          <ChartExportButton
+            chartRef={chartRef}
+            title="Sales by Weekday"
+            dateRange={dateRange}
+            clubName={clubName}
+          />
         </div>
       </CardHeader>
       <CardContent ref={chartRef}>

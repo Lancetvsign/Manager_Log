@@ -144,20 +144,15 @@ export default function SalesHeatmapCalendar({
 
   return (
     <Card data-testid="card-heatmap">
-      <CardHeader>
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <CardTitle className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5" />
-            Sales Heatmap
-          </CardTitle>
-          <div className="flex items-center gap-1">
-            <ChartExportButton
-              chartRef={chartRef}
-              title="Sales Heatmap"
-              dateRange={dateRange}
-              clubName={clubName}
-            />
-          </div>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
+        <CardTitle className="text-sm font-medium">Sales Heatmap</CardTitle>
+        <div className="flex items-center gap-1">
+          <ChartExportButton
+            chartRef={chartRef}
+            title="Sales Heatmap"
+            dateRange={dateRange}
+            clubName={clubName}
+          />
         </div>
       </CardHeader>
       <CardContent ref={chartRef}>
