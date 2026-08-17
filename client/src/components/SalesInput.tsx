@@ -206,16 +206,16 @@ export default function SalesInput({
         <CollapsibleTrigger asChild>{cardHeader}</CollapsibleTrigger>
       ) : cardHeader}
       <CollapsibleContent>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-3">
         {/* Daily Budget Section */}
-        <div className="rounded-lg border p-4 space-y-4">
+        <div className="rounded-lg border p-3 space-y-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <span className="text-sm font-semibold flex items-center gap-1.5 uppercase tracking-wide text-muted-foreground">
               <Target className="h-4 w-4" />
               Daily Budget
             </span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
             <div className="space-y-2">
               <Label htmlFor="budget-food-sales" className="text-sm font-medium">
                 Food Sales
@@ -261,24 +261,22 @@ export default function SalesInput({
                 data-testid="input-budget-gaming"
               />
             </div>
-          </div>
-          <div className="border-t pt-3">
-            <div className="flex justify-between items-center">
-              <span className="font-medium">Budget Total:</span>
+            <div className="flex items-center justify-between md:justify-end gap-2 h-9">
+              <span className="font-medium text-sm">Total:</span>
               <span className="text-xl font-bold">${localBudgetTotal.toFixed(0)}</span>
             </div>
           </div>
         </div>
 
         {/* Today's Sales Section */}
-        <div className="rounded-lg border p-4 space-y-4">
+        <div className="rounded-lg border p-3 space-y-2">
           <div className="flex items-center gap-1.5">
             <span className="text-sm font-semibold flex items-center gap-1.5 uppercase tracking-wide text-muted-foreground">
               <DollarSign className="h-4 w-4" />
               Today's Sales
             </span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-start">
             <div className="space-y-2">
               <Label htmlFor="food-sales" className="text-sm font-medium">
                 Food Sales
@@ -350,11 +348,9 @@ export default function SalesInput({
                 </div>
               )}
             </div>
-          </div>
 
-          <div className="border-t pt-3">
-            <div className="flex justify-between items-center">
-              <span className="font-medium">Total Sales:</span>
+            <div className="flex items-center justify-between md:justify-end gap-2 h-9 md:mt-[30px]">
+              <span className="font-medium text-sm">Total:</span>
               <span className="text-xl font-bold" data-testid="text-total-sales">
                 ${currentTotal.toFixed(0)}
               </span>

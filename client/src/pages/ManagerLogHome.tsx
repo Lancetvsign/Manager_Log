@@ -337,14 +337,14 @@ export default function Home() {
       </header>
 
       {/* Main Content - Tabbed navigation */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-5">
         <Tabs value={activeTab} onValueChange={(value) => {
           setActiveTab(value);
           // Clear selected log ID when switching away from history
           if (value !== "history") {
             setSelectedLogId(null);
           }
-        }} className="space-y-6">
+        }} className="space-y-4">
           {/* Tab Navigation - 3 tabs: Today's Log, Insights, History */}
           <TabsList className="grid w-full grid-cols-3" data-testid="tabs-navigation">
             <TabsTrigger value="new-entry" className="flex items-center space-x-2" data-testid="tab-new-entry">
@@ -364,7 +364,7 @@ export default function Home() {
           </TabsList>
 
           {/* Today's Log Tab - Daily log form */}
-          <TabsContent value="new-entry" className="space-y-6">
+          <TabsContent value="new-entry" className="space-y-4">
             <ManagerLogForm
               onSubmit={handleSubmitLog}
               showEmailModal={showEmailModal}
@@ -374,7 +374,7 @@ export default function Home() {
           </TabsContent>
 
           {/* History Tab - List of all log entries */}
-          <TabsContent value="history" className="space-y-6">
+          <TabsContent value="history" className="space-y-4">
             <ManagerLogList 
               logs={[]} 
               initialSelectedLogId={selectedLogId}
@@ -383,7 +383,7 @@ export default function Home() {
           </TabsContent>
 
           {/* Insights Tab - Analytics and metrics dashboard */}
-          <TabsContent value="insights" className="space-y-6">
+          <TabsContent value="insights" className="space-y-4">
             <InsightsPage onViewLog={handleViewLogFromMaintenance} />
           </TabsContent>
         </Tabs>

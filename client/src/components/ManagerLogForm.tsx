@@ -15,7 +15,6 @@ import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Ma
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
-import WeatherCard from "./WeatherCard";
 import WeatherWide from "./WeatherWide";
 import SalesInput from "./SalesInput";
 import { NotePhotos } from "./NotePhotos";
@@ -830,8 +829,8 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
           </div>
         )}
 
-        {/* 3-column grid: Date | Weather | Drawing - fixed height panels */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_0.75fr_12rem]">
+        {/* 4-column grid: Date | Weather | Drawing | Managers - fixed height panels */}
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_0.75fr_12rem_14rem]">
           {/* Column 1: Date */}
           <div className="h-[164px] rounded-xl border border-border bg-card p-4">
             <div className="flex h-full flex-col">
@@ -927,44 +926,46 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Managers grid - 3 column layout on large screens */}
-        <div className="mt-5">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Managers on Duty</div>
-          <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-3">
-            <div className="flex items-center gap-2 rounded-lg border border-border/[0.08] bg-background/10 px-3 py-2">
-              <div className="w-16 text-xs font-semibold uppercase tracking-wide text-muted-foreground">AM</div>
-              <Input
-                value={amManagerName}
-                onChange={(e) => setAmManagerName(e.target.value)}
-                placeholder="Name"
-                disabled={isPastLog}
-                className="h-8 bg-background/50"
-                data-testid="input-am-manager"
-              />
-            </div>
-            <div className="flex items-center gap-2 rounded-lg border border-border/[0.08] bg-background/10 px-3 py-2">
-              <div className="w-16 text-xs font-semibold uppercase tracking-wide text-muted-foreground">PM</div>
-              <Input
-                value={pmManagerName}
-                onChange={(e) => setPmManagerName(e.target.value)}
-                placeholder="Name"
-                disabled={isPastLog}
-                className="h-8 bg-background/50"
-                data-testid="input-pm-manager"
-              />
-            </div>
-            <div className="flex items-center gap-2 rounded-lg border border-border/[0.08] bg-background/10 px-3 py-2">
-              <div className="w-16 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kitchen</div>
-              <Input
-                value={kitchenManagerName}
-                onChange={(e) => setKitchenManagerName(e.target.value)}
-                placeholder="Name"
-                disabled={isPastLog}
-                className="h-8 bg-background/50"
-                data-testid="input-kitchen-manager"
-              />
+          {/* Column 4: Managers on Duty */}
+          <div className="h-[164px] rounded-xl border border-border bg-card p-4">
+            <div className="flex h-full flex-col">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Managers on Duty</div>
+              <div className="mt-3 grid flex-1 content-center gap-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-14 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">AM</div>
+                  <Input
+                    value={amManagerName}
+                    onChange={(e) => setAmManagerName(e.target.value)}
+                    placeholder="Name"
+                    disabled={isPastLog}
+                    className="h-8 bg-background/50"
+                    data-testid="input-am-manager"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-14 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">PM</div>
+                  <Input
+                    value={pmManagerName}
+                    onChange={(e) => setPmManagerName(e.target.value)}
+                    placeholder="Name"
+                    disabled={isPastLog}
+                    className="h-8 bg-background/50"
+                    data-testid="input-pm-manager"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-14 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Kitchen</div>
+                  <Input
+                    value={kitchenManagerName}
+                    onChange={(e) => setKitchenManagerName(e.target.value)}
+                    placeholder="Name"
+                    disabled={isPastLog}
+                    className="h-8 bg-background/50"
+                    data-testid="input-kitchen-manager"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1055,7 +1056,7 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
           {/* Add New Maintenance Item Form - only show for today/future */}
           {!isPastLog && (
             <div className="pb-4 border-b space-y-3">
