@@ -186,6 +186,20 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
     enabled: !!lastWeekDateString,
   });
 
+  // Fetch drawing numbers from the Drawings app for this club+date.
+  // Fail-safe: returns found:false whenever the upstream app has no data or is unreachable.
+  const { data: drawingNumbers } = useQuery<{ found: boolean; daily: number | null; weekly: number | null }>({
+    queryKey: ['/api/drawing-numbers', dateString, clubId],
+    queryFn: async () => {
+      const url = buildApiUrl('/api/drawing-numbers', clubId, apiBaseUrl, { date: dateString });
+      const response = await fetch(url);
+      if (!response.ok) return { found: false, daily: null, weekly: null };
+      return response.json();
+    },
+    enabled: !!dateString,
+    staleTime: 5 * 60 * 1000,
+  });
+
   interface BudgetData {
     foodSales: string;
     barSales: string;
@@ -356,6 +370,17 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
       });
     });
   }, [existingLog, comparisonLog, lastWeekLog, dateString]);
+
+  // Auto-fill drawing numbers from the Drawings app. Functional setState ensures
+  // existing log values and anything the manager typed are never overwritten.
+  // Deps include comparisonLog/lastWeekLog because the form-hydration effect above
+  // resets fields when those queries resolve — this re-applies the fill afterward.
+  useEffect(() => {
+    if (isPastLog || isLoadingLog || !drawingNumbers?.found) return;
+    const { daily, weekly } = drawingNumbers;
+    if (daily != null) setDailyNumber(prev => (prev === "" ? String(daily) : prev));
+    if (weekly != null) setWeeklyNumber(prev => (prev === "" ? String(weekly) : prev));
+  }, [drawingNumbers, dateString, isPastLog, isLoadingLog, existingLog, comparisonLog, lastWeekLog]);
 
   useEffect(() => {
     // Wait for club settings to load and zip to be confirmed

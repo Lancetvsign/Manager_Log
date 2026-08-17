@@ -528,6 +528,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
+   * GET /api/drawing-numbers
+   * Proxies the Drawings app to fetch daily/weekly drawing numbers for a club+date.
+   * The shared secret (DRAWING_API_SECRET) stays server-side and is never exposed to clients.
+   * Always fails safe: any upstream problem returns found:false rather than another club's data.
+   * @query date - The log date in YYYY-MM-DD format
+   * @query clubId - The club identifier (resolved to the club name for the Drawings app)
+   */
+  app.get("/api/drawing-numbers", async (req, res) => {
+    const empty = { found: false, daily: null, weekly: null };
+    try {
+      const clubId = getClubId(req);
+      const date = (req.query.date as string) || "";
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ error: "date query param must be yyyy-mm-dd" });
+      }
+
+      const secret = process.env.DRAWING_API_SECRET;
+      if (!secret) {
+        // Integration not configured yet — degrade gracefully
+        return res.json(empty);
+      }
+
+      const [club] = await db
+        .select()
+        .from(clubs)
+        .where(eq(clubs.id, clubId))
+        .limit(1);
+      if (!club) {
+        return res.json(empty);
+      }
+
+      const baseUrl = (process.env.DRAWINGS_API_URL || "https://draw.socialclubpro.com").replace(/\/$/, "");
+      const url = `${baseUrl}/api/drawing-numbers?club=${encodeURIComponent(club.name)}&date=${encodeURIComponent(date)}`;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      let upstream: Response;
+      try {
+        upstream = await fetch(url, {
+          headers: { Authorization: `Bearer ${secret}` },
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (!upstream.ok) {
+        // 404 (no numbers for this club/date), 401, or anything else — never surface wrong data
+        return res.json(empty);
+      }
+
+      const data = await upstream.json().catch(() => null);
+      // Fail closed: the upstream MUST echo a non-empty club matching what we asked for
+      // (normalized), otherwise we cannot trust which club the numbers belong to.
+      const normalize = (s: unknown) => (typeof s === "string" ? s.trim().toLowerCase() : "");
+      const toNum = (v: unknown): number | null => {
+        if (typeof v === "number" && Number.isFinite(v)) return v;
+        if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) return Number(v);
+        return null;
+      };
+      if (
+        !data || typeof data !== "object" ||
+        typeof data.club !== "string" || data.club.trim() === "" ||
+        normalize(data.club) !== normalize(club.name)
+      ) {
+        console.warn(`[drawing-numbers] invalid or mismatched club echo: asked "${club.name}", got ${JSON.stringify(data?.club ?? null)}`);
+        return res.json(empty);
+      }
+
+      return res.json({
+        found: true,
+        daily: toNum(data.daily),
+        weekly: toNum(data.weekly),
+      });
+    } catch (error) {
+      console.error("Error fetching drawing numbers:", error);
+      return res.json(empty);
+    }
+  });
+
+  /**
    * GET /api/manager-logs/:id
    * Retrieves a single log entry by its numeric ID.
    * @param id - The log's serial ID
