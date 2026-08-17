@@ -530,7 +530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * GET /api/drawing-numbers
    * Proxies the Drawings app to fetch daily/weekly drawing numbers for a club+date.
-   * The shared secret (DRAWING_API_SECRET) stays server-side and is never exposed to clients.
+   * The shared secret (DRAWING_APP_SECRET) stays server-side and is never exposed to clients.
    * Always fails safe: any upstream problem returns found:false rather than another club's data.
    * @query date - The log date in YYYY-MM-DD format
    * @query clubId - The club identifier (resolved to the club name for the Drawings app)
@@ -544,7 +544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "date query param must be yyyy-mm-dd" });
       }
 
-      const secret = process.env.DRAWING_APP_SECRET || process.env.DRAWING_API_SECRET;
+      const secret = process.env.DRAWING_APP_SECRET;
       if (!secret) {
         // Integration not configured yet — degrade gracefully
         return res.json(empty);
@@ -559,7 +559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(empty);
       }
 
-      const baseUrl = (process.env.DRAWINGS_API_URL || "https://draw.socialclubpro.com").replace(/\/$/, "");
+      const baseUrl = (process.env.DRAWING_APP_URL || "https://draw.socialclubpro.com").replace(/\/$/, "");
       const url = `${baseUrl}/api/drawing-numbers?club=${encodeURIComponent(club.name)}&date=${encodeURIComponent(date)}`;
 
       const controller = new AbortController();
