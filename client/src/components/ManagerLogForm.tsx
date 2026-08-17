@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, subDays } from "date-fns";
-import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronDown, Camera, X, Download, Info, Circle } from "lucide-react";
+import { CalendarIcon, Save, Loader2, Plus, Wrench, CheckCircle, AlertCircle, Mail, ChevronDown, Camera, X, Download, Info, Circle, Lightbulb } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
@@ -200,6 +200,20 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
     enabled: !!dateString,
     staleTime: 1000 * 60 * 5,
     retry: false,
+  });
+
+  // Daily AI management tip — one per calendar date, shared across all clubs
+  const { data: managementTip } = useQuery<{ tip: string; date: string }>({
+    queryKey: ['/api/management-tip', dateString],
+    queryFn: async () => {
+      const url = buildApiUrl('/api/management-tip', clubId, apiBaseUrl, { date: dateString });
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch management tip');
+      return response.json();
+    },
+    enabled: !!dateString,
+    staleTime: 60 * 60 * 1000,
+    retry: 1,
   });
 
   interface BudgetData {
@@ -1040,6 +1054,17 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
         </div>
         </CardContent>
       </Card>
+
+      {/* Daily Management Tip (AI-generated, shared across all clubs) */}
+      {managementTip?.tip && (
+        <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3" data-testid="card-management-tip">
+          <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Manager's Tip of the Day</div>
+            <p className="mt-1 text-sm leading-relaxed text-foreground/90 italic" data-testid="text-management-tip">{managementTip.tip}</p>
+          </div>
+        </div>
+      )}
 
       {/* Sales Data */}
       <SalesInput

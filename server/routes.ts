@@ -3673,6 +3673,77 @@ Keep the tone professional but friendly. Focus on actionable insights.`;
     }
   });
 
+  /**
+   * GET /api/management-tip
+   * Returns an AI-generated restaurant/hospitality management saying or skill tip
+   * (max 75 words). One tip per calendar date, shared across all clubs, cached in memory.
+   * @query date - YYYY-MM-DD; defaults to today (server local time)
+   */
+  // Cache stores an in-flight Promise so concurrent requests for the same date
+  // share ONE generation — guaranteeing a single shared tip per date.
+  const managementTipCache = new Map<string, Promise<string>>();
+  app.get("/api/management-tip", async (req, res) => {
+    try {
+      // Validate as a real calendar date, not just the yyyy-mm-dd shape
+      const dateParam = (req.query.date as string) || "";
+      let date = new Date().toLocaleDateString("en-CA");
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateParam);
+      if (match) {
+        const parsed = new Date(`${dateParam}T12:00:00`);
+        if (!isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === dateParam) {
+          date = dateParam;
+        }
+      }
+
+      let pending = managementTipCache.get(date);
+      if (!pending) {
+        pending = (async () => {
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are a seasoned restaurant and hospitality management coach. Write a single original management saying or practical skill tip for restaurant and hospitality managers. Topics can include leadership, guest experience, team morale, service standards, cost control, or handling a tough shift. Be warm, wise, and specific to the industry — not generic business advice.",
+              },
+              {
+                role: "user",
+                content: "Give me today's management tip in 75 words or fewer. Output only the tip itself — no title, no preamble, no quotation marks.",
+              },
+            ],
+            max_tokens: 180,
+            temperature: 0.9,
+          });
+
+          let tip = (completion.choices[0]?.message?.content || "").trim();
+          if (!tip) {
+            throw new Error("No tip generated");
+          }
+          // Hard cap at 75 words in case the model overruns
+          const words = tip.split(/\s+/);
+          if (words.length > 75) {
+            tip = words.slice(0, 75).join(" ");
+          }
+          return tip;
+        })();
+
+        // Keep the cache bounded (recent dates only)
+        if (managementTipCache.size > 62) {
+          managementTipCache.clear();
+        }
+        managementTipCache.set(date, pending);
+        // Failed generations must not be cached — allow a retry on the next request
+        pending.catch(() => managementTipCache.delete(date));
+      }
+
+      const tip = await pending;
+      res.json({ tip, date });
+    } catch (error) {
+      console.error("Error generating management tip:", error);
+      res.status(500).json({ error: "Failed to generate management tip" });
+    }
+  });
+
   // Backfill running maintenance snapshots for any historical logs that lack them.
   // Runs asynchronously so it doesn't block server startup.
   backfillRunningMaintenanceSnapshots().catch((err) =>
