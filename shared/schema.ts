@@ -448,6 +448,18 @@ export const notePhotos = pgTable("note_photos", {
  * - listDefaults: JSON storing per-list preset defaults (e.g., {"Core Team": "full", "Kitchen Staff": "ops_only"})
  * - updatedAt: When settings were last updated
  */
+/**
+ * MANAGEMENT TIPS TABLE
+ * ---------------------
+ * Persists the AI-generated daily management tip keyed by calendar date (YYYY-MM-DD).
+ * Ensures every request for the same date — even across server restarts / redeploys —
+ * returns the identical tip.  One row per date, global (not per-club).
+ */
+export const managementTips = pgTable("management_tips", {
+  date: varchar("date", { length: 10 }).primaryKey(), // YYYY-MM-DD
+  tip: text("tip").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 export const emailSettings = pgTable("email_settings", {
   id: serial("id").primaryKey(),
   clubId: varchar("club_id", { length: 64 }).notNull().unique(),

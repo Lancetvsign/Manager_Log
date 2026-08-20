@@ -22,7 +22,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems, runningMaintenanceList, runningMaintenanceSnapshots, emailSettings, clubs, drawingNumbers } from "@shared/schema";
+import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems, runningMaintenanceList, runningMaintenanceSnapshots, emailSettings, clubs, drawingNumbers, managementTips } from "@shared/schema";
 import OpenAI from "openai";
 import { db } from "./db";
 import { eq, desc, and, count, asc, gte, lte, gt, sql, or, isNull, isNotNull } from "drizzle-orm";
@@ -35,7 +35,6 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { verifyEmbedSignature, type EmbedParams } from "./auth";
-
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -3755,8 +3754,9 @@ Keep the tone professional but friendly. Focus on actionable insights.`;
    * (max 75 words). One tip per calendar date, shared across all clubs, cached in memory.
    * @query date - YYYY-MM-DD; defaults to today (server local time)
    */
-  // Cache stores an in-flight Promise so concurrent requests for the same date
-  // share ONE generation — guaranteeing a single shared tip per date.
+  // In-memory cache stores an in-flight Promise so concurrent requests for the same date
+  // share ONE generation — guaranteeing a single shared tip per date within a server process.
+  // The DB layer ensures the same tip survives across restarts / redeploys.
   const managementTipCache = new Map<string, Promise<string>>();
   app.get("/api/management-tip", async (req, res) => {
     try {
@@ -3774,6 +3774,17 @@ Keep the tone professional but friendly. Focus on actionable insights.`;
       let pending = managementTipCache.get(date);
       if (!pending) {
         pending = (async () => {
+          // Fast path: tip already persisted in DB (survives restarts/redeploys)
+          const [existing] = await db
+            .select({ tip: managementTips.tip })
+            .from(managementTips)
+            .where(eq(managementTips.date, date))
+            .limit(1);
+          if (existing) {
+            return existing.tip;
+          }
+
+          // Generate a new tip via the AI
           const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
@@ -3800,10 +3811,37 @@ Keep the tone professional but friendly. Focus on actionable insights.`;
           if (words.length > 75) {
             tip = words.slice(0, 75).join(" ");
           }
+
+          // Persist to DB so future requests (and future server processes) reuse this tip.
+          // Use .returning() so we can detect a conflict: if two processes generate
+          // simultaneously, only one insert succeeds. The losing process gets an empty
+          // array back and must re-read the DB to return the persisted winner's tip.
+          const inserted = await db
+            .insert(managementTips)
+            .values({ date, tip })
+            .onConflictDoNothing()
+            .returning({ tip: managementTips.tip });
+
+          if (inserted.length > 0) {
+            // We won the race — our tip is now the canonical one.
+            return inserted[0].tip;
+          }
+
+          // Another process beat us; fetch and return the persisted winner.
+          const [winner] = await db
+            .select({ tip: managementTips.tip })
+            .from(managementTips)
+            .where(eq(managementTips.date, date))
+            .limit(1);
+          if (winner) {
+            return winner.tip;
+          }
+
+          // Extremely unlikely (row disappeared between insert and select), fall back to local tip.
           return tip;
         })();
 
-        // Keep the cache bounded (recent dates only)
+        // Keep the in-memory cache bounded (recent dates only)
         if (managementTipCache.size > 62) {
           managementTipCache.clear();
         }
