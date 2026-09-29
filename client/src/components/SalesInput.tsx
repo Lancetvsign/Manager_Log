@@ -17,16 +17,19 @@ interface SalesData {
     food: string;
     bar: string;
     gaming: string;
+    catering: string;
   };
   lastYear: {
     food: string;
     bar: string;
     gaming: string;
+    catering: string;
   };
   lastWeek?: {
     food: string;
     bar: string;
     gaming: string;
+    catering: string;
   };
 }
 
@@ -34,6 +37,7 @@ interface BudgetData {
   foodSales: string;
   barSales: string;
   gamingSales: string;
+  cateringSales: string;
 }
 
 interface SalesInputProps {
@@ -48,7 +52,7 @@ interface SalesInputProps {
   clubId?: string;
   apiBaseUrl?: string;
   budget?: BudgetData;
-  onBudgetSave?: (budget: BudgetData) => void;
+  onBudgetSave?: (budget: Partial<BudgetData>) => void;
   hasLastWeekData?: boolean;
   collapsible?: boolean;
   isOpen?: boolean;
@@ -107,39 +111,41 @@ export default function SalesInput({
   const [localBudgetFood, setLocalBudgetFood] = useState(stripDecimals(budget?.foodSales));
   const [localBudgetBar, setLocalBudgetBar] = useState(stripDecimals(budget?.barSales));
   const [localBudgetGaming, setLocalBudgetGaming] = useState(stripDecimals(budget?.gamingSales));
+  const [localBudgetCatering, setLocalBudgetCatering] = useState(stripDecimals(budget?.cateringSales));
 
+  // Sync each field independently: saving one budget must not reset a different
+  // field the manager is still typing while the query refetches.
   useEffect(() => {
-    if (budget) {
-      setLocalBudgetFood(stripDecimals(budget.foodSales));
-      setLocalBudgetBar(stripDecimals(budget.barSales));
-      setLocalBudgetGaming(stripDecimals(budget.gamingSales));
-    }
-  }, [budget?.foodSales, budget?.barSales, budget?.gamingSales]);
+    if (budget && document.activeElement?.id !== "budget-food-sales") setLocalBudgetFood(stripDecimals(budget.foodSales));
+  }, [budget?.foodSales]);
+  useEffect(() => {
+    if (budget && document.activeElement?.id !== "budget-bar-sales") setLocalBudgetBar(stripDecimals(budget.barSales));
+  }, [budget?.barSales]);
+  useEffect(() => {
+    if (budget && document.activeElement?.id !== "budget-gaming-sales") setLocalBudgetGaming(stripDecimals(budget.gamingSales));
+  }, [budget?.gamingSales]);
+  useEffect(() => {
+    if (budget && document.activeElement?.id !== "budget-catering-sales") setLocalBudgetCatering(stripDecimals(budget.cateringSales));
+  }, [budget?.cateringSales]);
 
-  const saveBudgetOnBlur = useCallback(() => {
-    if (onBudgetSave) {
-      onBudgetSave({
-        foodSales: localBudgetFood,
-        barSales: localBudgetBar,
-        gamingSales: localBudgetGaming,
-      });
-    }
-  }, [onBudgetSave, localBudgetFood, localBudgetBar, localBudgetGaming]);
+  const saveBudgetOnBlur = useCallback((field: keyof BudgetData, value: string) => {
+    onBudgetSave?.({ [field]: value });
+  }, [onBudgetSave]);
 
   const budgetComparison = budget
-    ? { food: budget.foodSales, bar: budget.barSales, gaming: budget.gamingSales }
-    : { food: "", bar: "", gaming: "" };
+    ? { food: budget.foodSales, bar: budget.barSales, gaming: budget.gamingSales, catering: budget.cateringSales }
+    : { food: "", bar: "", gaming: "", catering: "" };
 
   const activeComparison = comparisonMode === "lastWeek"
-    ? (salesData.lastWeek || { food: "", bar: "", gaming: "" })
+    ? (salesData.lastWeek || { food: "", bar: "", gaming: "", catering: "" })
     : comparisonMode === "budget"
     ? budgetComparison
     : salesData.lastYear;
 
   const hasActiveComparisonData = comparisonMode === "lastWeek"
-    ? !!(salesData.lastWeek && (salesData.lastWeek.food !== undefined && salesData.lastWeek.food !== null && salesData.lastWeek.food !== ""))
+    ? !!(salesData.lastWeek && Object.values(salesData.lastWeek).some(value => value !== ""))
     : comparisonMode === "budget"
-    ? !!(budget && ((parseFloat(budget.foodSales) || 0) + (parseFloat(budget.barSales) || 0) + (parseFloat(budget.gamingSales) || 0)) > 0)
+    ? !!(budget && ((parseFloat(budget.foodSales) || 0) + (parseFloat(budget.barSales) || 0) + (parseFloat(budget.gamingSales) || 0) + (parseFloat(budget.cateringSales) || 0)) > 0)
     : !!hasHistoricalData;
 
   const comparisonLabel = comparisonMode === "lastWeek" ? "Last Week" : comparisonMode === "budget" ? "Budget" : "Last Year";
@@ -147,16 +153,19 @@ export default function SalesInput({
   const foodChange = calculateChange(salesData.current.food, activeComparison.food);
   const barChange = calculateChange(salesData.current.bar, activeComparison.bar);
   const gamingChange = calculateChange(salesData.current.gaming, activeComparison.gaming);
+  const cateringChange = calculateChange(salesData.current.catering, activeComparison.catering);
 
   const currentTotal = 
     (parseFloat(salesData.current.food) || 0) +
     (parseFloat(salesData.current.bar) || 0) +
-    (parseFloat(salesData.current.gaming) || 0);
+    (parseFloat(salesData.current.gaming) || 0) +
+    (parseFloat(salesData.current.catering) || 0);
 
   const comparisonTotal = 
     (parseFloat(activeComparison.food) || 0) +
     (parseFloat(activeComparison.bar) || 0) +
-    (parseFloat(activeComparison.gaming) || 0);
+    (parseFloat(activeComparison.gaming) || 0) +
+    (parseFloat(activeComparison.catering) || 0);
 
   const difference = currentTotal - comparisonTotal;
   const diffPercentage = comparisonTotal !== 0 ? (difference / comparisonTotal) * 100 : 0;
@@ -166,7 +175,7 @@ export default function SalesInput({
     : '';
 
   const budgetTotal = budget
-    ? (parseFloat(budget.foodSales) || 0) + (parseFloat(budget.barSales) || 0) + (parseFloat(budget.gamingSales) || 0)
+    ? (parseFloat(budget.foodSales) || 0) + (parseFloat(budget.barSales) || 0) + (parseFloat(budget.gamingSales) || 0) + (parseFloat(budget.cateringSales) || 0)
     : 0;
 
   const hasBudget = budget && budgetTotal > 0;
@@ -174,12 +183,14 @@ export default function SalesInput({
   const localBudgetTotal = 
     (parseFloat(localBudgetFood) || 0) +
     (parseFloat(localBudgetBar) || 0) +
-    (parseFloat(localBudgetGaming) || 0);
+    (parseFloat(localBudgetGaming) || 0) +
+    (parseFloat(localBudgetCatering) || 0);
 
   const totalSales =
     (parseFloat(salesData.current.food) || 0) +
     (parseFloat(salesData.current.bar) || 0) +
-    (parseFloat(salesData.current.gaming) || 0);
+    (parseFloat(salesData.current.gaming) || 0) +
+    (parseFloat(salesData.current.catering) || 0);
 
   const cardHeader = (
     <CardHeader className={`flex flex-col gap-2${collapsible ? " cursor-pointer hover-elevate rounded-t-lg" : ""}`}>
@@ -215,8 +226,9 @@ export default function SalesInput({
               Daily Budget
             </span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-            <div className="space-y-2">
+          <div className="overflow-x-auto">
+            <div className="flex min-w-[640px] items-end gap-2">
+            <div className="min-w-[7rem] max-w-[11rem] flex-1 space-y-1.5">
               <Label htmlFor="budget-food-sales" className="text-sm font-medium">
                 Food Sales
               </Label>
@@ -226,12 +238,13 @@ export default function SalesInput({
                 placeholder="0"
                 value={localBudgetFood}
                 onChange={(e) => setLocalBudgetFood(e.target.value)}
-                onBlur={saveBudgetOnBlur}
+                onBlur={() => saveBudgetOnBlur("foodSales", localBudgetFood)}
                 disabled={disabled}
+                className="h-8 px-2 tabular-nums"
                 data-testid="input-budget-food"
               />
             </div>
-            <div className="space-y-2">
+            <div className="min-w-[7rem] max-w-[11rem] flex-1 space-y-1.5">
               <Label htmlFor="budget-bar-sales" className="text-sm font-medium">
                 Bar Sales
               </Label>
@@ -241,12 +254,13 @@ export default function SalesInput({
                 placeholder="0"
                 value={localBudgetBar}
                 onChange={(e) => setLocalBudgetBar(e.target.value)}
-                onBlur={saveBudgetOnBlur}
+                onBlur={() => saveBudgetOnBlur("barSales", localBudgetBar)}
                 disabled={disabled}
+                className="h-8 px-2 tabular-nums"
                 data-testid="input-budget-bar"
               />
             </div>
-            <div className="space-y-2">
+            <div className="min-w-[7rem] max-w-[11rem] flex-1 space-y-1.5">
               <Label htmlFor="budget-gaming-sales" className="text-sm font-medium">
                 Gaming Sales
               </Label>
@@ -256,14 +270,34 @@ export default function SalesInput({
                 placeholder="0"
                 value={localBudgetGaming}
                 onChange={(e) => setLocalBudgetGaming(e.target.value)}
-                onBlur={saveBudgetOnBlur}
+                onBlur={() => saveBudgetOnBlur("gamingSales", localBudgetGaming)}
                 disabled={disabled}
+                className="h-8 px-2 tabular-nums"
                 data-testid="input-budget-gaming"
               />
             </div>
-            <div className="flex items-center justify-between md:justify-end gap-2 h-9">
+            <div className="min-w-[7rem] max-w-[11rem] flex-1 space-y-1.5">
+              <Label htmlFor="budget-catering-sales" className="text-sm font-medium">
+                Catering
+              </Label>
+              <Input
+                id="budget-catering-sales"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0"
+                value={localBudgetCatering}
+                onChange={(e) => setLocalBudgetCatering(e.target.value)}
+                onBlur={() => saveBudgetOnBlur("cateringSales", localBudgetCatering)}
+                disabled={disabled}
+                className="h-8 px-2 tabular-nums"
+                data-testid="input-budget-catering"
+              />
+            </div>
+            <div className="ml-auto flex h-8 shrink-0 items-center gap-2 whitespace-nowrap">
               <span className="font-medium text-sm">Total:</span>
-              <span className="text-xl font-bold">${localBudgetTotal.toFixed(0)}</span>
+              <span className="text-xl font-bold">${localBudgetTotal.toLocaleString("en-CA", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+            </div>
             </div>
           </div>
         </div>
@@ -276,8 +310,9 @@ export default function SalesInput({
               Today's Sales
             </span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-start">
-            <div className="space-y-2">
+          <div className="overflow-x-auto">
+            <div className="flex min-w-[640px] items-start gap-2">
+            <div className="min-w-[7rem] max-w-[11rem] flex-1 space-y-1.5">
               <Label htmlFor="food-sales" className="text-sm font-medium">
                 Food Sales
               </Label>
@@ -288,10 +323,11 @@ export default function SalesInput({
                 value={salesData.current.food}
                 onChange={(e) => onSalesChange('food', e.target.value)}
                 disabled={disabled}
+                className="h-8 px-2 tabular-nums"
                 data-testid="input-food-sales"
               />
               {showComparison && hasActiveComparisonData && activeComparison.food && (
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                   <span>{comparisonLabel}: ${activeComparison.food}</span>
                   <Badge variant="outline" className="flex items-center space-x-1">
                     {getTrendIcon(foodChange.trend)}
@@ -301,7 +337,7 @@ export default function SalesInput({
               )}
             </div>
 
-            <div className="space-y-2">
+            <div className="min-w-[7rem] max-w-[11rem] flex-1 space-y-1.5">
               <Label htmlFor="bar-sales" className="text-sm font-medium">
                 Bar Sales
               </Label>
@@ -312,10 +348,11 @@ export default function SalesInput({
                 value={salesData.current.bar}
                 onChange={(e) => onSalesChange('bar', e.target.value)}
                 disabled={disabled}
+                className="h-8 px-2 tabular-nums"
                 data-testid="input-bar-sales"
               />
               {showComparison && hasActiveComparisonData && activeComparison.bar && (
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                   <span>{comparisonLabel}: ${activeComparison.bar}</span>
                   <Badge variant="outline" className="flex items-center space-x-1">
                     {getTrendIcon(barChange.trend)}
@@ -325,7 +362,7 @@ export default function SalesInput({
               )}
             </div>
 
-            <div className="space-y-2">
+            <div className="min-w-[7rem] max-w-[11rem] flex-1 space-y-1.5">
               <Label htmlFor="gaming-sales" className="text-sm font-medium">
                 Gaming Sales
               </Label>
@@ -336,10 +373,11 @@ export default function SalesInput({
                 value={salesData.current.gaming}
                 onChange={(e) => onSalesChange('gaming', e.target.value)}
                 disabled={disabled}
+                className="h-8 px-2 tabular-nums"
                 data-testid="input-gaming-sales"
               />
               {showComparison && hasActiveComparisonData && activeComparison.gaming && (
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                   <span>{comparisonLabel}: ${activeComparison.gaming}</span>
                   <Badge variant="outline" className="flex items-center space-x-1">
                     {getTrendIcon(gamingChange.trend)}
@@ -349,11 +387,39 @@ export default function SalesInput({
               )}
             </div>
 
-            <div className="flex items-center justify-between md:justify-end gap-2 h-9 md:mt-[30px]">
+            <div className="min-w-[7rem] max-w-[11rem] flex-1 space-y-1.5">
+              <Label htmlFor="catering-sales" className="text-sm font-medium">
+                Catering
+              </Label>
+              <Input
+                id="catering-sales"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0"
+                value={salesData.current.catering}
+                onChange={(e) => onSalesChange('catering', e.target.value)}
+                disabled={disabled}
+                className="h-8 px-2 tabular-nums"
+                data-testid="input-catering-sales"
+              />
+              {showComparison && hasActiveComparisonData && activeComparison.catering && (
+                <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                  <span>{comparisonLabel}: ${activeComparison.catering}</span>
+                  <Badge variant="outline" className="flex items-center space-x-1">
+                    {getTrendIcon(cateringChange.trend)}
+                    <span data-testid="text-catering-change">{cateringChange.percentage.toFixed(1)}%</span>
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            <div className="ml-auto mt-[20px] flex h-8 shrink-0 items-center gap-2 whitespace-nowrap">
               <span className="font-medium text-sm">Total:</span>
               <span className="text-xl font-bold" data-testid="text-total-sales">
-                ${currentTotal.toFixed(0)}
+                ${currentTotal.toLocaleString("en-CA", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </span>
+            </div>
             </div>
           </div>
         </div>
@@ -434,6 +500,11 @@ export default function SalesInput({
                             category: 'Gaming', 
                             comparison: parseFloat(activeComparison.gaming) || 0,
                             today: parseFloat(salesData.current.gaming) || 0
+                          },
+                          {
+                            category: 'Catering',
+                            comparison: parseFloat(activeComparison.catering) || 0,
+                            today: parseFloat(salesData.current.catering) || 0
                           },
                           { 
                             category: 'Total', 

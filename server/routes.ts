@@ -1694,7 +1694,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dayOfWeek: log.dayOfWeek,
           foodSales: parseFloat(log.foodSales || "0") || 0,
           barSales: parseFloat(log.barSales || "0") || 0,
-          gamingSales: parseFloat(log.gamingSales || "0") || 0
+          gamingSales: parseFloat(log.gamingSales || "0") || 0,
+          cateringSales: parseFloat(log.cateringSales || "0") || 0
         }))
         .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -1704,14 +1705,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           food: acc.food + (parseFloat(log.foodSales || "0") || 0),
           bar: acc.bar + (parseFloat(log.barSales || "0") || 0),
           gaming: acc.gaming + (parseFloat(log.gamingSales || "0") || 0),
+          catering: acc.catering + (parseFloat(log.cateringSales || "0") || 0),
           total: acc.total + (parseFloat(log.totalSales || "0") || 0)
         }),
-        { food: 0, bar: 0, gaming: 0, total: 0 }
+        { food: 0, bar: 0, gaming: 0, catering: 0, total: 0 }
       );
       // Round to 2 decimal places
       salesByCategory.food = Math.round(salesByCategory.food * 100) / 100;
       salesByCategory.bar = Math.round(salesByCategory.bar * 100) / 100;
       salesByCategory.gaming = Math.round(salesByCategory.gaming * 100) / 100;
+      salesByCategory.catering = Math.round(salesByCategory.catering * 100) / 100;
       salesByCategory.total = Math.round(salesByCategory.total * 100) / 100;
 
       // To-do status breakdown
@@ -2388,6 +2391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const foodSales = log.foodSales || 0;
       const barSales = log.barSales || 0;
       const gamingSales = log.gamingSales || 0;
+      const cateringSales = log.cateringSales || 0;
       const totalSales = log.totalSales || 0;
       htmlSections.push(`
         <div style="margin-bottom:16px;">
@@ -2396,6 +2400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             <tr><td style="padding:2px 12px 2px 0;">Food:</td><td style="text-align:right;">$${foodSales.toLocaleString()}</td></tr>
             <tr><td style="padding:2px 12px 2px 0;">Bar:</td><td style="text-align:right;">$${barSales.toLocaleString()}</td></tr>
             <tr><td style="padding:2px 12px 2px 0;">Gaming:</td><td style="text-align:right;">$${gamingSales.toLocaleString()}</td></tr>
+            <tr><td style="padding:2px 12px 2px 0;">Catering:</td><td style="text-align:right;">$${cateringSales.toLocaleString()}</td></tr>
             <tr style="font-weight:bold;"><td style="padding:2px 12px 2px 0;border-top:1px solid #ccc;">Total:</td><td style="text-align:right;border-top:1px solid #ccc;">$${totalSales.toLocaleString()}</td></tr>
           </table>
         </div>
@@ -3555,6 +3560,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         foodSales: club?.budgetFoodSales || "",
         barSales: club?.budgetBarSales || "",
         gamingSales: club?.budgetGamingSales || "",
+        cateringSales: club?.budgetCateringSales || "",
       });
     } catch (error) {
       console.error("Error fetching club budget:", error);
@@ -3566,6 +3572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     foodSales: z.string().optional(),
     barSales: z.string().optional(),
     gamingSales: z.string().optional(),
+    cateringSales: z.string().optional(),
   });
 
   app.put("/api/club-budget", async (req, res) => {
@@ -3576,7 +3583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid request body", details: parseResult.error.errors });
       }
 
-      const { foodSales, barSales, gamingSales } = parseResult.data;
+      const { foodSales, barSales, gamingSales, cateringSales } = parseResult.data;
 
       const [existingClub] = await db
         .select()
@@ -3593,21 +3600,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             budgetFoodSales: foodSales || null,
             budgetBarSales: barSales || null,
             budgetGamingSales: gamingSales || null,
+            budgetCateringSales: cateringSales || null,
           })
           .returning();
         return res.json({
           foodSales: newClub.budgetFoodSales || "",
           barSales: newClub.budgetBarSales || "",
           gamingSales: newClub.budgetGamingSales || "",
+          cateringSales: newClub.budgetCateringSales || "",
         });
       }
 
       const [updatedClub] = await db
         .update(clubs)
         .set({
-          budgetFoodSales: foodSales || null,
-          budgetBarSales: barSales || null,
-          budgetGamingSales: gamingSales || null,
+          ...(foodSales !== undefined && { budgetFoodSales: foodSales || null }),
+          ...(barSales !== undefined && { budgetBarSales: barSales || null }),
+          ...(gamingSales !== undefined && { budgetGamingSales: gamingSales || null }),
+          ...(cateringSales !== undefined && { budgetCateringSales: cateringSales || null }),
           updatedAt: new Date(),
         })
         .where(eq(clubs.id, clubId))
@@ -3617,6 +3627,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         foodSales: updatedClub.budgetFoodSales || "",
         barSales: updatedClub.budgetBarSales || "",
         gamingSales: updatedClub.budgetGamingSales || "",
+        cateringSales: updatedClub.budgetCateringSales || "",
       });
     } catch (error) {
       console.error("Error updating club budget:", error);
@@ -3683,6 +3694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         food: parseFloat(log.foodSales || "0"),
         bar: parseFloat(log.barSales || "0"),
         gaming: parseFloat(log.gamingSales || "0"),
+        catering: parseFloat(log.cateringSales || "0"),
         total: parseFloat(log.totalSales || "0"),
         notes: log.salesNotes || log.dailyNotes
       }));
@@ -3690,6 +3702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalFood = salesSummary.reduce((sum, d) => sum + d.food, 0);
       const totalBar = salesSummary.reduce((sum, d) => sum + d.bar, 0);
       const totalGaming = salesSummary.reduce((sum, d) => sum + d.gaming, 0);
+      const totalCatering = salesSummary.reduce((sum, d) => sum + d.catering, 0);
       const grandTotal = salesSummary.reduce((sum, d) => sum + d.total, 0);
       const avgDaily = grandTotal / logs.length;
       
@@ -3709,6 +3722,7 @@ DATA SUMMARY (${startDate} to ${endDate}):
 - Food Sales: $${totalFood.toLocaleString()} (${((totalFood/grandTotal)*100).toFixed(1)}%)
 - Bar Sales: $${totalBar.toLocaleString()} (${((totalBar/grandTotal)*100).toFixed(1)}%)
 - Gaming Sales: $${totalGaming.toLocaleString()} (${((totalGaming/grandTotal)*100).toFixed(1)}%)
+- Catering Sales: $${totalCatering.toLocaleString()} (${((totalCatering/grandTotal)*100).toFixed(1)}%)
 
 Daily breakdown:
 ${salesSummary.slice(-7).map(d => `${d.date} (${d.day}): $${d.total.toLocaleString()}${d.notes ? ` - "${d.notes.slice(0,50)}..."` : ''}`).join('\n')}

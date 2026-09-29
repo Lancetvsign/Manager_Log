@@ -2,7 +2,7 @@
  * SALES BREAKDOWN CHART COMPONENT
  * ================================
  * A reusable pie/donut chart for displaying sales by category.
- * Shows Food, Bar, and Gaming sales with proportions.
+ * Shows Food, Bar, Gaming, and Catering sales with proportions.
  * 
  * Features:
  * - Donut chart visualization
@@ -34,6 +34,7 @@ const COLORS = {
   food: "hsl(174, 83.9%, 31.6%)",
   bar: "hsl(217, 91%, 60%)",
   gaming: "hsl(280, 87%, 65%)",
+  catering: "hsl(25, 95%, 53%)",
 };
 
 interface SalesBreakdownChartProps {
@@ -47,6 +48,7 @@ export default function SalesBreakdownChart({ salesByCategory }: SalesBreakdownC
     { name: "Food", value: salesByCategory.food, color: COLORS.food },
     { name: "Bar", value: salesByCategory.bar, color: COLORS.bar },
     { name: "Gaming", value: salesByCategory.gaming, color: COLORS.gaming },
+    { name: "Catering", value: salesByCategory.catering, color: COLORS.catering },
   ].filter((item) => item.value > 0);
 
   const formatCurrency = (value: number) => {
@@ -159,6 +161,11 @@ export default function SalesBreakdownChart({ salesByCategory }: SalesBreakdownC
             <span className="h-2 w-2 rounded-full bg-purple-500" />
             <span>Gaming</span>
             <span className="font-medium text-foreground">{formatCurrency(salesByCategory.gaming)}</span>
+          </div>
+          <div className="flex items-center gap-1.5" data-testid="text-sales-catering">
+            <span className="h-2 w-2 rounded-full bg-orange-500" />
+            <span>Catering</span>
+            <span className="font-medium text-foreground">{formatCurrency(salesByCategory.catering)}</span>
           </div>
         </div>
       </CardContent>

@@ -187,6 +187,19 @@ export class DatabaseStorage implements IStorage {
    * Update an existing manager log, scoped to a specific club
    */
   async updateManagerLog(id: number, updates: Partial<InsertManagerLog>, clubId: string): Promise<ManagerLog | undefined> {
+    const updatesSales = ["foodSales", "barSales", "gamingSales", "cateringSales"]
+      .some(key => updates[key as keyof InsertManagerLog] !== undefined);
+    if (updatesSales) {
+      const existing = await this.getManagerLog(id, clubId);
+      if (!existing) return undefined;
+      const merged = { ...existing, ...updates };
+      updates.totalSales = (
+        (parseFloat(merged.foodSales || "0") || 0) +
+        (parseFloat(merged.barSales || "0") || 0) +
+        (parseFloat(merged.gamingSales || "0") || 0) +
+        (parseFloat(merged.cateringSales || "0") || 0)
+      ).toFixed(2);
+    }
     const [updatedLog] = await db
       .update(managerLogs)
       .set({ ...updates, updatedAt: new Date() })
@@ -218,19 +231,23 @@ export class DatabaseStorage implements IStorage {
    * This ensures each club has at most one log per day
    */
   async upsertManagerLog(insertLog: InsertManagerLog): Promise<ManagerLog> {
-    const food = parseFloat(insertLog.foodSales ?? "0") || 0;
-    const bar = parseFloat(insertLog.barSales ?? "0") || 0;
-    const gaming = parseFloat(insertLog.gamingSales ?? "0") || 0;
-    const computedTotal = (food + bar + gaming).toFixed(2);
+    const existingLog = await this.getManagerLogByDate(insertLog.logDate, insertLog.clubId);
+    // Legacy imports may omit Catering. Preserve the saved category and include
+    // it when recalculating the total from the incoming category updates.
+    const food = parseFloat(insertLog.foodSales === undefined ? existingLog?.foodSales ?? "0" : insertLog.foodSales ?? "0") || 0;
+    const bar = parseFloat(insertLog.barSales === undefined ? existingLog?.barSales ?? "0" : insertLog.barSales ?? "0") || 0;
+    const gaming = parseFloat(insertLog.gamingSales === undefined ? existingLog?.gamingSales ?? "0" : insertLog.gamingSales ?? "0") || 0;
+    const catering = parseFloat(insertLog.cateringSales === undefined ? existingLog?.cateringSales ?? "0" : insertLog.cateringSales ?? "0") || 0;
+    const computedTotal = (food + bar + gaming + catering).toFixed(2);
+    const updatedCategories = ["foodSales", "barSales", "gamingSales", "cateringSales"]
+      .some(key => insertLog[key as keyof InsertManagerLog] !== undefined);
     const logWithTotal: InsertManagerLog = {
       ...insertLog,
-      totalSales: (insertLog.totalSales == null || insertLog.totalSales === "")
+      totalSales: (updatedCategories || insertLog.totalSales == null || insertLog.totalSales === "")
         ? computedTotal
         : insertLog.totalSales,
     };
 
-    const existingLog = await this.getManagerLogByDate(insertLog.logDate, insertLog.clubId);
-    
     if (existingLog) {
       const updatedLog = await this.updateManagerLog(existingLog.id, logWithTotal, insertLog.clubId);
       return updatedLog!;

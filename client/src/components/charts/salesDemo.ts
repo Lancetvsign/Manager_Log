@@ -5,6 +5,7 @@ export type SalesPoint = {
   food: number;
   bar: number;
   gaming: number;
+  catering: number;
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -38,6 +39,7 @@ export interface DemoSeriesOptions {
   baseFood?: number;
   baseBar?: number;
   baseGaming?: number;
+  baseCatering?: number;
   noiseRange?: number;
   spikeMultiplier?: number;
 }
@@ -50,6 +52,7 @@ export function generateDemoSalesSeries(
   const baseFood = opts?.baseFood ?? 850;
   const baseBar = opts?.baseBar ?? 550;
   const baseGaming = opts?.baseGaming ?? 280;
+  const baseCatering = opts?.baseCatering ?? 350;
   const noiseRange = opts?.noiseRange ?? 0.12;
   const spikeMultiplier = opts?.spikeMultiplier ?? 1.38;
 
@@ -72,13 +75,15 @@ export function generateDemoSalesSeries(
     const foodNoise = 1 + (rand(s + 1) - 0.5) * 2 * noiseRange;
     const barNoise = 1 + (rand(s + 2) - 0.5) * 2 * noiseRange;
     const gamingNoise = 1 + (rand(s + 3) - 0.5) * 2 * noiseRange;
+    const cateringNoise = 1 + (rand(s + 4) - 0.5) * 2 * noiseRange;
 
     const food = Math.round(clamp(baseFood * dowMultiplier * daySpike * foodNoise, 50, 10000));
     const bar = Math.round(clamp(baseBar * dowMultiplier * daySpike * barNoise, 30, 8000));
     const gaming = Math.round(clamp(baseGaming * dowMultiplier * daySpike * gamingNoise, 20, 5000));
-    const total = food + bar + gaming;
+    const catering = Math.round(clamp(baseCatering * dowMultiplier * daySpike * cateringNoise, 20, 8000));
+    const total = food + bar + gaming + catering;
 
-    return { ...x, food, bar, gaming, total };
+    return { ...x, food, bar, gaming, catering, total };
   });
 }
 
@@ -114,12 +119,14 @@ export function makeCompareFromCurrent(
     const foodNoise = (rand(s + 1) - 0.5) * 2 * vol;
     const barNoise = (rand(s + 2) - 0.5) * 2 * vol;
     const gamingNoise = (rand(s + 3) - 0.5) * 2 * vol;
+    const cateringNoise = (rand(s + 4) - 0.5) * 2 * vol;
 
     const food = Math.round(clamp(p.food * scale * spikeAdjust * (1 + foodNoise), 50, 10000));
     const bar = Math.round(clamp(p.bar * scale * spikeAdjust * (1 + barNoise), 30, 8000));
     const gaming = Math.round(clamp(p.gaming * scale * spikeAdjust * (1 + gamingNoise), 20, 5000));
+    const catering = Math.round(clamp(p.catering * scale * spikeAdjust * (1 + cateringNoise), 20, 8000));
 
-    const total = food + bar + gaming;
+    const total = food + bar + gaming + catering;
 
     return {
       label: p.label,
@@ -127,6 +134,7 @@ export function makeCompareFromCurrent(
       food,
       bar,
       gaming,
+      catering,
       total,
     };
   });
@@ -181,7 +189,8 @@ export function makeComparisonForMode(
       const food = Math.round(p.food * 0.92);
       const bar = Math.round(p.bar * 0.95);
       const gaming = Math.round(p.gaming * 1.10);
-      return { ...p, food, bar, gaming, total: food + bar + gaming };
+      const catering = Math.round(p.catering * 0.96);
+      return { ...p, food, bar, gaming, catering, total: food + bar + gaming + catering };
     });
   } else {
     // Last year same week: different category mix (more bar culture, less food)
@@ -190,7 +199,8 @@ export function makeComparisonForMode(
       const food = Math.round(p.food * 0.88);
       const bar = Math.round(p.bar * 1.18);
       const gaming = Math.round(p.gaming * 1.05);
-      return { ...p, food, bar, gaming, total: food + bar + gaming };
+      const catering = Math.round(p.catering * 1.12);
+      return { ...p, food, bar, gaming, catering, total: food + bar + gaming + catering };
     });
   }
 }

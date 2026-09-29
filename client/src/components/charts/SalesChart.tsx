@@ -2,7 +2,7 @@
  * UNIFIED SALES CHART COMPONENT
  * ==============================
  * A combined chart replacing Sales Trend + Sales Breakdown.
- * Features series toggles for Total/Food/Bar/Gaming and chart type switching.
+ * Features series toggles for Total/Food/Bar/Gaming/Catering and chart type switching.
  *
  * Features:
  * - Multi-select series toggles (Total, Food, Bar, Gaming)
@@ -59,6 +59,7 @@ interface AggregatedPoint {
   food: number;
   bar: number;
   gaming: number;
+  catering: number;
 }
 
 interface MergedSalesPoint {
@@ -68,19 +69,22 @@ interface MergedSalesPoint {
   current_food: number;
   current_bar: number;
   current_gaming: number;
+  current_catering: number;
   compare_total?: number;
   compare_food?: number;
   compare_bar?: number;
   compare_gaming?: number;
+  compare_catering?: number;
 }
 
-type SeriesKey = "total" | "food" | "bar" | "gaming";
+type SeriesKey = "total" | "food" | "bar" | "gaming" | "catering";
 
 const SERIES_COLORS: Record<SeriesKey, { hsl: string; hex: string; bg: string; border: string }> = {
   total: { hsl: "hsl(174, 83.9%, 31.6%)", hex: "#0d9488", bg: "rgba(13, 148, 136, 0.15)", border: "rgba(13, 148, 136, 0.4)" },
   food: { hsl: "hsl(47, 100%, 50%)", hex: "#eab308", bg: "rgba(234, 179, 8, 0.15)", border: "rgba(234, 179, 8, 0.4)" },
   bar: { hsl: "hsl(200, 100%, 50%)", hex: "#0ea5e9", bg: "rgba(14, 165, 233, 0.15)", border: "rgba(14, 165, 233, 0.4)" },
   gaming: { hsl: "hsl(280, 80%, 60%)", hex: "#a855f7", bg: "rgba(168, 85, 247, 0.15)", border: "rgba(168, 85, 247, 0.4)" },
+  catering: { hsl: "hsl(25, 95%, 53%)", hex: "#f97316", bg: "rgba(249, 115, 22, 0.15)", border: "rgba(249, 115, 22, 0.4)" },
 };
 
 const SERIES_LABELS: Record<SeriesKey, string> = {
@@ -88,6 +92,7 @@ const SERIES_LABELS: Record<SeriesKey, string> = {
   food: "Food",
   bar: "Bar",
   gaming: "Gaming",
+  catering: "Catering",
 };
 
 function aggregateByGranularity(
@@ -121,6 +126,7 @@ function aggregateByGranularity(
       food: 0,
       bar: 0,
       gaming: 0,
+      catering: 0,
     };
 
     grouped.set(sortKey, {
@@ -129,6 +135,7 @@ function aggregateByGranularity(
       food: existing.food + d.foodSales,
       bar: existing.bar + d.barSales,
       gaming: existing.gaming + d.gamingSales,
+      catering: existing.catering + d.cateringSales,
     });
   });
 
@@ -152,10 +159,12 @@ function mergeSalesSeries(
       current_food: p.food ?? 0,
       current_bar: p.bar ?? 0,
       current_gaming: p.gaming ?? 0,
+      current_catering: p.catering ?? 0,
       compare_total: compPoint?.total,
       compare_food: compPoint?.food,
       compare_bar: compPoint?.bar,
       compare_gaming: compPoint?.gaming,
+      compare_catering: compPoint?.catering,
     });
   }
 
@@ -181,10 +190,11 @@ export default function SalesChart({
     food: false,
     bar: false,
     gaming: false,
+    catering: false,
   });
 
   function toggleSeries(key: SeriesKey) {
-    setVisible({ total: false, food: false, bar: false, gaming: false, [key]: true });
+    setVisible({ total: false, food: false, bar: false, gaming: false, catering: false, [key]: true });
   }
 
   const effectiveGranularity: GranularityType = useMemo(() => {
@@ -208,7 +218,8 @@ export default function SalesChart({
         p.compare_total !== undefined ||
         p.compare_food !== undefined ||
         p.compare_bar !== undefined ||
-        p.compare_gaming !== undefined
+        p.compare_gaming !== undefined ||
+        p.compare_catering !== undefined
     );
   }, [mergedData]);
 
@@ -442,6 +453,7 @@ export default function SalesChart({
                 {renderBars("food")}
                 {renderBars("bar")}
                 {renderBars("gaming")}
+                {renderBars("catering")}
               </>
             ) : (
               <>
@@ -449,6 +461,7 @@ export default function SalesChart({
                 {renderLineOrArea("food")}
                 {renderLineOrArea("bar")}
                 {renderLineOrArea("gaming")}
+                {renderLineOrArea("catering")}
               </>
             )}
           </ComposedChart>
@@ -541,7 +554,7 @@ export default function SalesChart({
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            {(["total", "food", "bar", "gaming"] as const).map((key) => (
+            {(["total", "food", "bar", "gaming", "catering"] as const).map((key) => (
               <button
                 key={key}
                 type="button"

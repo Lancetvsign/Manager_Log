@@ -1,0 +1,1 @@
+- [Sales category compatibility](sales-category-compatibility.md) — omitted categories in legacy imports and partial budget updates must preserve existing amounts, not clear them.

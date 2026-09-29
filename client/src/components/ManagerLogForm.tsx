@@ -62,9 +62,9 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
   const [weeklyNumber, setWeeklyNumber] = useState("");
   const [drawingAutoFilled, setDrawingAutoFilled] = useState(false);
   const [salesData, setSalesData] = useState({
-    current: { food: "", bar: "", gaming: "" },
-    lastYear: { food: "", bar: "", gaming: "" },
-    lastWeek: { food: "", bar: "", gaming: "" }
+    current: { food: "", bar: "", gaming: "", catering: "" },
+    lastYear: { food: "", bar: "", gaming: "", catering: "" },
+    lastWeek: { food: "", bar: "", gaming: "", catering: "" }
   });
   const [weatherData, setWeatherData] = useState<{
     current: WeatherData | null;
@@ -220,6 +220,7 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
     foodSales: string;
     barSales: string;
     gamingSales: string;
+    cateringSales: string;
   }
 
   const { data: budgetData } = useQuery<BudgetData>({
@@ -233,7 +234,7 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
   });
 
   const budgetMutation = useMutation({
-    mutationFn: async (budget: BudgetData) => {
+    mutationFn: async (budget: Partial<BudgetData>) => {
       const url = buildApiUrl('/api/club-budget', clubId, apiBaseUrl);
       const response = await apiRequest("PUT", url, budget);
       return response.json();
@@ -346,17 +347,20 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
         current: {
           food: existingLog.foodSales ? parseFloat(existingLog.foodSales).toString() : "",
           bar: existingLog.barSales ? parseFloat(existingLog.barSales).toString() : "",
-          gaming: existingLog.gamingSales ? parseFloat(existingLog.gamingSales).toString() : ""
+          gaming: existingLog.gamingSales ? parseFloat(existingLog.gamingSales).toString() : "",
+          catering: existingLog.cateringSales ? parseFloat(existingLog.cateringSales).toString() : ""
         },
         lastYear: {
           food: comparisonLog?.foodSales || "",
           bar: comparisonLog?.barSales || "",
-          gaming: comparisonLog?.gamingSales || ""
+          gaming: comparisonLog?.gamingSales || "",
+          catering: comparisonLog?.cateringSales || ""
         },
         lastWeek: {
           food: lastWeekLog?.foodSales || "",
           bar: lastWeekLog?.barSales || "",
-          gaming: lastWeekLog?.gamingSales || ""
+          gaming: lastWeekLog?.gamingSales || "",
+          catering: lastWeekLog?.cateringSales || ""
         }
       });
       hasFormDataRef.current = true;
@@ -369,12 +373,14 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
         lastYear: {
           food: comparisonLog?.foodSales || "",
           bar: comparisonLog?.barSales || "",
-          gaming: comparisonLog?.gamingSales || ""
+          gaming: comparisonLog?.gamingSales || "",
+          catering: comparisonLog?.cateringSales || ""
         },
         lastWeek: {
           food: lastWeekLog?.foodSales || "",
           bar: lastWeekLog?.barSales || "",
-          gaming: lastWeekLog?.gamingSales || ""
+          gaming: lastWeekLog?.gamingSales || "",
+          catering: lastWeekLog?.cateringSales || ""
         }
       }));
       hasFormDataRef.current = false;
@@ -655,7 +661,8 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
     const food = parseFloat(salesData.current.food) || 0;
     const bar = parseFloat(salesData.current.bar) || 0;
     const gaming = parseFloat(salesData.current.gaming) || 0;
-    const total = food + bar + gaming;
+    const catering = parseFloat(salesData.current.catering) || 0;
+    const total = food + bar + gaming + catering;
     
     const logData = {
       logDate: dateString,
@@ -669,6 +676,7 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
       foodSales: salesData.current.food || null,
       barSales: salesData.current.bar || null,
       gamingSales: salesData.current.gaming || null,
+      cateringSales: salesData.current.catering || null,
       totalSales: total > 0 ? total.toFixed(2) : null,
       salesNotes: salesNotes.trim() || null,
       dailyNumber: dailyNumber || null,
@@ -697,7 +705,7 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
     if (isLoadingFromServerRef.current || isPastLog) return;
     if (!hasFormDataRef.current) {
       const hasAnyContent = amManagerName.trim() || pmManagerName.trim() || kitchenManagerName.trim() ||
-        salesData.current.food || salesData.current.bar || salesData.current.gaming ||
+        salesData.current.food || salesData.current.bar || salesData.current.gaming || salesData.current.catering ||
         dailyNotes.trim() || salesNotes.trim() || dailyNumber || weeklyNumber;
       if (hasAnyContent) {
         hasFormDataRef.current = true;
@@ -706,7 +714,7 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
     if (hasFormDataRef.current) {
       triggerAutoSave();
     }
-  }, [amManagerName, pmManagerName, kitchenManagerName, salesData.current.food, salesData.current.bar, salesData.current.gaming, dailyNotes, salesNotes, dailyNumber, weeklyNumber]);
+  }, [amManagerName, pmManagerName, kitchenManagerName, salesData.current.food, salesData.current.bar, salesData.current.gaming, salesData.current.catering, dailyNotes, salesNotes, dailyNumber, weeklyNumber]);
 
   useEffect(() => {
     if (autoSaveTimerRef.current) {
@@ -738,7 +746,8 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
     const food = parseFloat(salesData.current.food) || 0;
     const bar = parseFloat(salesData.current.bar) || 0;
     const gaming = parseFloat(salesData.current.gaming) || 0;
-    const total = food + bar + gaming;
+    const catering = parseFloat(salesData.current.catering) || 0;
+    const total = food + bar + gaming + catering;
     return total > 0 ? total.toFixed(2) : "";
   };
 
@@ -773,6 +782,7 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
       foodSales: salesData.current.food || null,
       barSales: salesData.current.bar || null,
       gamingSales: salesData.current.gaming || null,
+      cateringSales: salesData.current.catering || null,
       totalSales: calculateTotalSales() || null,
       salesNotes: salesNotes.trim() || null,
       dailyNumber: dailyNumber || null,
@@ -847,9 +857,9 @@ export default function ManagerLogForm({ onSubmit, showEmailModal: showEmailModa
     setDailyNumber("");
     setWeeklyNumber("");
     setSalesData({
-      current: { food: "", bar: "", gaming: "" },
-      lastYear: { food: "", bar: "", gaming: "" },
-      lastWeek: { food: "", bar: "", gaming: "" }
+      current: { food: "", bar: "", gaming: "", catering: "" },
+      lastYear: { food: "", bar: "", gaming: "", catering: "" },
+      lastWeek: { food: "", bar: "", gaming: "", catering: "" }
     });
   };
 

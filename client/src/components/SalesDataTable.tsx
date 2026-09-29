@@ -19,6 +19,7 @@ interface DailySalesEntry {
   foodSales: number;
   barSales: number;
   gamingSales: number;
+  cateringSales: number;
   totalSales: number;
 }
 
@@ -33,6 +34,7 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
   const [editFood, setEditFood] = useState("");
   const [editBar, setEditBar] = useState("");
   const [editGaming, setEditGaming] = useState("");
+  const [editCatering, setEditCatering] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Bulk delete state
@@ -40,7 +42,7 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
   const updateMutation = useMutation({
-    mutationFn: async (data: { date: string; foodSales: string; barSales: string; gamingSales: string }) => {
+    mutationFn: async (data: { date: string; foodSales: string; barSales: string; gamingSales: string; cateringSales: string }) => {
       const url = buildApiUrl("/api/manager-logs/historical", clubId, apiBaseUrl);
       const dateObj = new Date(data.date + "T12:00:00");
       const dayOfWeek = dateObj.toLocaleDateString("en-US", { weekday: "long" });
@@ -50,6 +52,7 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
         foodSales: data.foodSales,
         barSales: data.barSales,
         gamingSales: data.gamingSales,
+        cateringSales: data.cateringSales,
         clubId,
       });
       return response.json();
@@ -136,6 +139,7 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
     setEditFood(entry.foodSales.toFixed(2));
     setEditBar(entry.barSales.toFixed(2));
     setEditGaming(entry.gamingSales.toFixed(2));
+    setEditCatering((entry.cateringSales || 0).toFixed(2));
     setConfirmDelete(false);
   };
 
@@ -146,6 +150,7 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
       foodSales: editFood || "0",
       barSales: editBar || "0",
       gamingSales: editGaming || "0",
+      cateringSales: editCatering || "0",
     });
   };
 
@@ -159,7 +164,7 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
     }
   };
 
-  const editTotal = (parseFloat(editFood || "0") || 0) + (parseFloat(editBar || "0") || 0) + (parseFloat(editGaming || "0") || 0);
+  const editTotal = (parseFloat(editFood || "0") || 0) + (parseFloat(editBar || "0") || 0) + (parseFloat(editGaming || "0") || 0) + (parseFloat(editCatering || "0") || 0);
 
   if (sortedData.length === 0) {
     return (
@@ -212,6 +217,7 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
                   <th className="text-right font-medium p-3">Food</th>
                   <th className="text-right font-medium p-3">Bar</th>
                   <th className="text-right font-medium p-3">Gaming</th>
+                  <th className="text-right font-medium p-3">Catering</th>
                   <th className="text-right font-medium p-3">Total</th>
                   <th className="text-center font-medium p-3 w-20">Edit</th>
                 </tr>
@@ -235,6 +241,7 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
                     <td className="p-3 text-right">${entry.foodSales.toFixed(2)}</td>
                     <td className="p-3 text-right">${entry.barSales.toFixed(2)}</td>
                     <td className="p-3 text-right">${entry.gamingSales.toFixed(2)}</td>
+                    <td className="p-3 text-right">${(entry.cateringSales || 0).toFixed(2)}</td>
                     <td className="p-3 text-right font-semibold">${entry.totalSales.toFixed(2)}</td>
                     <td className="p-3 text-center">
                       <Button
@@ -343,6 +350,18 @@ export function SalesDataTable({ data }: SalesDataTableProps) {
                 min="0"
                 value={editGaming}
                 onChange={(e) => setEditGaming(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-catering">Catering Sales</Label>
+              <Input
+                id="edit-catering"
+                type="number"
+                step="0.01"
+                min="0"
+                value={editCatering}
+                onChange={(e) => setEditCatering(e.target.value)}
                 placeholder="0.00"
               />
             </div>

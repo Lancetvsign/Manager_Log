@@ -10,7 +10,7 @@
  * - Comparison mode (Off, Previous Period, Last Year)
  * - Chart type switching (Line, Bar, Area)
  * - Chart customization (gridlines, labels, animations, colors)
- * - Sales breakdown by category (Food, Bar, Gaming)
+ * - Sales breakdown by category (Food, Bar, Gaming, Catering)
  * - To-Do status pie chart
  * - GitHub-style sales heatmap calendar
  * - Sales by weekday analysis
@@ -485,14 +485,15 @@ export default function InsightsPage({ onViewLog }: InsightsPageProps) {
     lines.push(`Food,$${metrics.salesByCategory.food.toFixed(2)}`);
     lines.push(`Bar,$${metrics.salesByCategory.bar.toFixed(2)}`);
     lines.push(`Gaming,$${metrics.salesByCategory.gaming.toFixed(2)}`);
+    lines.push(`Catering,$${metrics.salesByCategory.catering.toFixed(2)}`);
     lines.push(`Total,$${metrics.salesByCategory.total.toFixed(2)}`);
     lines.push("");
 
     lines.push("DAILY SALES");
-    lines.push("Date,Day of Week,Total Sales,Food Sales,Bar Sales,Gaming Sales");
+    lines.push("Date,Day of Week,Total Sales,Food Sales,Bar Sales,Gaming Sales,Catering Sales");
     metrics.dailySales.forEach((day) => {
       lines.push(
-        `${day.date},${day.dayOfWeek},$${day.totalSales.toFixed(2)},$${day.foodSales.toFixed(2)},$${day.barSales.toFixed(2)},$${day.gamingSales.toFixed(2)}`
+        `${day.date},${day.dayOfWeek},$${day.totalSales.toFixed(2)},$${day.foodSales.toFixed(2)},$${day.barSales.toFixed(2)},$${day.gamingSales.toFixed(2)},$${day.cateringSales.toFixed(2)}`
       );
     });
     lines.push("");

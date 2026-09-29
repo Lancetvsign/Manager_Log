@@ -207,6 +207,7 @@ export default function ManagerLogList({
     foodSales: string;
     barSales: string;
     gamingSales: string;
+    cateringSales: string;
   }
 
   const { data: budgetData } = useQuery<BudgetData>({
@@ -316,8 +317,8 @@ export default function ManagerLogList({
   const totalPages = Math.ceil(filteredLogs.length / PAGE_SIZE);
   const paginatedLogs = filteredLogs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const calculateTotal = (food: string | null, bar: string | null, gaming: string | null) => {
-    return (parseFloat(food || "0") || 0) + (parseFloat(bar || "0") || 0) + (parseFloat(gaming || "0") || 0);
+  const calculateTotal = (food: string | null, bar: string | null, gaming: string | null, catering: string | null) => {
+    return (parseFloat(food || "0") || 0) + (parseFloat(bar || "0") || 0) + (parseFloat(gaming || "0") || 0) + (parseFloat(catering || "0") || 0);
   };
 
   const truncateNotes = (notes: string | null, maxLength: number = 100) => {
@@ -389,13 +390,13 @@ export default function ManagerLogList({
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Budget Row */}
-            {budgetData && (parseFloat(budgetData.foodSales) || parseFloat(budgetData.barSales) || parseFloat(budgetData.gamingSales)) ? (
+            {budgetData && (parseFloat(budgetData.foodSales) || parseFloat(budgetData.barSales) || parseFloat(budgetData.gamingSales) || parseFloat(budgetData.cateringSales)) ? (
               <div className="rounded-lg border p-4 space-y-4">
                 <span className="text-sm font-semibold flex items-center gap-1.5 uppercase tracking-wide text-muted-foreground">
                   <Target className="h-4 w-4" />
                   Daily Budget
                 </span>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                   <div className="space-y-1">
                     <h4 className="text-sm font-medium">Food Sales</h4>
                     <p className="text-2xl font-bold">${parseFloat(budgetData.foodSales || "0").toFixed(2)}</p>
@@ -408,17 +409,21 @@ export default function ManagerLogList({
                     <h4 className="text-sm font-medium">Gaming Sales</h4>
                     <p className="text-2xl font-bold">${parseFloat(budgetData.gamingSales || "0").toFixed(2)}</p>
                   </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium">Catering</h4>
+                    <p className="text-2xl font-bold">${parseFloat(budgetData.cateringSales || "0").toFixed(2)}</p>
+                  </div>
                 </div>
                 <div className="border-t pt-3">
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Budget Total:</span>
-                    <span className="text-xl font-bold">${((parseFloat(budgetData.foodSales) || 0) + (parseFloat(budgetData.barSales) || 0) + (parseFloat(budgetData.gamingSales) || 0)).toFixed(2)}</span>
+                    <span className="text-xl font-bold">${((parseFloat(budgetData.foodSales) || 0) + (parseFloat(budgetData.barSales) || 0) + (parseFloat(budgetData.gamingSales) || 0) + (parseFloat(budgetData.cateringSales) || 0)).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
             ) : null}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <h4 className="font-medium">Food Sales</h4>
                 <p className="text-2xl font-bold">${selectedLog.foodSales || "0.00"}</p>
@@ -494,18 +499,32 @@ export default function ManagerLogList({
                   </div>
                 )}
               </div>
+              <div className="space-y-2">
+                <h4 className="font-medium">Catering</h4>
+                <p className="text-2xl font-bold">${selectedLog.cateringSales || "0.00"}</p>
+                {comparisonLog?.cateringSales && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span>Last Year: ${comparisonLog.cateringSales}</span>
+                  </div>
+                )}
+                {lastWeekCompLog?.cateringSales && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span>Last Week: ${lastWeekCompLog.cateringSales}</span>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="border-t pt-4">
               <div className="flex justify-between items-center flex-wrap gap-2">
                 <span className="font-medium">Total Sales:</span>
                 <span className="text-xl font-bold">
-                  ${selectedLog.totalSales || calculateTotal(selectedLog.foodSales, selectedLog.barSales, selectedLog.gamingSales).toFixed(2)}
+                  ${selectedLog.totalSales || calculateTotal(selectedLog.foodSales, selectedLog.barSales, selectedLog.gamingSales, selectedLog.cateringSales).toFixed(2)}
                 </span>
               </div>
               {(comparisonLog?.totalSales || (comparisonLog?.foodSales && comparisonLog?.barSales)) && (() => {
                 const compTotal = parseFloat(comparisonLog?.totalSales || "0") || 
-                  (parseFloat(comparisonLog?.foodSales || "0") + parseFloat(comparisonLog?.barSales || "0") + parseFloat(comparisonLog?.gamingSales || "0"));
-                const currTotal = parseFloat(selectedLog.totalSales || "0") || calculateTotal(selectedLog.foodSales, selectedLog.barSales, selectedLog.gamingSales);
+                  (parseFloat(comparisonLog?.foodSales || "0") + parseFloat(comparisonLog?.barSales || "0") + parseFloat(comparisonLog?.gamingSales || "0") + parseFloat(comparisonLog?.cateringSales || "0"));
+                const currTotal = parseFloat(selectedLog.totalSales || "0") || calculateTotal(selectedLog.foodSales, selectedLog.barSales, selectedLog.gamingSales, selectedLog.cateringSales);
                 const diff = currTotal - compTotal;
                 const pct = compTotal > 0 ? (diff / compTotal * 100) : 0;
                 return (
@@ -976,7 +995,7 @@ export default function ManagerLogList({
                       <DollarSign className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       <span className="font-medium">Total Sales:</span>
                       <span className="font-bold text-lg">
-                        ${log.totalSales || calculateTotal(log.foodSales, log.barSales, log.gamingSales).toFixed(2)}
+                        ${log.totalSales || calculateTotal(log.foodSales, log.barSales, log.gamingSales, log.cateringSales).toFixed(2)}
                       </span>
                     </div>
 

@@ -42,6 +42,7 @@ export const clubs = pgTable("clubs", {
   budgetFoodSales: numeric("budget_food_sales", { precision: 10, scale: 2 }),
   budgetBarSales: numeric("budget_bar_sales", { precision: 10, scale: 2 }),
   budgetGamingSales: numeric("budget_gaming_sales", { precision: 10, scale: 2 }),
+  budgetCateringSales: numeric("budget_catering_sales", { precision: 10, scale: 2 }),
   weatherZipCode: text("weather_zip_code"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -91,6 +92,7 @@ export const managerLogs = pgTable("manager_logs", {
   foodSales: numeric("food_sales", { precision: 10, scale: 2 }),
   barSales: numeric("bar_sales", { precision: 10, scale: 2 }),
   gamingSales: numeric("gaming_sales", { precision: 10, scale: 2 }),
+  cateringSales: numeric("catering_sales", { precision: 10, scale: 2 }),
   totalSales: numeric("total_sales", { precision: 10, scale: 2 }),
   salesNotes: text("sales_notes"),
   dailyNumber: numeric("daily_number", { precision: 10, scale: 2 }),
@@ -591,6 +593,7 @@ export const insertManagerLogSchema = createInsertSchema(managerLogs).omit({
   foodSales: z.string().optional().nullable(),
   barSales: z.string().optional().nullable(),
   gamingSales: z.string().optional().nullable(),
+  cateringSales: z.string().optional().nullable(),
   totalSales: z.string().optional().nullable(),
   dailyNumber: z.string().optional().nullable(),
   weeklyNumber: z.string().optional().nullable(),
@@ -767,6 +770,7 @@ export interface DailySalesData {
   foodSales: number;
   barSales: number;
   gamingSales: number;
+  cateringSales: number;
 }
 
 /**
@@ -776,6 +780,7 @@ export interface SalesByCategory {
   food: number;
   bar: number;
   gaming: number;
+  catering: number;
   total: number;
 }
 

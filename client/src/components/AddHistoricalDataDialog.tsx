@@ -50,6 +50,7 @@ type SalesRow = {
   foodSales: number;
   barSales: number;
   gamingSales: number;
+  cateringSales?: number;
   error?: string;
 };
 type MaintenanceRow = {
@@ -103,11 +104,12 @@ export default function AddHistoricalDataDialog({
   // Sales edit state (unified view)
   const [editingSalesEntry, setEditingSalesEntry] = useState<{
     id: number; date: string; dayOfWeek: string;
-    foodSales: number; barSales: number; gamingSales: number; totalSales: number;
+    foodSales: number; barSales: number; gamingSales: number; cateringSales: number; totalSales: number;
   } | null>(null);
   const [editFood, setEditFood] = useState("");
   const [editBar, setEditBar] = useState("");
   const [editGaming, setEditGaming] = useState("");
+  const [editCatering, setEditCatering] = useState("");
   const [confirmSalesDelete, setConfirmSalesDelete] = useState(false);
 
   // ── Queries ────────────────────────────────────────────────────────────────
@@ -150,6 +152,7 @@ export default function AddHistoricalDataDialog({
       const food = parseFloat(log.foodSales || "0") || 0;
       const bar = parseFloat(log.barSales || "0") || 0;
       const gaming = parseFloat(log.gamingSales || "0") || 0;
+      const catering = parseFloat(log.cateringSales || "0") || 0;
       return {
         id: log.id,
         date: log.logDate,
@@ -157,7 +160,8 @@ export default function AddHistoricalDataDialog({
         foodSales: food,
         barSales: bar,
         gamingSales: gaming,
-        totalSales: food + bar + gaming,
+        cateringSales: catering,
+        totalSales: food + bar + gaming + catering,
       };
     });
   }, [allLogs]);
@@ -211,6 +215,7 @@ export default function AddHistoricalDataDialog({
   const [historicalFood, setHistoricalFood] = useState("");
   const [historicalBar, setHistoricalBar] = useState("");
   const [historicalGaming, setHistoricalGaming] = useState("");
+  const [historicalCatering, setHistoricalCatering] = useState("");
   const [calendarMonth, setCalendarMonth] = useState<Date>(defaultDate || new Date());
 
   // ── Unified import state ───────────────────────────────────────────────────
@@ -238,6 +243,7 @@ export default function AddHistoricalDataDialog({
     setHistoricalFood("");
     setHistoricalBar("");
     setHistoricalGaming("");
+    setHistoricalCatering("");
     setCalendarMonth(defaultDate || new Date());
     setImportFile(null);
     setImportRows([]);
@@ -258,6 +264,7 @@ export default function AddHistoricalDataDialog({
     setEditFood("");
     setEditBar("");
     setEditGaming("");
+    setEditCatering("");
     setConfirmSalesDelete(false);
   }, [defaultDate, defaultTab]);
 
@@ -272,7 +279,7 @@ export default function AddHistoricalDataDialog({
   // ── Single entry mutation ──────────────────────────────────────────────────
 
   const saveHistoricalMutation = useMutation({
-    mutationFn: async (data: { date: string; foodSales: number; barSales: number; gamingSales: number }) => {
+    mutationFn: async (data: { date: string; foodSales: number; barSales: number; gamingSales: number; cateringSales: number }) => {
       const url = buildApiUrl("/api/manager-logs/historical", clubId, apiBaseUrl);
       const dateObj = new Date(data.date);
       const dayOfWeek = dateObj.toLocaleDateString("en-US", { weekday: "long" });
@@ -282,6 +289,7 @@ export default function AddHistoricalDataDialog({
         foodSales: String(data.foodSales),
         barSales: String(data.barSales),
         gamingSales: String(data.gamingSales),
+        cateringSales: String(data.cateringSales),
         clubId,
       });
       return response.json();
@@ -342,6 +350,7 @@ export default function AddHistoricalDataDialog({
     const foodIdx = header.findIndex((h) => h === "food" || h === "food_sales");
     const barIdx = header.findIndex((h) => h === "bar" || h === "bar_sales");
     const gamingIdx = header.findIndex((h) => h === "gaming" || h === "gaming_sales");
+    const cateringIdx = header.findIndex((h) => h === "catering" || h === "catering_sales");
     const titleIdx = header.findIndex((h) => h === "title" || h === "item" || h === "name");
     const descIdx = header.findIndex((h) => h === "description" || h === "desc" || h === "notes");
     const dateAddedIdx = header.findIndex((h) => h === "date_added" || h === "dateadded");
@@ -360,10 +369,11 @@ export default function AddHistoricalDataDialog({
         const rawFood = foodIdx >= 0 ? (vals[foodIdx] || "").trim() : "";
         const rawBar = barIdx >= 0 ? (vals[barIdx] || "").trim() : "";
         const rawGaming = gamingIdx >= 0 ? (vals[gamingIdx] || "").trim() : "";
+        const rawCatering = cateringIdx >= 0 ? (vals[cateringIdx] || "").trim() : "";
         let error: string | undefined;
         if (!dateStr) error = "Date is required for sales rows";
         else if (!DATE_RE.test(dateStr)) error = "Invalid date (use YYYY-MM-DD)";
-        else if (!rawFood && !rawBar && !rawGaming) error = "At least one sales amount (food, bar, gaming) is required";
+        else if (!rawFood && !rawBar && !rawGaming && !rawCatering) error = "At least one sales amount (food, bar, gaming, catering) is required";
 
         parsed.push({
           rowType: "sales",
@@ -371,6 +381,7 @@ export default function AddHistoricalDataDialog({
           foodSales: parseFloat(rawFood) || 0,
           barSales: parseFloat(rawBar) || 0,
           gamingSales: parseFloat(rawGaming) || 0,
+          cateringSales: cateringIdx >= 0 ? parseFloat(rawCatering) || 0 : undefined,
           error,
         });
       } else if (rowType === "maintenance") {
@@ -469,6 +480,7 @@ export default function AddHistoricalDataDialog({
             foodSales: r.foodSales.toString(),
             barSales: r.barSales.toString(),
             gamingSales: r.gamingSales.toString(),
+            ...(r.cateringSales !== undefined && { cateringSales: r.cateringSales.toString() }),
             clubId,
           })),
         });
@@ -552,20 +564,20 @@ export default function AddHistoricalDataDialog({
     let csv: string;
     if (showMaintenanceSection) {
       csv = [
-        "type,date,food,bar,gaming,title,description,date_added,date_completed",
-        "sales,2025-01-15,1820.00,2640.00,890.00,,,,",
-        "sales,2025-01-16,1550.00,2190.00,710.00,,,,",
-        "sales,2025-01-17,1380.00,1850.00,520.00,,,,",
-        "maintenance,,,,,Replace HVAC air filters,Quarterly replacement,2025-01-10,2025-01-18",
-        "maintenance,,,,,Fix leaking faucet,Kitchen prep sink #2,2025-02-01,",
-        "maintenance,,,,,Repair walk-in cooler door,Seal was cracked,2025-03-05,",
+        "type,date,food,bar,gaming,catering,title,description,date_added,date_completed",
+        "sales,2025-01-15,1820.00,2640.00,890.00,450.00,,,,",
+        "sales,2025-01-16,1550.00,2190.00,710.00,325.00,,,,",
+        "sales,2025-01-17,1380.00,1850.00,520.00,280.00,,,,",
+        "maintenance,,,,,,Replace HVAC air filters,Quarterly replacement,2025-01-10,2025-01-18",
+        "maintenance,,,,,,Fix leaking faucet,Kitchen prep sink #2,2025-02-01,",
+        "maintenance,,,,,,Repair walk-in cooler door,Seal was cracked,2025-03-05,",
       ].join("\n");
     } else {
       csv = [
-        "date,food,bar,gaming",
-        "2025-01-15,1820.00,2640.00,890.00",
-        "2025-01-16,1550.00,2190.00,710.00",
-        "2025-01-17,1380.00,1850.00,520.00",
+        "date,food,bar,gaming,catering",
+        "2025-01-15,1820.00,2640.00,890.00,450.00",
+        "2025-01-16,1550.00,2190.00,710.00,325.00",
+        "2025-01-17,1380.00,1850.00,520.00,280.00",
       ].join("\n");
     }
     const blob = new Blob([csv], { type: "text/csv" });
@@ -642,7 +654,7 @@ export default function AddHistoricalDataDialog({
   });
 
   const updateSalesMutation = useMutation({
-    mutationFn: async (data: { date: string; food: string; bar: string; gaming: string }) => {
+    mutationFn: async (data: { date: string; food: string; bar: string; gaming: string; catering: string }) => {
       const url = buildApiUrl("/api/manager-logs/historical", clubId, apiBaseUrl);
       const dateObj = new Date(data.date + "T12:00:00");
       const dayOfWeek = dateObj.toLocaleDateString("en-US", { weekday: "long" });
@@ -652,6 +664,7 @@ export default function AddHistoricalDataDialog({
         foodSales: data.food,
         barSales: data.bar,
         gamingSales: data.gaming,
+        cateringSales: data.catering,
         clubId,
       });
       return response.json();
@@ -786,7 +799,7 @@ export default function AddHistoricalDataDialog({
             </Popover>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="hist-food-sales">Food Sales</Label>
               <Input id="hist-food-sales" type="number" placeholder="0.00" value={historicalFood}
@@ -802,6 +815,11 @@ export default function AddHistoricalDataDialog({
               <Input id="hist-gaming-sales" type="number" placeholder="0.00" value={historicalGaming}
                 onChange={(e) => setHistoricalGaming(e.target.value)} data-testid="input-historical-gaming" />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="hist-catering-sales">Catering Sales</Label>
+              <Input id="hist-catering-sales" type="number" placeholder="0.00" value={historicalCatering}
+                onChange={(e) => setHistoricalCatering(e.target.value)} data-testid="input-historical-catering" />
+            </div>
           </div>
 
           <Button
@@ -814,6 +832,7 @@ export default function AddHistoricalDataDialog({
                   foodSales: parseFloat(historicalFood) || 0,
                   barSales: parseFloat(historicalBar) || 0,
                   gamingSales: parseFloat(historicalGaming) || 0,
+                  cateringSales: parseFloat(historicalCatering) || 0,
                 });
               }
             }}
@@ -1000,7 +1019,7 @@ export default function AddHistoricalDataDialog({
                             <span>
                               {row.date}{" "}
                               <span className="text-foreground/60">
-                                Food ${row.foodSales.toFixed(0)} · Bar ${row.barSales.toFixed(0)} · Gaming ${row.gamingSales.toFixed(0)}
+                                Food ${row.foodSales.toFixed(0)} · Bar ${row.barSales.toFixed(0)} · Gaming ${row.gamingSales.toFixed(0)} · Catering ${(row.cateringSales ?? 0).toFixed(0)}
                               </span>
                             </span>
                           )}
@@ -1235,6 +1254,9 @@ export default function AddHistoricalDataDialog({
                                 <span className="text-muted-foreground">
                                   Gaming <span className="font-medium text-foreground">{fmt(salesEntry.gamingSales)}</span>
                                 </span>
+                                <span className="text-muted-foreground">
+                                  Catering <span className="font-medium text-foreground">{fmt(salesEntry.cateringSales)}</span>
+                                </span>
                                 <span className="font-medium">
                                   Total <span className="text-primary">{fmt(salesEntry.totalSales)}</span>
                                 </span>
@@ -1247,6 +1269,7 @@ export default function AddHistoricalDataDialog({
                                   setEditFood(String(salesEntry.foodSales));
                                   setEditBar(String(salesEntry.barSales));
                                   setEditGaming(String(salesEntry.gamingSales));
+                                  setEditCatering(String(salesEntry.cateringSales));
                                   setConfirmSalesDelete(false);
                                 }}
                                 aria-label="Edit sales entry"
@@ -1332,7 +1355,7 @@ export default function AddHistoricalDataDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="edit-food">Food Sales</Label>
                 <div className="flex items-center h-9 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
@@ -1375,6 +1398,20 @@ export default function AddHistoricalDataDialog({
                   />
                 </div>
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-catering">Catering Sales</Label>
+                <div className="flex items-center h-9 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                  <span className="pl-3 pr-1 text-muted-foreground shrink-0">$</span>
+                  <input
+                    id="edit-catering"
+                    type="text"
+                    inputMode="decimal"
+                    value={editCatering}
+                    onChange={(e) => setEditCatering(e.target.value)}
+                    className="flex-1 bg-transparent pr-3 py-2 focus:outline-none placeholder:text-muted-foreground min-w-0"
+                  />
+                </div>
+              </div>
             </div>
             {editingSalesEntry && (
               <p className="text-xs text-muted-foreground">
@@ -1383,7 +1420,8 @@ export default function AddHistoricalDataDialog({
                   ${(
                     (parseFloat(editFood) || 0) +
                     (parseFloat(editBar) || 0) +
-                    (parseFloat(editGaming) || 0)
+                    (parseFloat(editGaming) || 0) +
+                    (parseFloat(editCatering) || 0)
                   ).toLocaleString("en-CA", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </span>
               </p>
@@ -1422,6 +1460,7 @@ export default function AddHistoricalDataDialog({
                     food: editFood.trim() || "0",
                     bar: editBar.trim() || "0",
                     gaming: editGaming.trim() || "0",
+                    catering: editCatering.trim() || "0",
                   });
                 }}
                 disabled={updateSalesMutation.isPending}

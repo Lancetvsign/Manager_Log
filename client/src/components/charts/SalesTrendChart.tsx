@@ -73,6 +73,8 @@ interface AggregatedDataPoint {
   foodSales: number;
   barSales: number;
   gamingSales: number;
+  cateringSales: number;
+  comparisonCateringSales?: number;
 }
 
 export default function SalesTrendChart({
@@ -118,6 +120,7 @@ export default function SalesTrendChart({
         foodSales: 0,
         barSales: 0,
         gamingSales: 0,
+        cateringSales: 0,
       };
 
       grouped.set(key, {
@@ -126,6 +129,7 @@ export default function SalesTrendChart({
         foodSales: existing.foodSales + d.foodSales,
         barSales: existing.barSales + d.barSales,
         gamingSales: existing.gamingSales + d.gamingSales,
+        cateringSales: existing.cateringSales + d.cateringSales,
       });
     });
 
@@ -147,6 +151,7 @@ export default function SalesTrendChart({
       result.forEach((point, index) => {
         if (compValues[index]) {
           point.comparisonSales = compValues[index].totalSales;
+          point.comparisonCateringSales = compValues[index].cateringSales;
         }
       });
     }
@@ -197,6 +202,7 @@ export default function SalesTrendChart({
   const themeColors = CHART_COLOR_THEMES[options.colorTheme].colors;
   const primaryColor = themeColors[0];
   const secondaryColor = themeColors[1] || "hsl(0, 0%, 60%)";
+  const cateringColor = themeColors[2] || "hsl(25, 95%, 53%)";
 
   const lineType = options.smoothing === "curved" ? "monotone" : "linear";
   const barRadius: [number, number, number, number] =
@@ -263,6 +269,28 @@ export default function SalesTrendChart({
               isAnimationActive={options.enableAnimations}
             />
           )}
+          <Line
+            type={lineType}
+            dataKey="cateringSales"
+            name="Catering"
+            stroke={cateringColor}
+            strokeWidth={2}
+            dot={{ fill: cateringColor, strokeWidth: 2, r: aggregatedData.length <= 10 ? 4 : 2 }}
+            activeDot={{ r: 6 }}
+            isAnimationActive={options.enableAnimations}
+          />
+          {hasComparison && (
+            <Line
+              type={lineType}
+              dataKey="comparisonCateringSales"
+              name="Catering (Comparison)"
+              stroke={cateringColor}
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              dot={false}
+              isAnimationActive={options.enableAnimations}
+            />
+          )}
         </LineChart>
       ),
       bar: (
@@ -299,6 +327,23 @@ export default function SalesTrendChart({
               dataKey="comparisonSales"
               name="Comparison Period"
               fill={secondaryColor}
+              radius={barRadius}
+              isAnimationActive={options.enableAnimations}
+            />
+          )}
+          <Bar
+            dataKey="cateringSales"
+            name="Catering"
+            fill={cateringColor}
+            radius={barRadius}
+            isAnimationActive={options.enableAnimations}
+          />
+          {hasComparison && (
+            <Bar
+              dataKey="comparisonCateringSales"
+              name="Catering (Comparison)"
+              fill={cateringColor}
+              opacity={0.35}
               radius={barRadius}
               isAnimationActive={options.enableAnimations}
             />
@@ -344,6 +389,27 @@ export default function SalesTrendChart({
               stroke={secondaryColor}
               fill={secondaryColor}
               fillOpacity={0.1}
+              strokeDasharray="5 5"
+              isAnimationActive={options.enableAnimations}
+            />
+          )}
+          <Area
+            type={lineType}
+            dataKey="cateringSales"
+            name="Catering"
+            stroke={cateringColor}
+            fill={cateringColor}
+            fillOpacity={0.18}
+            isAnimationActive={options.enableAnimations}
+          />
+          {hasComparison && (
+            <Area
+              type={lineType}
+              dataKey="comparisonCateringSales"
+              name="Catering (Comparison)"
+              stroke={cateringColor}
+              fill={cateringColor}
+              fillOpacity={0.06}
               strokeDasharray="5 5"
               isAnimationActive={options.enableAnimations}
             />
