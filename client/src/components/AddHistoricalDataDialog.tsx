@@ -14,6 +14,7 @@ import { buildApiUrl } from "@/contexts/ManagerLogContext";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import type { ManagerLog, RunningMaintenanceItem } from "@shared/schema";
+import { parseCSVRFC4180, parseHistoricalSalesRow, historicalSalesEntry, type HistoricalSalesRow as SalesRow } from "@/lib/historical-sales-import";
 import {
   Calendar,
   Loader2,
@@ -44,15 +45,6 @@ interface AddHistoricalDataDialogProps {
 }
 
 // Unified CSV row types
-type SalesRow = {
-  rowType: "sales";
-  date: string;
-  foodSales: number;
-  barSales: number;
-  gamingSales: number;
-  cateringSales?: number;
-  error?: string;
-};
 type MaintenanceRow = {
   rowType: "maintenance";
   title: string;
@@ -308,32 +300,6 @@ export default function AddHistoricalDataDialog({
     },
   });
 
-  // ── RFC 4180 CSV parser ────────────────────────────────────────────────────
-
-  const parseCSVRFC4180 = (text: string): string[][] => {
-    const rows: string[][] = [];
-    let row: string[] = [];
-    let field = "";
-    let inQuotes = false;
-    let i = 0;
-    while (i < text.length) {
-      const ch = text[i];
-      if (inQuotes) {
-        if (ch === '"' && text[i + 1] === '"') { field += '"'; i += 2; }
-        else if (ch === '"') { inQuotes = false; i++; }
-        else { field += ch; i++; }
-      } else {
-        if (ch === '"') { inQuotes = true; i++; }
-        else if (ch === ',') { row.push(field); field = ''; i++; }
-        else if (ch === '\r' && text[i + 1] === '\n') { row.push(field); field = ''; rows.push(row); row = []; i += 2; }
-        else if (ch === '\n') { row.push(field); field = ''; rows.push(row); row = []; i++; }
-        else { field += ch; i++; }
-      }
-    }
-    if (field || row.length > 0) { row.push(field); rows.push(row); }
-    return rows;
-  };
-
   // ── Unified CSV parser ─────────────────────────────────────────────────────
 
   const parseUnifiedCSV = useCallback((text: string) => {
@@ -346,11 +312,6 @@ export default function AddHistoricalDataDialog({
 
     const header = allRows[0].map((h) => h.trim().toLowerCase());
     const typeIdx = header.findIndex((h) => h === "type");
-    const dateIdx = header.findIndex((h) => h === "date" || h === "log_date");
-    const foodIdx = header.findIndex((h) => h === "food" || h === "food_sales");
-    const barIdx = header.findIndex((h) => h === "bar" || h === "bar_sales");
-    const gamingIdx = header.findIndex((h) => h === "gaming" || h === "gaming_sales");
-    const cateringIdx = header.findIndex((h) => h === "catering" || h === "catering_sales");
     const titleIdx = header.findIndex((h) => h === "title" || h === "item" || h === "name");
     const descIdx = header.findIndex((h) => h === "description" || h === "desc" || h === "notes");
     const dateAddedIdx = header.findIndex((h) => h === "date_added" || h === "dateadded");
@@ -365,25 +326,7 @@ export default function AddHistoricalDataDialog({
       const rowType = typeIdx === -1 ? "sales" : (vals[typeIdx] || "").trim().toLowerCase();
 
       if (rowType === "sales") {
-        const dateStr = dateIdx >= 0 ? (vals[dateIdx] || "").trim() : "";
-        const rawFood = foodIdx >= 0 ? (vals[foodIdx] || "").trim() : "";
-        const rawBar = barIdx >= 0 ? (vals[barIdx] || "").trim() : "";
-        const rawGaming = gamingIdx >= 0 ? (vals[gamingIdx] || "").trim() : "";
-        const rawCatering = cateringIdx >= 0 ? (vals[cateringIdx] || "").trim() : "";
-        let error: string | undefined;
-        if (!dateStr) error = "Date is required for sales rows";
-        else if (!DATE_RE.test(dateStr)) error = "Invalid date (use YYYY-MM-DD)";
-        else if (!rawFood && !rawBar && !rawGaming && !rawCatering) error = "At least one sales amount (food, bar, gaming, catering) is required";
-
-        parsed.push({
-          rowType: "sales",
-          date: dateStr,
-          foodSales: parseFloat(rawFood) || 0,
-          barSales: parseFloat(rawBar) || 0,
-          gamingSales: parseFloat(rawGaming) || 0,
-          cateringSales: cateringIdx >= 0 ? parseFloat(rawCatering) || 0 : undefined,
-          error,
-        });
+        parsed.push(parseHistoricalSalesRow(header, vals));
       } else if (rowType === "maintenance") {
         const title = titleIdx >= 0 ? (vals[titleIdx] || "").trim() : "";
         const description = descIdx >= 0 ? (vals[descIdx] || "").trim() : "";
@@ -474,15 +417,7 @@ export default function AddHistoricalDataDialog({
       if (salesRows.length > 0) {
         const salesUrl = buildApiUrl("/api/manager-logs/bulk-historical", clubId, apiBaseUrl);
         const salesResp = await apiRequest("POST", salesUrl, {
-          entries: salesRows.map((r) => ({
-            logDate: r.date,
-            dayOfWeek: new Date(r.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" }),
-            foodSales: r.foodSales.toString(),
-            barSales: r.barSales.toString(),
-            gamingSales: r.gamingSales.toString(),
-            ...(r.cateringSales !== undefined && { cateringSales: r.cateringSales.toString() }),
-            clubId,
-          })),
+          entries: salesRows.map((r) => historicalSalesEntry(r, clubId)),
         });
         const salesData = await salesResp.json();
         salesSuccess = salesData.success ?? 0;
