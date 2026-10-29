@@ -25,7 +25,7 @@ import { storage } from "./storage";
 import { insertManagerLogSchema, insertMaintenanceItemSchema, notificationLogs, managerLogs, notificationLists, notificationRecipients, logMaintenanceSnapshots, maintenanceItems, runningMaintenanceList, runningMaintenanceSnapshots, emailSettings, clubs, drawingNumbers, managementTips } from "@shared/schema";
 import OpenAI from "openai";
 import { db } from "./db";
-import { eq, desc, and, count, asc, gte, lte, gt, sql, or, isNull, isNotNull } from "drizzle-orm";
+import { eq, desc, and, count, asc, gte, lte, gt, sql, or, isNull, isNotNull, inArray } from "drizzle-orm";
 import type { MetricsResponse, MetricsSummary, DailySalesData, ToDoStatus, TopDayData, SalesByCategory } from "@shared/schema";
 import { sendLogNotificationEmail, isEmailConfigured, logEmailConfigStatus } from "./email";
 import { getNotificationLists, seedDefaultNotificationLists } from "./notificationLists";
@@ -34,7 +34,7 @@ import { escalationRules, escalationRuleTargets } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { verifyEmbedSignature, type EmbedParams } from "./auth";
+import { verifyEmbedSignature, issueSessionToken, getAuthenticatedClubId, type EmbedParams } from "./auth";
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -54,6 +54,25 @@ const upload = multer({
   storage: fileStorage,
   limits: { fileSize: 10 * 1024 * 1024 },
 });
+
+/** True when the notification list exists and belongs to the club */
+async function listBelongsToClub(listId: number, clubId: string): Promise<boolean> {
+  const [list] = await db
+    .select({ id: notificationLists.id })
+    .from(notificationLists)
+    .where(and(eq(notificationLists.id, listId), eq(notificationLists.clubId, clubId)));
+  return !!list;
+}
+
+/** True when the maintenance item exists and its log belongs to the club */
+async function maintenanceItemBelongsToClub(itemId: number, clubId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: maintenanceItems.id })
+    .from(maintenanceItems)
+    .innerJoin(managerLogs, eq(maintenanceItems.managerLogId, managerLogs.id))
+    .where(and(eq(maintenanceItems.id, itemId), eq(managerLogs.clubId, clubId)));
+  return !!row;
+}
 
 // Default clubId for backwards compatibility when not provided
 const DEFAULT_CLUB_ID = "default";
@@ -1108,6 +1127,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         photoUrl,
       });
+      // Maintenance items are scoped through their log, so the log must belong to this club
+      if (!(await storage.getManagerLog(validatedData.managerLogId, getClubId(req)))) {
+        return res.status(404).json({ error: "Manager log not found" });
+      }
       const item = await storage.createMaintenanceItem(validatedData);
       
       // Update the maintenance snapshot for the associated log
@@ -1143,6 +1166,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid ID" });
       }
       const updates = insertMaintenanceItemSchema.partial().parse(req.body);
+      const clubId = getClubId(req);
+      if (!(await maintenanceItemBelongsToClub(id, clubId))) {
+        return res.status(404).json({ error: "Maintenance item not found" });
+      }
+      // Don't let an item be moved onto another club's log
+      if (updates.managerLogId !== undefined && !(await storage.getManagerLog(updates.managerLogId, clubId))) {
+        return res.status(404).json({ error: "Manager log not found" });
+      }
       const item = await storage.updateMaintenanceItem(id, updates);
       
       if (!item) {
@@ -1180,6 +1211,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id, 10);
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid ID" });
+      }
+      if (!(await maintenanceItemBelongsToClub(id, getClubId(req)))) {
+        return res.status(404).json({ error: "Maintenance item not found" });
       }
       const deleted = await storage.deleteMaintenanceItem(id);
       if (!deleted) {
@@ -1306,10 +1340,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const publicUrl = `/uploads/${file.filename}`;
 
       const { maintenanceItems } = await import("@shared/schema");
-      await db
+      const updated = await db
         .update(maintenanceItems)
         .set({ photoUrl: publicUrl })
-        .where(eq(maintenanceItems.id, id));
+        .where(and(
+          eq(maintenanceItems.id, id),
+          // Items have no clubId of their own; they belong to the club through their log
+          inArray(
+            maintenanceItems.managerLogId,
+            db.select({ id: managerLogs.id }).from(managerLogs).where(eq(managerLogs.clubId, getClubId(req))),
+          ),
+        ))
+        .returning({ id: maintenanceItems.id });
+      if (updated.length === 0) {
+        return res.status(404).json({ error: "Maintenance item not found" });
+      }
 
       res.json({ photoUrl: publicUrl });
     } catch (error) {
@@ -2198,7 +2243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const id = Number(req.params.id);
     await db
       .delete(notificationLists)
-      .where(eq(notificationLists.id, id));
+      .where(and(eq(notificationLists.id, id), eq(notificationLists.clubId, getClubId(req))));
     res.json({ success: true });
   });
 
@@ -2212,6 +2257,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     if (!email) {
       return res.status(400).json({ error: "email required" });
+    }
+    if (!(await listBelongsToClub(listId, getClubId(req)))) {
+      return res.status(404).json({ error: "List not found" });
     }
 
     const [inserted] = await db
@@ -2232,7 +2280,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.get("/api/notifications/lists/:id/recipients", async (req, res) => {
     const listId = Number(req.params.id);
-    
+    if (!(await listBelongsToClub(listId, getClubId(req)))) {
+      return res.status(404).json({ error: "List not found" });
+    }
+
     const recipients = await db
       .select()
       .from(notificationRecipients)
@@ -2247,9 +2298,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.delete("/api/notifications/recipients/:id", async (req, res) => {
     const id = Number(req.params.id);
+    const clubLists = db
+      .select({ id: notificationLists.id })
+      .from(notificationLists)
+      .where(eq(notificationLists.clubId, getClubId(req)));
     await db
       .delete(notificationRecipients)
-      .where(eq(notificationRecipients.id, id));
+      .where(and(eq(notificationRecipients.id, id), inArray(notificationRecipients.listId, clubLists)));
     res.json({ success: true });
   });
 
@@ -2261,7 +2316,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/logs/:logId/notifications", async (req, res) => {
     try {
       const logId = Number(req.params.logId);
-      
+      if (!(await storage.getManagerLog(logId, getClubId(req)))) {
+        return res.status(404).json({ error: "Manager log not found" });
+      }
+
       const notifications = await db
         .select({
           id: notificationLogs.id,
@@ -2632,6 +2690,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ruleId = Number(req.params.id);
       const { autoSend, enabled, name, metricThreshold, presetKey, targetListIds } = req.body;
 
+      const [rule] = await db
+        .select({ id: escalationRules.id })
+        .from(escalationRules)
+        .where(and(eq(escalationRules.id, ruleId), eq(escalationRules.clubId, getClubId(req))));
+      if (!rule) {
+        return res.status(404).json({ error: "Escalation rule not found" });
+      }
+
       const updates: any = {};
       if (autoSend !== undefined) updates.autoSend = autoSend;
       if (enabled !== undefined) updates.enabled = enabled;
@@ -2672,7 +2738,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/escalation-rules/:id", async (req, res) => {
     try {
       const ruleId = Number(req.params.id);
-      await db.delete(escalationRules).where(eq(escalationRules.id, ruleId));
+      await db
+        .delete(escalationRules)
+        .where(and(eq(escalationRules.id, ruleId), eq(escalationRules.clubId, getClubId(req))));
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting escalation rule:", error);
@@ -2688,7 +2756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/logs/:logId/attachments", upload.single("file"), async (req, res) => {
     try {
       const logId = Number(req.params.logId);
-      const clubId = req.body.clubId || getClubId(req);
+      const clubId = getAuthenticatedClubId(req) || req.body.clubId || getClubId(req);
 
       if (isNaN(logId)) {
         return res.status(400).json({ error: "Invalid log ID" });
@@ -2774,9 +2842,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve uploaded files from disk
   app.get("/uploads/:filename", async (req, res) => {
     try {
-      const filename = req.params.filename;
+      // basename() strips any "../" (Express decodes %2F in params), and the
+      // containment check is a second guard against escaping the uploads folder
+      const filename = path.basename(req.params.filename);
       const filePath = path.join(uploadDir, filename);
-      
+      if (path.dirname(filePath) !== uploadDir) {
+        return res.status(404).json({ error: "File not found" });
+      }
+
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: "File not found" });
       }
@@ -3425,7 +3498,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid or expired signature" });
       }
 
-      res.json({ valid: true, user: {
+      // The browser sends this back on every API call; it pins requests to this club
+      const session = issueSessionToken(user.clubId, secret);
+
+      res.json({ valid: true, sessionToken: session.token, sessionExpiresAt: session.expiresAt, user: {
         ...user,
         clubCity: req.body.clubCity || "",
         clubProvince: req.body.clubProvince || "",

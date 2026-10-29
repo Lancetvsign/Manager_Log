@@ -11,7 +11,7 @@ const temp = await mkdtemp(resolve("node_modules/.cache/sales-regression-"));
 try {
   const outfile = join(temp, "sales.test.mjs");
   await build({
-    entryPoints: ["tests/sales.test.tsx"],
+    entryPoints: [process.argv[2] ?? "tests/sales.test.tsx"],
     outfile,
     bundle: true,
     platform: "node",

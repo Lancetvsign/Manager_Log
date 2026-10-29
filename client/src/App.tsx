@@ -19,6 +19,7 @@
 
 import { useState, useEffect } from "react";
 import { ManagerLogModule } from "./ManagerLogModule";
+import { setSessionToken } from "./lib/session";
 
 interface EmbedUser {
   clubId: string;
@@ -87,7 +88,10 @@ function App() {
           return;
         }
 
-        const { user } = await response.json();
+        const { user, sessionToken } = await response.json();
+        if (sessionToken) {
+          setSessionToken(sessionToken);
+        }
         setEmbedUser({ ...user, returnUrl });
       } catch (err) {
         setError("Failed to verify authentication");

@@ -61,32 +61,106 @@ function verifySignature(
 }
 
 /**
- * Express middleware to validate signed requests
- * 
- * Supports two access modes:
- * 1. Embedded mode (from SCP): Requests include HMAC signature headers and are validated
- * 2. Standalone mode (direct access): Requests without signature headers are allowed
- * 
- * This allows the app to work both when embedded in Social Club Pro with
- * signed requests AND when accessed directly via the deployed URL.
+ * SESSION TOKENS
+ * ==============
+ * After a successful embed SSO verification the server issues a short-lived
+ * session token bound to the verified clubId. The browser sends it back on
+ * every API call in the X-Manager-Log-Session header. A header (not a cookie)
+ * is used so the token still works when the app is embedded in a third-party
+ * iframe where cookies are blocked.
+ *
+ * Format: v1.<base64url clubId>.<expiresAtMs>.<hex HMAC>
+ */
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+export const SESSION_HEADER = "x-manager-log-session";
+
+function sessionKey(secret: string): Buffer {
+  // Derive a separate key so a session token can never double as a request signature
+  return crypto.createHmac("sha256", secret).update("manager-log-session-v1").digest();
+}
+
+export function issueSessionToken(clubId: string, secret: string, now = Date.now()): { token: string; expiresAt: number } {
+  const expiresAt = now + SESSION_TTL_MS;
+  const body = `v1.${Buffer.from(clubId, "utf8").toString("base64url")}.${expiresAt}`;
+  const mac = crypto.createHmac("sha256", sessionKey(secret)).update(body).digest("hex");
+  return { token: `${body}.${mac}`, expiresAt };
+}
+
+export function verifySessionToken(token: string, secret: string, now = Date.now()): string | null {
+  const parts = token.split(".");
+  if (parts.length !== 4 || parts[0] !== "v1") return null;
+  const body = parts.slice(0, 3).join(".");
+  const expected = crypto.createHmac("sha256", sessionKey(secret)).update(body).digest("hex");
+  try {
+    if (!crypto.timingSafeEqual(Buffer.from(parts[3], "hex"), Buffer.from(expected, "hex"))) return null;
+  } catch {
+    return null;
+  }
+  const expiresAt = Number(parts[2]);
+  if (!Number.isFinite(expiresAt) || expiresAt <= now) return null;
+  const clubId = Buffer.from(parts[1], "base64url").toString("utf8");
+  return clubId || null;
+}
+
+/** The club the caller proved access to, or undefined for dev/standalone requests */
+export function getAuthenticatedClubId(req: Request): string | undefined {
+  return (req as any).authenticatedClubId;
+}
+
+/**
+ * Pins the request to the authenticated club so route handlers that read
+ * clubId from the query string or JSON body can't be pointed at another club.
+ */
+function pinClubId(req: Request, clubId: string) {
+  (req as any).authenticatedClubId = clubId;
+  (req.query as Record<string, unknown>).clubId = clubId;
+  // Always set it: some body schemas default a missing clubId to "default"
+  if (req.body && typeof req.body === "object" && !Array.isArray(req.body)) {
+    req.body.clubId = clubId;
+  }
+}
+
+/** Unsigned requests in standalone mode are confined to this club */
+const STANDALONE_CLUB_ID = "default";
+
+/**
+ * Express middleware to authenticate API requests
+ *
+ * Accepted credentials, in order:
+ * 1. HMAC signature headers (server-to-server calls from SCP)
+ * 2. A session token issued by POST /api/auth/verify-embed (browser, embed mode)
+ * 3. No credentials — only in development, or when ALLOW_STANDALONE_ACCESS=true,
+ *    in which case the request is confined to the "default" club.
+ * Anything else gets 401. Once authenticated, the request's clubId is forced
+ * to the authenticated club.
  */
 export function requireSignedRequest(req: Request, res: Response, next: NextFunction) {
   const secret = process.env.MANAGER_LOG_SECRET;
   const hasSignatureHeaders = req.headers["x-signature"] && req.headers["x-timestamp"];
-  
-  // If no signature headers provided, allow standalone/direct access
-  // This enables the deployed app to work without embedding
+  const sessionToken = req.headers[SESSION_HEADER];
+
+  if (!hasSignatureHeaders && typeof sessionToken === "string" && sessionToken) {
+    if (!secret) {
+      return res.status(500).json({ error: "Server authentication not configured" });
+    }
+    const clubId = verifySessionToken(sessionToken, secret);
+    if (!clubId) {
+      return res.status(401).json({ error: "Session expired or invalid. Please reopen the Manager Log from Social Club Pro." });
+    }
+    pinClubId(req, clubId);
+    return next();
+  }
+
   if (!hasSignatureHeaders) {
     if (IS_DEVELOPMENT) {
-      console.warn("[Auth] Development mode: No signature headers, bypassing auth.");
+      // Local development: keep the old open behaviour so any club can be tested
+      return next();
     }
-    // Use clubId from query params or body for standalone requests
-    const queryClubId = req.query.clubId as string;
-    const bodyClubId = req.body?.clubId;
-    if (queryClubId || bodyClubId) {
-      (req as any).authenticatedClubId = queryClubId || bodyClubId;
+    if (process.env.ALLOW_STANDALONE_ACCESS === "true") {
+      pinClubId(req, STANDALONE_CLUB_ID);
+      return next();
     }
-    return next();
+    return res.status(401).json({ error: "Authentication required" });
   }
   
   // Signed request mode - validate the signature
@@ -135,8 +209,7 @@ export function requireSignedRequest(req: Request, res: Response, next: NextFunc
       return res.status(401).json({ error: "Invalid signature" });
     }
 
-    (req as any).authenticatedClubId = clubId;
-    
+    pinClubId(req, clubId);
     next();
   } catch (error) {
     console.error("[Auth] Signature verification error:", error);
