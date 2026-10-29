@@ -17,8 +17,13 @@
  * - timestamp, signature (for verification)
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ManagerLogModule } from "./ManagerLogModule";
+import { setSessionToken, restoreStandaloneSession, onSessionExpired } from "./lib/session";
+import { StandaloneSignIn } from "./pages/StandaloneSignIn";
+
+// The dev server skips API auth, so local development needs no sign-in
+const REQUIRES_STANDALONE_SIGN_IN = !import.meta.env.DEV;
 
 interface EmbedUser {
   clubId: string;
@@ -42,6 +47,23 @@ function App() {
     return !!params.get("clubId") && !!params.get("signature");
   });
   const [error, setError] = useState<string | null>(null);
+  const [standaloneSignedIn, setStandaloneSignedIn] = useState(
+    () => !REQUIRES_STANDALONE_SIGN_IN || restoreStandaloneSession(),
+  );
+  const [signInNotice, setSignInNotice] = useState<string | null>(null);
+  const embedUserRef = useRef<EmbedUser | null>(null);
+  embedUserRef.current = embedUser;
+
+  // When the server rejects the session, send direct users back to sign-in
+  // and tell embedded users to reopen the app from SCP
+  useEffect(() => onSessionExpired(() => {
+    if (embedUserRef.current) {
+      setError("Your session has expired. Please reopen the Manager Log from Social Club Pro.");
+    } else if (REQUIRES_STANDALONE_SIGN_IN) {
+      setSignInNotice("Your session has expired. Please sign in again.");
+      setStandaloneSignedIn(false);
+    }
+  }), []);
 
   useEffect(() => {
     async function checkEmbedParams() {
@@ -87,7 +109,10 @@ function App() {
           return;
         }
 
-        const { user } = await response.json();
+        const { user, sessionToken } = await response.json();
+        if (sessionToken) {
+          setSessionToken(sessionToken);
+        }
         setEmbedUser({ ...user, returnUrl });
       } catch (err) {
         setError("Failed to verify authentication");
@@ -131,6 +156,10 @@ function App() {
         returnUrl={embedUser.returnUrl}
       />
     );
+  }
+
+  if (!standaloneSignedIn) {
+    return <StandaloneSignIn notice={signInNotice} onSignedIn={() => setStandaloneSignedIn(true)} />;
   }
 
   return (
