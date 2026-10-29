@@ -58,8 +58,9 @@ function signRequest(method, fullPath, body, clubId, sharedSecret) {
 - Invalid signatures return 401 Unauthorized
 - The `MANAGER_LOG_SECRET` environment variable must match on both SCP and Manager Log
 - In development mode without a secret, signature verification is bypassed with a warning
-- Browsers authenticate with a session token: `POST /api/auth/verify-embed` returns `sessionToken` (12h, bound to the verified clubId), and the client sends it as `X-Manager-Log-Session` on every `/api` call
-- Requests with neither a signature nor a session token get 401 — except in development, or when `ALLOW_STANDALONE_ACCESS=true`, which confines them to the `default` club
+- Browsers authenticate with a session token (12h, bound to one clubId), sent as `X-Manager-Log-Session` on every `/api` call. It comes from `POST /api/auth/verify-embed` (embedded in SCP) or `POST /api/auth/standalone-login` (direct use)
+- Direct use: opening the app outside SCP shows a sign-in screen. The shared password is the `STANDALONE_PASSWORD` secret and always gives the `default` club. 10 wrong tries per IP locks sign-in for 15 minutes. If the secret is not set, direct sign-in is off
+- Requests with neither a signature nor a session token get 401, except in development (`npm run dev`), where no sign-in is needed
 - Once authenticated, the request's `clubId` (query and JSON body) is forced to the authenticated club, so one club can never read or change another's data
 
 ### SSO Embed Authentication

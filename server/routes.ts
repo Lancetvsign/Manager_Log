@@ -34,7 +34,7 @@ import { escalationRules, escalationRuleTargets } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { verifyEmbedSignature, issueSessionToken, getAuthenticatedClubId, type EmbedParams } from "./auth";
+import { verifyEmbedSignature, issueSessionToken, getAuthenticatedClubId, checkStandalonePassword, STANDALONE_CLUB_ID, type EmbedParams } from "./auth";
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -54,6 +54,11 @@ const upload = multer({
   storage: fileStorage,
   limits: { fileSize: 10 * 1024 * 1024 },
 });
+
+// Failed direct sign-in attempts per IP (in memory, like the email limiter)
+const loginAttempts = new Map<string, { count: number; resetTime: number }>();
+const LOGIN_MAX_FAILURES = 10;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
 /** True when the notification list exists and belongs to the club */
 async function listBelongsToClub(listId: number, clubId: string): Promise<boolean> {
@@ -3511,6 +3516,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error verifying embed signature:", error);
       res.status(500).json({ error: "Failed to verify embed signature" });
     }
+  });
+
+  /**
+   * POST /api/auth/standalone-login
+   * Sign-in for people who open the app directly instead of through SCP.
+   * Checks the shared STANDALONE_PASSWORD and returns a session token for
+   * the "default" club. Limited to 10 failed attempts per IP per 15 minutes.
+   * @body password - The shared password
+   */
+  app.post("/api/auth/standalone-login", (req, res) => {
+    const secret = process.env.MANAGER_LOG_SECRET;
+    const expected = process.env.STANDALONE_PASSWORD;
+    if (!secret || !expected) {
+      return res.status(503).json({ error: "Direct sign-in is not set up on this server" });
+    }
+
+    const ip = req.ip || "unknown";
+    const now = Date.now();
+    const attempts = loginAttempts.get(ip);
+    if (attempts && now < attempts.resetTime && attempts.count >= LOGIN_MAX_FAILURES) {
+      const minutes = Math.ceil((attempts.resetTime - now) / 60000);
+      return res.status(429).json({ error: `Too many attempts. Try again in ${minutes} minutes.` });
+    }
+
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    if (!checkStandalonePassword(password, expected)) {
+      if (!attempts || now >= attempts.resetTime) {
+        loginAttempts.set(ip, { count: 1, resetTime: now + LOGIN_WINDOW_MS });
+      } else {
+        attempts.count++;
+      }
+      return res.status(401).json({ error: "Incorrect password" });
+    }
+
+    loginAttempts.delete(ip);
+    const session = issueSessionToken(STANDALONE_CLUB_ID, secret);
+    res.json({ sessionToken: session.token, sessionExpiresAt: session.expiresAt, clubId: STANDALONE_CLUB_ID });
   });
 
   // ========================================

@@ -7,28 +7,31 @@ import { generateSignature, issueSessionToken, requireSignedRequest } from "../s
 import { resetSalesDatabase } from "./support/sales-database";
 
 const secret = "auth-test-secret";
+const standalonePassword = "club-password";
 let server: Awaited<ReturnType<typeof registerRoutes>>;
 let base: string;
 
 before(async () => {
   process.env.MANAGER_LOG_SECRET = secret;
+  process.env.STANDALONE_PASSWORD = standalonePassword;
   const app = express();
+  app.set("trust proxy", 1);
   app.use(express.json());
   // Mounted the same way as server/index.ts
   app.use("/api", (req, res, next) =>
-    req.path === "/auth/verify-embed" ? next() : requireSignedRequest(req, res, next));
+    req.path === "/auth/verify-embed" || req.path === "/auth/standalone-login"
+      ? next()
+      : requireSignedRequest(req, res, next));
   server = await registerRoutes(app);
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 after(async () => {
-  delete process.env.ALLOW_STANDALONE_ACCESS;
   server.closeAllConnections();
   await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
 });
 beforeEach(() => {
   resetSalesDatabase();
-  delete process.env.ALLOW_STANDALONE_ACCESS;
 });
 
 async function call(method: string, path: string, headers: Record<string, string> = {}, body?: unknown) {
@@ -84,12 +87,44 @@ test("signed SCP requests still work and are pinned to the signed X-Club-Id", as
   assert.equal(forged.status, 401);
 });
 
-test("ALLOW_STANDALONE_ACCESS confines unsigned requests to the default club", async () => {
-  await call("PUT", "/api/club-budget?clubId=club-a", session("club-a"), { cateringSales: "100" });
-  process.env.ALLOW_STANDALONE_ACCESS = "true";
-  const read = await call("GET", "/api/club-budget?clubId=club-a");
-  assert.equal(read.status, 200);
-  assert.notEqual(Number(read.data?.cateringSales ?? 0), 100, "standalone access must not reach club-a");
+test("unsigned requests are rejected even when they target the default club", async () => {
+  const { status } = await call("GET", "/api/club-budget?clubId=default");
+  assert.equal(status, 401);
+});
+
+test("direct sign-in with the shared password gives a default-club session", async () => {
+  await call("PUT", "/api/club-budget", session("club-a"), { cateringSales: "100" });
+  const login = await call("POST", "/api/auth/standalone-login", {}, { password: standalonePassword });
+  assert.equal(login.status, 200);
+  assert.equal(login.data.clubId, "default");
+
+  // Pointing the query at club-a still only reaches the default club
+  const headers = { "X-Manager-Log-Session": login.data.sessionToken };
+  await call("PUT", "/api/club-budget?clubId=club-a", headers, { cateringSales: "7" });
+  const a = await call("GET", "/api/club-budget", session("club-a"));
+  const d = await call("GET", "/api/club-budget", session("default"));
+  assert.equal(Number(a.data.cateringSales), 100);
+  assert.equal(Number(d.data.cateringSales), 7);
+});
+
+test("direct sign-in rejects a wrong password and locks out after 10 failures", async () => {
+  const headers = { "X-Forwarded-For": "203.0.113.9" };
+  for (let i = 0; i < 10; i++) {
+    const { status } = await call("POST", "/api/auth/standalone-login", headers, { password: "wrong" });
+    assert.equal(status, 401);
+  }
+  const locked = await call("POST", "/api/auth/standalone-login", headers, { password: standalonePassword });
+  assert.equal(locked.status, 429);
+});
+
+test("direct sign-in is off when STANDALONE_PASSWORD is not set", async () => {
+  delete process.env.STANDALONE_PASSWORD;
+  try {
+    const { status } = await call("POST", "/api/auth/standalone-login", {}, { password: "" });
+    assert.equal(status, 503);
+  } finally {
+    process.env.STANDALONE_PASSWORD = standalonePassword;
+  }
 });
 
 test("verify-embed returns a session token for a valid embed signature", async () => {

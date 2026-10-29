@@ -120,17 +120,29 @@ function pinClubId(req: Request, clubId: string) {
   }
 }
 
-/** Unsigned requests in standalone mode are confined to this club */
-const STANDALONE_CLUB_ID = "default";
+/** Direct (non-embedded) sign-ins always get this club */
+export const STANDALONE_CLUB_ID = "default";
+
+/**
+ * Checks the shared password for direct (non-embedded) use against the
+ * STANDALONE_PASSWORD secret. Both sides are hashed first so the comparison
+ * is constant-time regardless of length.
+ */
+export function checkStandalonePassword(password: string, expected: string | undefined): boolean {
+  if (!expected) return false;
+  const a = crypto.createHash("sha256").update(password, "utf8").digest();
+  const b = crypto.createHash("sha256").update(expected, "utf8").digest();
+  return crypto.timingSafeEqual(a, b);
+}
 
 /**
  * Express middleware to authenticate API requests
  *
  * Accepted credentials, in order:
  * 1. HMAC signature headers (server-to-server calls from SCP)
- * 2. A session token issued by POST /api/auth/verify-embed (browser, embed mode)
- * 3. No credentials — only in development, or when ALLOW_STANDALONE_ACCESS=true,
- *    in which case the request is confined to the "default" club.
+ * 2. A session token issued by POST /api/auth/verify-embed (embed mode) or
+ *    POST /api/auth/standalone-login (direct use, "default" club only)
+ * 3. No credentials — only in development
  * Anything else gets 401. Once authenticated, the request's clubId is forced
  * to the authenticated club.
  */
@@ -154,10 +166,6 @@ export function requireSignedRequest(req: Request, res: Response, next: NextFunc
   if (!hasSignatureHeaders) {
     if (IS_DEVELOPMENT) {
       // Local development: keep the old open behaviour so any club can be tested
-      return next();
-    }
-    if (process.env.ALLOW_STANDALONE_ACCESS === "true") {
-      pinClubId(req, STANDALONE_CLUB_ID);
       return next();
     }
     return res.status(401).json({ error: "Authentication required" });

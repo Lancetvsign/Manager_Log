@@ -4,11 +4,13 @@ import { setupVite, serveStatic, log } from "./vite";
 import { requireSignedRequest } from "./auth";
 
 const app = express();
+// Behind Replit's proxy: trust one hop so req.ip is the visitor (used by the sign-in limiter)
+app.set("trust proxy", 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 app.use("/api", (req, res, next) => {
-  if (req.path === "/auth/verify-embed") {
+  if (req.path === "/auth/verify-embed" || req.path === "/auth/standalone-login") {
     return next();
   }
   // Drawing App endpoint: requests from the Manager Log proxy carry a Bearer token
